@@ -6,14 +6,14 @@
     ],
     "title": "SkinsRestorer Wiki",
     "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki",
-    "description": "Learn how to use LuckPerms and all of its features by reading the wiki.",
+    "description": "Learn how to use SkinsRestorer and all of its features by reading the wiki.",
     "wiki": true
   },
   {
     "name": "install",
     "title": "Installing SkinsRestorer",
     "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/Installing-SkinsRestorer",
-    "description": "You can install SkinsRestorer on Bukkit/Spigot/Paper, BungeeCord, Sponge and Velocity servers. Check the installation guide for more info on setting up LuckPerms.",
+    "description": "You can install SkinsRestorer on Bukkit/Spigot/Paper, BungeeCord, Sponge and Velocity servers. Check the installation guide for more info on setting up SkinsRestorer.",
     "wiki": true
   },
   {
@@ -204,7 +204,7 @@
       },
       {
         "key": "Other errors:",
-        "value": "Pastebin the entire LuckPerms config file (passwords removed) as well as any other relevant files!"
+        "value": "Pastebin the entire SkinsRestorer config file (passwords removed) as well as any other relevant files!"
       }
     ]
   },
