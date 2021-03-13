@@ -34,10 +34,10 @@ module.exports = {
     },
     {
       checks: [
-        /.+SyntaxErrorException: User '.+' has exceeded the 'max_user_connections' resource \(current value:.+/,
+        /.+SyntaxErrorException: User '.+' has exceeded the 'max_user_connections' resource \(current value:.+/
       ],
       title: 'MySQL exceeded max connections',
       link: 'https://luckperms.net/wiki/Storage-system-errors#mysql-exceeded-max-connections'
-    },
+    }
   ]
 }
