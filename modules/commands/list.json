@@ -4,16 +4,16 @@
     "aliases": [
       "docs"
     ],
-    "title": "LuckPerms Wiki",
-    "url": "https://luckperms.net/wiki",
+    "title": "SkinsRestorer Wiki",
+    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki",
     "description": "Learn how to use LuckPerms and all of its features by reading the wiki.",
     "wiki": true
   },
   {
     "name": "install",
-    "title": "Installing LuckPerms",
-    "url": "https://luckperms.net/wiki/Installation",
-    "description": "You can install LuckPerms on Bukkit/Spigot/Paper, BungeeCord, Sponge, Fabric, Nukkit and Velocity servers. Check the installation guide for more info on setting up LuckPerms.",
+    "title": "Installing SkinsRestorer",
+    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/Installing-SkinsRestorer",
+    "description": "You can install SkinsRestorer on Bukkit/Spigot/Paper, BungeeCord, Sponge and Velocity servers. Check the installation guide for more info on setting up LuckPerms.",
     "wiki": true
   },
   {
@@ -23,249 +23,41 @@
       "network"
     ],
     "title": "Network Installation",
-    "url": "https://luckperms.net/wiki/Network-Installation",
-    "description": "If you run a BungeeCord network, learn how to correctly setup LuckPerms on all server instances (including Bungee).",
+    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/Installing-SkinsRestorer#installing-Bungee",
+    "description": "If you run a BungeeCord network, learn how to correctly setup SkinsRestorer on all server instances (including Bungee).",
     "fields": [
       {
         "key": "Also read:",
-        "value": "Syncing data between servers\n\nhttps://luckperms.net/wiki/Syncing-data-between-servers"
+        "value": "Securing bungee networks\n\nhttps://github.com/SkinsRestorer/SkinsRestorerX/wiki/Installing-SkinsRestorer#securing-bungee-networks"
       }
     ],
-    "wiki": true
-  },
-  {
-    "name": "sync",
-    "title": "Syncing data between servers",
-    "url": "https://luckperms.net/wiki/Syncing-data-between-servers",
-    "description": "To sync data between servers, you need to connect each LuckPerms plugin to the same database (for example MySQL) and set up a messaging service.",
-    "wiki": true
-  },
-  {
-    "name": "usage",
-    "aliases": [
-      "guide", "starting"
-    ],
-    "title": "Usage",
-    "url": "https://luckperms.net/wiki/Usage",
-    "description": "Here's a guide to help users understand and use LuckPerms for the first time.",
     "wiki": true
   },
   {
     "name": "errors",
     "aliases": [
-      "error", "storageerror"
+      "error", "troubleshooting"
     ],
-    "title": "Storage system errors",
-    "url": "https://luckperms.net/wiki/Storage-system-errors",
-    "description": "Here's a page with some common storage system errors.",
-    "wiki": true
-  },
-  {
-    "name": "editor",
-    "aliases": [
-      "webeditor"
-    ],
-    "title": "Web Editor",
-    "url": "https://luckperms.net/wiki/Web-Editor",
-    "description": "LuckPerms offers an easy to use, powerful Web Editor, with which you can add, delete and change permissions of groups and players.",
-    "wiki": true
-  },
-  {
-    "name": "verbose",
-    "title": "Verbose",
-    "url": "https://luckperms.net/wiki/Verbose",
-    "description": "LuckPerms provides a `verbose` command to help you find out what permissions a command/plugin is checking.",
-    "wiki": true
-  },
-  {
-    "name": "meta",
-    "aliases": [
-      "prefix",
-      "prefixes",
-      "suffix",
-      "suffixes"
-    ],
-    "title": "Prefixes, Suffixes & Meta",
-    "url": "https://luckperms.net/wiki/Prefixes,-Suffixes-&-Meta",
-    "description": "You can set prefixes, suffixes and other meta data in LuckPerms for players and groups. Note that LuckPerms does **not** manage chat. You need to use another plugin to show prefixes/suffixes in chat.",
-    "wiki": true
-  },
-  {
-    "name": "context",
-    "aliases": [
-      "contexts"
-    ],
-    "title": "Context",
-    "url": "https://luckperms.net/wiki/Context",
-    "description": "You can set a permission or group on a per-world/per-server basis, through what we call \"contexts\".",
-    "wiki": true
-  },
-  {
-    "name": "default",
-    "title": "Default Groups",
-    "url": "https://luckperms.net/wiki/Default-Groups",
-    "description": "LuckPerms provides a group that every player is added to upon joining the server, called `default`. You can use multiple methods to change the default group or change the name of it.",
-    "wiki": true
-  },
-  {
-    "name": "storage",
-    "aliases": [
-      "storagetypes", "filetypes"
-    ],
-    "title": "Storage types",
-    "url": "https://luckperms.net/wiki/Storage-types",
-    "description": "LuckPerms allows you to store data in a variety of storage types, read about the benefits and drawbacks of each type on the wiki.",
-    "wiki": true
-  },
-  {
-    "name": "weight",
-    "aliases": [
-      "weights", "priority"
-    ],
-    "title": "Weight",
-    "url": "https://luckperms.net/wiki/Weight",
-    "description": "LuckPerms allows you to set weights in order to determine the priority of certain nodes, like permissions and even prefixes. A higher weight number is a higher priority.",
+    "title": "Troubleshooting",
+    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/Troubleshooting",
+    "description": "Here's a page with some common errors.",
     "wiki": true
   },
   {
     "name": "commands",
     "aliases": [
-      "command"
+      "command", "permissions", "permission"
     ],
-    "title": "Command Usage",
-    "url": "https://luckperms.net/wiki/Command-Usage",
-    "description": "Find all of the available LuckPerms commands on the wiki.",
-    "fields": [
-      {
-        "key": "General commands",
-        "value": "[Link](https://luckperms.net/wiki/General-Commands)",
-        "inline": true
-      },
-      {
-        "key": "User commands",
-        "value": "[Link](https://luckperms.net/wiki/User-Commands)",
-        "inline": true
-      },
-      {
-        "key": "Group commands",
-        "value": "[Link](https://luckperms.net/wiki/Group-Commands)",
-        "inline": true
-      },
-      {
-        "key": "Permission commands",
-        "value": "[Link](https://luckperms.net/wiki/Permission-Commands)",
-        "inline": true
-      },
-      {
-        "key": "Parent commands",
-        "value": "[Link](https://luckperms.net/wiki/Parent-Commands)",
-        "inline": true
-      },
-      {
-        "key": "Meta commands",
-        "value": "[Link](https://luckperms.net/wiki/Meta-Commands)",
-        "inline": true
-      },
-      {
-        "key": "Track commands",
-        "value": "[Link](https://luckperms.net/wiki/Track-Commands)",
-        "inline": true
-      },
-      {
-        "key": "Log commands",
-        "value": "[Link](https://luckperms.net/wiki/Log-Commands)",
-        "inline": true
-      },
-      {
-        "key": "\u200E",
-        "value": "\u200E",
-        "inline": true
-      }
-    ],
-    "wiki": true
-  },
-  {
-    "name": "faq",
-    "title": "FAQ",
-    "url": "https://luckperms.net/wiki/FAQ",
-    "description": "Check out some of our frequently asked questions.",
-    "wiki": true
-  },
-  {
-    "name": "migration",
-    "title": "Migration",
-    "url": "https://luckperms.net/wiki/Migration",
-    "description": "Learn about the process of migrating from another permission plugin.",
-    "wiki": true
-  },
-  {
-    "name": "bulkupdate",
-    "aliases": [
-      "bulk",
-      "bulkupdating",
-      "bulkedit",
-      "bulkediting"
-    ],
-    "title": "Bulk Editing",
-    "url": "https://luckperms.net/wiki/Bulk-Editing",
-    "description": "Quickly update a large amount of user and group permissions by using the `bulkupdate` command.",
-    "wiki": true
-  },
-  {
-    "name": "switchstorage",
-    "aliases": [
-      "switch", "switchingstorage"
-    ],
-    "title": "Switching storage types",
-    "url": "https://luckperms.net/wiki/Switching-storage-types",
-    "description": "If you wish to change your storage type (e.g. to YAML or MySQL) you may need to follow these instructions to ensure your groups and permissions are migrated to the new storage type.",
-    "fields": [
-      {
-        "key": "Read more about the Storage types",
-        "value": "https://luckperms.net/wiki/Storage-types"
-      }
-    ],
-    "wiki": true
-  },
-  {
-    "name": "stacking",
-    "title": "Prefix & Suffix Stacking",
-    "url": "https://luckperms.net/wiki/Prefix-&-Suffix-Stacking",
-    "description": "Display multiple prefixes/suffixes alongside a player's name.",
-    "wiki": true
-  },
-  {
-    "name": "inheritance",
-    "aliases": [
-      "inherit", "inheriting", "inherits"
-    ],
-    "title": "Inheritance",
-    "url": "https://luckperms.net/wiki/Usage#inheritance",
-    "description": "Learn about inheritance.",
-    "wiki": true
-  },
-  {
-    "name": "tracks",
-    "title": "Tracks",
-    "url": "https://luckperms.net/wiki/Tracks",
-    "description": "Tracks provide a method for you to promote/demote players along a track (or ladder) of groups.",
+    "title": "Command/Permissions Usage",
+    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/cmds-&-perms",
+    "description": "Find all of the available SkinsRestorer commands and permissions on the wiki.",
     "wiki": true
   },
   {
     "name": "advanced",
     "title": "Advanced Setup",
-    "url": "https://luckperms.net/wiki/Advanced-Setup",
-    "description": "Discover some of the more advanced concepts of LuckPerms, such as permission calculation, shorthand permissions and more.",
-    "wiki": true
-  },
-  {
-    "name": "argumentbased",
-    "aliases": [
-      "argbased"
-    ],
-    "title": "Argument based command permissions",
-    "url": "https://luckperms.net/wiki/Argument-based-command-permissions",
-    "description": "Fine tune exactly what users with permission to use LuckPerms can do.",
+    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/Installing-SkinsRestorer#advanced-installation",
+    "description": "Discover some of the more advanced concepts of SkinsRestorer, such as permission calculation, shorthand permissions and more.",
     "wiki": true
   },
   {
@@ -274,49 +66,35 @@
       "javadoc", "javadocs"
     ],
     "title": "Developer API",
-    "url": "https://luckperms.net/wiki/Developer-API",
-    "description": "Learn how to use the LuckPerms API in your project.",
+    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/SkinsRestorerAPI",
+    "description": "Learn how to use the SkinsRestorer API in your project.",
     "fields": [
       {
         "key": "Example usages",
-        "value": "https://luckperms.net/wiki/Developer-API-Usage"
+        "value": "https://github.com/SkinsRestorer/SkinsRestorerAPIExample"
       },
       {
-        "key": "Read the Javadoc",
-        "value": "https://javadoc.io/doc/net.luckperms/api/latest/index.html"
+        "key": "Plugin messaging channel",
+        "value": "https://github.com/SkinsRestorer/SRPluginMessagingChannelExample"
       }
     ],
     "wiki": true
   },
   {
-    "name": "placeholders",
-    "title": "Placeholders",
-    "url": "https://luckperms.net/wiki/Placeholders",
-    "description": "Display data such as user prefixes and groups from LuckPerms in other plugins.",
-    "wiki": true
-  },
-  {
-    "name": "permissions",
-    "title": "Permissions",
-    "url": "https://luckperms.net/wiki/Permissions",
-    "description": "A list of permissions used by LuckPerms commands.",
-    "wiki": true
-  },
-  {
     "name": "config",
-    "title": "LuckPerms Configuration",
-    "url": "https://luckperms.net/wiki/Configuration",
+    "title": "SkinsRestorer Configuration",
+    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/Configuration",
     "description": "Learn what each of the config options are for.",
     "wiki": true
   },
   {
-    "name": "extracontexts",
+    "name": "skinfile",
     "aliases": [
-      "extracontext"
+      "skinfiles"
     ],
-    "title": "Extra Contexts",
-    "url": "https://github.com/LuckPerms/ExtraContexts",
-    "description": "Add contexts not supported by stock LuckPerms.",
+    "title": ".skin files",
+    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/About-.skin-&-.player",
+    "description": "Here is how they work.",
     "wiki": true
   },
   {
@@ -329,7 +107,7 @@
     "description": "You can download SkinsRestorer for Bukkit/Spigot/Paper, BungeeCord, Sponge and Velocity.",
     "fields": [
       {
-        "key": "Additional downloads",
+        "key": "Dev downloads",
         "value": "https://ci.codemc.io/job/SkinsRestorer/job/SkinsRestorerX/"
       }
     ]
@@ -345,7 +123,10 @@
   },
   {
     "name": "cauldron",
-    "title": "Cauldron, Thermos, Forge + Bukkit Hacks",
+    "aliases": [
+      "thermos", "forge", "fabric", "spongeforge"
+    ],
+    "title": "Cauldron, Thermos, Forge + Bukkit Hacks, SpongeForge",
     "description": "We don't support those! They are hacky and do not work with our plugin most of the time! Try Skinport or Offlineskin",
     "wiki": true
   },
@@ -394,18 +175,18 @@
   {
     "name": "userinfo",
     "aliases": [
-      "sendinfo"
+      "sendinfo", "ss"
     ],
     "title": "Please take a screenshot!",
     "description": "Seeing a screenshot makes everything so much easier!",
     "fields": [
       {
-        "key": "For prefixes not showing up in chat:",
-        "value": "`/lp user <user> info`."
+        "key": "For SkinsRestorer info:",
+        "value": "`/sr status`"
       },
       {
-        "key": "For database errors:",
-        "value": "Server console: `/lp info` | Proxy console: `/lpb info`."
+        "key": "For server info:",
+        "value": "`/version`"
       }
     ]
   },
