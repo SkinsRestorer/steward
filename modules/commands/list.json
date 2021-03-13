@@ -303,13 +303,6 @@
     "wiki": true
   },
   {
-    "name": "locale",
-    "title": "Locale & Translations",
-    "url": "https://luckperms.net/wiki/Locale-and-Translations",
-    "description": "Learn how to change all the message from LuckPerms.",
-    "wiki": true
-  },
-  {
     "name": "config",
     "title": "LuckPerms Configuration",
     "url": "https://luckperms.net/wiki/Configuration",
@@ -327,58 +320,17 @@
     "wiki": true
   },
   {
-    "name": "upgrade",
-    "title": "Upgrading from v4 to v5",
-    "url": "https://luckperms.net/wiki/Upgrading-from-v4-to-v5",
-    "description": "Read about upgrading LuckPerms from v4 to v5.",
-    "wiki": true
-  },
-  {
-    "name": "commandequivalents",
-    "aliases": [
-      "equivalents"
-    ],
-    "title": "Command Equivalents",
-    "url": "https://luckperms.net/wiki/GM-&-PEX-Command-Equivalents",
-    "description": "Helpful page for people coming from other permission plugins.",
-    "wiki": true
-  },
-  {
-    "name": "extensions",
-    "title": "Extensions",
-    "url": "https://luckperms.net/wiki/Extensions",
-    "description": "A list of all the Luckperms extensions.",
-    "wiki": true
-  },
-  {
-    "name": "selfhosting",
-    "title": "Self Hosting",
-    "url": "https://luckperms.net/wiki/Self-hosting-the-web-interfaces",
-    "description": "Learn how to self-host all the web interfaces.",
-    "wiki": true
-  },
-  {
-    "name": "whyluckperms",
-    "aliases": [
-      "whylp"
-    ],
-    "title": "Why LuckPerms",
-    "url": "https://luckperms.net/wiki/Why-LuckPerms",
-    "description": "Why should you choose LuckPerms? Read here to find out.",
-    "wiki": true
-  },
-  {
     "name": "downloads",
     "aliases": [
       "download", "update"
     ],
     "title": "Downloads",
-    "url": "https://luckperms.net/download",
-    "description": "You can download LuckPerms for Bukkit/Spigot/Paper, BungeeCord, Sponge, Fabric, Nukkit and Velocity.",
+    "url": "https://www.spigotmc.org/resources/skinsrestorer.2124/",
+    "description": "You can download SkinsRestorer for Bukkit/Spigot/Paper, BungeeCord, Sponge and Velocity.",
     "fields": [
       {
         "key": "Additional downloads",
-        "value": "https://ci.lucko.me/view/LuckPerms/"
+        "value": "https://ci.codemc.io/job/SkinsRestorer/job/SkinsRestorerX/"
       }
     ]
   },
@@ -387,38 +339,15 @@
     "aliases": [
       "translate", "translating", "crowdin"
     ],
-    "title": "Translating LuckPerms",
-    "url": "https://crowdin.com/project/luckperms",
-    "description": "Translations for LuckPerms are managed on Crowdin. Any contributions are very welcome!",
-    "fields": [
-      {
-        "key": "Installing the community translations",
-        "value": "https://luckperms.net/wiki/Locale-and-Translations"
-      }
-    ]
+    "title": "Translating SkinsRestorer",
+    "url": "https://crowdin.com/project/Skinsrestorer",
+    "description": "Translations for SkinsRestorer are managed on Crowdin. Any contributions are very welcome!"
   },
   {
     "name": "cauldron",
     "title": "Cauldron, Thermos, Forge + Bukkit Hacks",
-    "url": "https://luckperms.net/wiki/Installation#cauldron-thermos-etc",
-    "description": "Installing LuckPerms on a Cauldron, Thermos and any other Forge + Bukkit server software may require additional steps.",
+    "description": "We don't support those! They are hacky and do not work with our plugin most of the time! Try Skinport or Offlineskin",
     "wiki": true
-  },
-  {
-    "name": "essentials",
-    "aliases": [
-      "moss", "essx"
-    ],
-    "title": "Essentials",
-    "description": "Make sure you are using EssentialsX and Vault for prefixes. For any other issues with Essentials, you should seek support in either <#308232296753004556> or the official EssentialsX support Discord.",
-    "fields": [
-      {
-        "key": "EssentialsX Discord",
-        "value": "https://discord.gg/casfFyh"
-      }
-    ],
-    "message": "https://discord.gg/casfFyh",
-    "sendMessageAfterEmbed": true
   },
   {
     "name": "colours",
@@ -431,20 +360,6 @@
       {
         "key": "Colours",
         "value": "https://wiki.ess3.net/mc/"
-      }
-    ]
-  },
-  {
-    "name": "helpchat",
-    "aliases": [
-      "papi", "deluxechat"
-    ],
-    "title": "Helpchat",
-    "description": "Helpchat is a general plugin assistance discord as well as the home of DeluxeChat, PlaceholderAPI, and many more.",
-    "fields": [
-      {
-        "key": "Helpchat Discord",
-        "value": "https://discord.gg/FtArYRQ"
       }
     ]
   },
@@ -468,11 +383,11 @@
       "suggestion", "suggest", "bugreport", "issues", "issue"
     ],
     "title": "Suggestions and Bug Reports",
-    "description": "If you would like to request a feature for LuckPerms, or report a bug, feel free to open an issue on GitHub!",
+    "description": "If you would like to request a feature for SkinsRestorer, or report a bug, feel free to open an issue on GitHub!",
     "fields": [
       {
         "key": "Issue Tracker:",
-        "value": "https://github.com/lucko/LuckPerms/issues/"
+        "value": "https://github.com/SkinsRestorer/SkinsRestorerX/issues"
       }
     ]
   },
@@ -522,47 +437,11 @@
     "fields": [
       {
         "key": "Or, try here first:",
-        "value": "https://luckperms.net/wiki"
+        "value": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki"
       },
       {
         "key": "Why shouldn't I ask to ask?",
         "value": "https://sol.gfxile.net/dontask.html"
-      }
-    ]
-  },
-  {
-    "name": "editorsafety",
-    "aliases": [
-      "edsaf", "edpriv"
-    ],
-    "title": "It is safe to send an editor link in public.",
-    "description": "Any changes made in the editor have to be applied using the `/lp applyedits` command - impossible unless the person with the link is also connected to the server and with the required in-game permissions to use LuckPerms commands. It's effectively just as safe to share an editor link as it would be to share a screenshot of your permissions or a pastebin of a configuration file. The editor doesn't contain any sensitive data (except perhaps player names).",
-    "fields": [
-      {
-        "key": "More Information:",
-        "value": "https://luckperms.net/wiki/Web-Editor"
-      },
-      {
-        "key": "Concerns about the proprietary nature of your permissions setup?",
-        "value": "Please, don't be. We're here to help, not steal your permissions setup. Additionally, permissions can be tested by players simply joining your server and seeing what they can do."
-      }
-    ]
-  },
-  {
-    "name": "formatting",
-    "aliases": [
-      "chat", "tab", "tablist"
-    ],
-    "title": "LuckPerms does not perform any chat/tablist formatting of its own!",
-    "description": "LuckPerms only acts as the source for prefixes / suffixes, it doesn't actually apply them. You need an appropriately configured chat/tablist formatting plugin for them to be displayed. If the values appear correctly when you run `/lp user <user> info`, LuckPerms is doing its job!",
-    "fields": [
-      {
-        "key": "FAQ answer: Prefix isn't showing?",
-        "value": "https://luckperms.net/wiki/FAQ#why-are-prefixessuffixes-not-working"
-      },
-      {
-        "key": "List of chat/tablist formatting plugins that work with LuckPerms",
-        "value": "https://luckperms.net/wiki/Prefixes,-Suffixes-&-Meta#displaying-prefixes-and-suffixes"
       }
     ]
   },
@@ -579,23 +458,6 @@
         "value": "https://nucleuspowered.org/docs/nowildcard.html"
       }
     ]
-  },
-  {
-    "name": "libsdir",
-    "aliases": [
-      "libs", "dependencies"
-    ],
-    "title": "LuckPerms dependencies",
-    "description": "LuckPerms requires several libraries in order to operate. If you're getting a startup error such as `NoClassDefFoundError`, `ClassNotFoundException` or \"Unable to load dependency...\", stop your server, delete the `/plugins/LuckPerms/libs/` directory and start it up again."
-  },
-  {
-    "name": "cookbook",
-    "aliases": [
-      "apicookbook", "apiexamples"
-    ],
-    "title": "API Cookbook",
-    "url": "https://github.com/LuckPerms/api-cookbook",
-    "description": "The cookbook is a working example plugin which shows how to get/change data for users and groups, listen to LuckPerms events, and more."
   },
   {
     "name": "bungeecheck",
