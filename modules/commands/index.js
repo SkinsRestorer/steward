@@ -11,7 +11,7 @@ const commands = require('./list.json').sort((a, b) => {
 // For !help command
 const splitCommands = (start, end) => {
   return commands.slice(start, end).reduce((prev, command, index) => {
-    return prev ? prev + `\n\`!${command.name}\`` : `\`!${command.name}\``
+    return prev ? prev + `\n\`+${command.name}\`` : `\`+${command.name}\``
   }, '')
 }
 
@@ -29,6 +29,7 @@ const fetchData = async () => {
   }
 }
 
+fetchData()
 setInterval(() => {
   fetchData()
 }, 60000)
@@ -55,6 +56,7 @@ module.exports = function (client) {
         .setTitle('Available commands:')
         .addField('\u200E', leftList, true)
         .addField('\u200E', rightList, true)
+        .addField('\u200E', '`+latest`', true)
 
       await message.channel.send({ embed })
       return
@@ -78,7 +80,7 @@ module.exports = function (client) {
     // Check for an alias
     if (!item) {
       item = commands.find(command => {
-        if (!command.aliases) return
+        if (!command.aliases) return false
 
         return command.aliases.includes(trigger)
       })
@@ -86,7 +88,7 @@ module.exports = function (client) {
 
     // If no command found, throw an error
     if (!item) {
-      await message.channel.send(`Sorry! I do not understand the command \`!${trigger}\`\nType \`+help\` for a list of commands.`)
+      await message.channel.send(`Sorry! I do not understand the command \`+${trigger}\`\nType \`+help\` for a list of commands.`)
       return
     }
 

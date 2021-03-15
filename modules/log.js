@@ -7,8 +7,10 @@ const getLogFileTime = (date) => dateFormat(date, 'hh-MM-ss TT')
 module.exports = (client) => {
   client.on('message', (message) => {
     const log = `${getLogFileTime()} [${message.channel.name}] ${message.author.tag}: ${message.content}\n`
+    const path = getLogFileName()
+
     fs.appendFile(
-      getLogFileName(),
+      path,
       log,
       function (err) {
         if (err) {

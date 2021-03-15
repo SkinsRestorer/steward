@@ -7,7 +7,7 @@ module.exports = (client) => {
     // Ignore DMs
     if (msg.channel.type !== 'text') return
 
-    // If the stripped message contains luckyperms
+    // If the stripped message contains skinrestorer
     if (msg.content.toLowerCase().replace(/\W/gm, '').indexOf('skinrestorer') !== -1) {
       await msg.channel.send(new discord.MessageEmbed()
         .setTitle('It looks like you\'re trying to spell SkinsRestorer!')
