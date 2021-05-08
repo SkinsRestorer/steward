@@ -1,5 +1,6 @@
 const mimeType = require('mime-types')
 const axios = require('axios')
+const { tickets_category } = require('../data.json')
 
 const contentTypes = ['application/json', 'text/plain', 'text/yaml']
 const bytebin = 'https://bytebin.lucko.me'
@@ -8,6 +9,9 @@ module.exports = client => {
   client.on('message', async message => {
     if (message.channel.type !== 'text' || message.author.bot) return
     if (!message.attachments) return
+    // If the message is sent in a ticket channel, do not send the notification
+    if (message.channel.parentID === tickets_category) return
+
     for (const attachment of message.attachments.values()) {
       const contentType = mimeType.lookup(attachment.url)
       if (!contentTypes.some(type => contentType === type)) continue
