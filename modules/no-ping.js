@@ -12,6 +12,11 @@ module.exports = (client) => {
       return
     }
 
+    const senderIsBot = msg.author.bot
+    if (senderIsBot) {
+      return
+    }
+
     const mentionsStaff = msg.mentions.members.some(member => {
       // If the message mentions any members that satisfy the following:
       return member.roles.cache.some(role => data.staff_roles.indexOf(role.name) !== -1)

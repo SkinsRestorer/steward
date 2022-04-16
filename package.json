@@ -10,11 +10,13 @@
   "author": "SrTeam",
   "license": " GPL-3.0-or-later",
   "dependencies": {
-    "axios": "^0.21.1",
-    "dateformat": "^3.0.3",
-    "discord.js": "^12.4.1",
+    "axios": "^0.26.1",
+    "dateformat": "^5.0.3",
+    "discord.js": "^13.6.0",
     "mime-types": "^2.1.27",
     "mz": "^2.7.0",
-    "standard": "^16.0.3"
+    "standard": "^16.0.3",
+    "ts-node": "^10.7.0",
+    "typescript": "^4.6.3"
   }
 }
