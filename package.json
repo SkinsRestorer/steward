@@ -2,10 +2,13 @@
   "name": "steward",
   "version": "1.0.0",
   "description": "",
-  "main": "main.js",
+  "main": "main.ts",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node main.js"
+    "start": "node --experimental-json-modules --loader ts-node/esm main.ts",
+    "compile": "tsc -p ./tsconfig.json",
+    "lint": "ts-standard",
+    "fix": "ts-standard --fix"
   },
   "author": "SrTeam",
   "license": " GPL-3.0-or-later",
@@ -15,8 +18,14 @@
     "discord.js": "^13.6.0",
     "mime-types": "^2.1.27",
     "mz": "^2.7.0",
-    "standard": "^16.0.3",
     "ts-node": "^10.7.0",
     "typescript": "^4.6.3"
+  },
+  "devDependencies": {
+    "ts-standard": "^11.0.0",
+    "eslint": "^7.32.0",
+    "@types/dateformat": "^5.0.0",
+    "@types/mime-types": "^2.1.1",
+    "@types/mz": "^2.7.4"
   }
 }

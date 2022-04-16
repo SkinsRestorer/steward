@@ -108,7 +108,7 @@
     "fields": [
       {
         "key": "Dev downloads",
-        "value": "https://ci.codemc.io/job/SkinsRestorer/job/SkinsRestorerX/"
+        "value": "https://ci.codemc.io/job/SkinsRestorer/job/SkinsRestorerX-DEV/"
       }
     ]
   },

@@ -1,12 +1,14 @@
-const mimeType = require('mime-types')
-const axios = require('axios')
+import axios from 'axios'
+
+import mimeType from 'mime-types'
+import { Client } from 'discord.js'
 
 const contentTypes = ['application/json', 'text/plain', 'text/yaml']
 const bytebin = 'https://bytebin.lucko.me'
 
-module.exports = client => {
+export default (client: Client) => {
   client.on('message', async message => {
-    if (message.channel.type !== 'text' || message.author.bot) return
+    if (message.channel.type !== 'GUILD_TEXT' || message.author.bot) return
     if (!message.attachments) return
     for (const attachment of message.attachments.values()) {
       const contentType = mimeType.lookup(attachment.url)

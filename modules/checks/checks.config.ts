@@ -1,4 +1,20 @@
-module.exports = {
+export interface Checks {
+  regex: RegExp
+  getLink: string
+}
+
+export interface Tests {
+  checks: RegExp[]
+  title: string
+  link: string
+}
+
+export interface ChecksConfig {
+  checks: Checks[]
+  tests: Tests[]
+}
+
+const checksConfig: ChecksConfig = {
   checks: [
     { regex: /https?:\/\/hastebin\.com\/(\w+)(?:\.\w+)?/g, getLink: 'https://hastebin.com/raw/{code}' },
     { regex: /https?:\/\/hasteb\.in\/(\w+)(?:\.\w+)?/g, getLink: 'https://hasteb.in/raw/{code}' },
@@ -41,3 +57,5 @@ module.exports = {
     }
   ]
 }
+
+export default checksConfig

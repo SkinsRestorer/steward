@@ -94,3 +94,6 @@ modules.xml
 
 ### Custom ###
 config.json
+
+*.js
+*.js.flow

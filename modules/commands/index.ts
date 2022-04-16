@@ -1,15 +1,17 @@
-const discord = require('discord.js')
-const axios = require('axios')
+import discord, { Client } from 'discord.js'
+import axios from 'axios'
 
 // Import commands and sort by alphabetical order (for !help command)
-const commands = require('./list.json').sort((a, b) => {
+import list from './list.json' assert { type: "json" }
+
+const commands = list.sort((a, b) => {
   if (a.name < b.name) return -1
   if (a.name > b.name) return 1
   return 0
 })
 
 // For !help command
-const splitCommands = (start, end) => {
+const splitCommands = (start: number, end?: number) => {
   return commands.slice(start, end).reduce((prev, command, index) => {
     return prev ? prev + `\n\`+${command.name}\`` : `\`+${command.name}\``
   }, '')
@@ -18,7 +20,7 @@ const splitCommands = (start, end) => {
 const leftList = splitCommands(0, Math.ceil(commands.length / 2))
 const rightList = splitCommands(Math.ceil(commands.length / 2))
 
-let metaData = {}
+let metaData: {name?: string} = {}
 
 const fetchData = async () => {
   try {
@@ -30,14 +32,14 @@ const fetchData = async () => {
 }
 
 fetchData()
-setInterval(() => {
-  fetchData()
+setInterval(async () => {
+  await fetchData()
 }, 60000)
 
-module.exports = function (client) {
+export default (client: Client) => {
   client.on('message', async message => {
     // Ignore DMs and messages that don't start with the prefix
-    if (message.channel.type !== 'text') return
+    if (message.channel.type !== 'GUILD_TEXT') return
     if (!message.content.startsWith('+') || message.author.bot) return
 
     // Grab the command
@@ -58,7 +60,7 @@ module.exports = function (client) {
         .addField('\u200E', rightList, true)
         .addField('\u200E', '`+latest`', true)
 
-      await message.channel.send({ embed })
+      await message.channel.send({ embeds: [embed] })
       return
     }
 
@@ -66,9 +68,9 @@ module.exports = function (client) {
       embed
         .setColor('#94df03')
         .setTitle('Latest version')
-        .setDescription(metaData.name)
+        .setDescription(metaData.name ? metaData.name : 'Unknown')
 
-      await message.channel.send({ embed })
+      await message.channel.send({ embeds: [embed] })
       return
     }
 
@@ -78,16 +80,16 @@ module.exports = function (client) {
     })
 
     // Check for an alias
-    if (!item) {
+    if (item == null) {
       item = commands.find(command => {
-        if (!command.aliases) return false
+        if (command.aliases == null) return false
 
         return command.aliases.includes(trigger)
       })
     }
 
     // If no command found, throw an error
-    if (!item) {
+    if (item == null) {
       await message.channel.send(`Sorry! I do not understand the command \`+${trigger}\`\nType \`+help\` for a list of commands.`)
       return
     }
@@ -104,8 +106,11 @@ module.exports = function (client) {
     if (item.wiki) {
       embed
         .setTitle(`🔖 ${item.title}`)
-        .addField('Read more', item.url)
-        .setFooter('SkinsRestorer wiki', 'https://www.spigotmc.org/data/resource_icons/2/2124.jpg')
+        .setFooter({ text: 'SkinsRestorer wiki', iconURL: 'https://www.spigotmc.org/data/resource_icons/2/2124.jpg' })
+
+      if (item.url) {
+        embed.addField('Read more', item.url)
+      }
     } else {
       embed.setTitle(`${item.title}`)
 
@@ -114,12 +119,12 @@ module.exports = function (client) {
       }
     }
 
-    if (item.fields) {
+    if (item.fields != null) {
       item.fields.forEach(field => {
-        embed.addField(field.key, field.value, field.inline)
+        embed.addField(field.key, field.value, false)
       })
     }
 
-    await message.channel.send({ embed })
+    await message.channel.send({ embeds: [embed] })
   })
 }
