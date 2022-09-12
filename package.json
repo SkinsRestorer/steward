@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "ts-standard": "11.0.0",
-    "eslint": "8.20.0",
+    "eslint": "8.23.1",
     "@types/dateformat": "5.0.0",
     "@types/mime-types": "2.1.1",
     "@types/mz": "2.7.4"
