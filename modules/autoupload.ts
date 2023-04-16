@@ -4,9 +4,11 @@ import { Client } from 'discord.js'
 const contentTypes = ['application/json', 'text/plain', 'text/yaml']
 const bytebin = 'https://bytebin.lucko.me'
 
+// noinspection JSUnusedGlobalSymbols
 export default (client: Client) => {
-  client.on('message', async message => {
-    if (message.channel.type !== 'GUILD_TEXT' || message.author.bot) return
+  client.on('messageCreate', async message => {
+    if (!message.channel.type.includes('GUILD') || message.author.bot) return
+
     if (!message.attachments) return
     for (const attachment of message.attachments.values()) {
       const contentType = mimeType.lookup(attachment.url)

@@ -1,10 +1,13 @@
-import { Client, MessageEmbed } from 'discord.js'
+import { Client, ColorResolvable, MessageEmbed } from 'discord.js'
 
 import config, { Checks } from './checks.config'
+import data from 'data.json'
 
+// noinspection JSUnusedGlobalSymbols
 export default (client: Client) => {
-  client.on('message', async message => {
-    if (message.channel.type !== 'GUILD_TEXT') return
+  client.on('messageCreate', async message => {
+    if (!message.channel.type.includes('GUILD') || message.author.bot) return
+
     let getLink = ''
     let originalLink = ''
     config.checks.every((element: Checks) => {
@@ -49,10 +52,14 @@ export default (client: Client) => {
         const embed = new MessageEmbed()
         embed.setTitle(test.title)
         // if (test.description) embed.setDescription(test.description)
-        if (test.link) embed.addField('Read More', test.link)
-        embed.addField('Caused By', `\`\`\`${cause}\`\`\``)
-        embed.setFooter(`${originalLink} | Sent by ${message.author.username}`)
-        embed.setColor('#96dd35')
+        if (test.link) {
+          embed.addFields([
+            { name: 'Read More', value: test.link },
+            { name: 'Caused By', value: `\`\`\`${cause}\`\`\`` }
+          ])
+        }
+        embed.setFooter({ text: `${originalLink} | Sent by ${message.author.username}` })
+        embed.setColor(data.accent_color as ColorResolvable)
         await message.channel.send({ embeds: [embed] })
       }
     }

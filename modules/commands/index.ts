@@ -1,7 +1,8 @@
-import discord, { Client } from 'discord.js'
+import discord, { Client, ColorResolvable } from 'discord.js'
 
 // Import commands and sort by alphabetical order (for !help command)
 import list from './list.json'
+import data from 'data.json'
 
 const commands = list.sort((a, b) => {
   if (a.name < b.name) return -1
@@ -11,8 +12,8 @@ const commands = list.sort((a, b) => {
 
 // For !help command
 const splitCommands = (start: number, end?: number) => {
-  return commands.slice(start, end).reduce((prev, command, index) => {
-    return prev ? prev + `\n\`+${command.name}\`` : `\`+${command.name}\``
+  return commands.slice(start, end).reduce((prev, command) => {
+    return prev ? prev + `\n\`!${command.name}\`` : `\`!${command.name}\``
   }, '')
 }
 
@@ -34,11 +35,13 @@ setInterval(async () => {
   await fetchData()
 }, 60000)
 
+// noinspection JSUnusedGlobalSymbols
 export default (client: Client) => {
-  client.on('message', async message => {
+  client.on('messageCreate', async message => {
     // Ignore DMs and messages that don't start with the prefix
-    if (message.channel.type !== 'GUILD_TEXT') return
-    if (!message.content.startsWith('+') || message.author.bot) return
+    if (!message.channel.type.includes('GUILD') || message.author.bot) return
+
+    if (!message.content.startsWith('!') || message.author.bot) return
 
     // Grab the command
     const trigger = message.content.toLowerCase().substring(1).split(' ')[0].replace(/[^0-9a-z]/gi, '')
@@ -52,11 +55,13 @@ export default (client: Client) => {
     // !help command
     if (trigger === 'help') {
       embed
-        .setColor('#94df03')
+        .setColor(data.accent_color as ColorResolvable)
         .setTitle('Available commands:')
-        .addField('\u200E', leftList, true)
-        .addField('\u200E', rightList, true)
-        .addField('\u200E', '`+latest`', true)
+        .addFields([
+          { name: '\u200E', value: leftList, inline: true },
+          { name: '\u200E', value: rightList, inline: true },
+          { name: '\u200E', value: '`!latest`', inline: true }
+        ])
 
       await message.channel.send({ embeds: [embed] })
       return
@@ -64,9 +69,9 @@ export default (client: Client) => {
 
     if (trigger === 'latest') {
       embed
-        .setColor('#94df03')
+        .setColor(data.accent_color as ColorResolvable)
         .setTitle('Latest version')
-        .setDescription(metaData.name ? metaData.name : 'Unknown')
+        .setDescription('`' + (metaData.name ?? 'Unknown') + '`')
 
       await message.channel.send({ embeds: [embed] })
       return
@@ -88,13 +93,13 @@ export default (client: Client) => {
 
     // If no command found, throw an error
     if (item == null) {
-      await message.channel.send(`Sorry! I do not understand the command \`+${trigger}\`\nType \`+help\` for a list of commands.`)
+      await message.channel.send(`Sorry! I do not understand the command \`!${trigger}\`\nType \`!help\` for a list of commands.`)
       return
     }
 
     // Begin formatting the command embed
     embed
-      .setColor('#94df03')
+      .setColor(data.accent_color as ColorResolvable)
       .setDescription(item.description)
 
     if (item.url) {
@@ -107,19 +112,19 @@ export default (client: Client) => {
         .setFooter({ text: 'SkinsRestorer wiki', iconURL: 'https://www.spigotmc.org/data/resource_icons/2/2124.jpg' })
 
       if (item.url) {
-        embed.addField('Read more', item.url)
+        embed.addFields([{ name: 'Read more', value: item.url }])
       }
     } else {
       embed.setTitle(`${item.title}`)
 
       if (item.url) {
-        embed.addField('Link', item.url)
+        embed.addFields([{ name: 'Link', value: item.url }])
       }
     }
 
     if (item.fields != null) {
       item.fields.forEach(field => {
-        embed.addField(field.key, field.value, false)
+        embed.addFields([{ name: field.key, value: field.value, inline: false }])
       })
     }
 

@@ -26,36 +26,7 @@ const checksConfig: ChecksConfig = {
     { regex: /https?:\/\/gitlab\.com\/snippets\/(\w+)(?:\.\w+)?/g, getLink: 'https://gitlab.com/snippets/{code}/raw' }
   ],
 
-  tests: [
-    {
-      checks: [
-        /java\.sql\.SQLTransientConnectionException.+Connection is not available, request timed out after \d+ms\./,
-        /com\.mysql\.jdbc\.exceptions\.jdbc4\.CommunicationsException.+Communications link failure/
-      ],
-      title: 'LuckPerms cannot connect to your MySQL server',
-      link: 'https://luckperms.net/wiki/Storage-system-errors#luckperms-cannot-connect-to-my-mysql-server'
-    },
-    {
-      checks: [/Establishing SSL connection without server's identity verification is not recommended\./],
-      title: 'MySQL SSL Error',
-      link: 'https://luckperms.net/wiki/Storage-system-errors#mysql-ssl-errors'
-    },
-    {
-      checks: [
-        /me\.lucko\.luckperms\.lib\.hikari\.pool\.PoolBase.+Failed to validate connection me\.lucko\.luckperms\.lib\.mysql\.jdbc\.JDBC4Connection@.+ \(No operations allowed after connection closed\.\)/,
-        /me\.lucko\.luckperms\.lib\.hikari\.pool\.PoolBase.+Failed to validate connection me\.lucko\.luckperms\.lib\.mariadb\.MariaDbConnection@.+ cannot be called on a closed connection\)/
-      ],
-      title: 'MySQL "No operations allowed after connection closed" error',
-      link: 'https://luckperms.net/wiki/Storage-system-errors#mysql-no-operations-allowed-after-connection-closed-error'
-    },
-    {
-      checks: [
-        /.+SyntaxErrorException: User '.+' has exceeded the 'max_user_connections' resource \(current value:.+/
-      ],
-      title: 'MySQL exceeded max connections',
-      link: 'https://luckperms.net/wiki/Storage-system-errors#mysql-exceeded-max-connections'
-    }
-  ]
+  tests: []
 }
 
 export default checksConfig

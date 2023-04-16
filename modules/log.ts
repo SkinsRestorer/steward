@@ -5,8 +5,13 @@ import fs from 'fs'
 const getLogFileName = (date: number) => 'logs/' + dateFormat(date, 'yyyy-mm-dd') + '.log'
 const getLogFileTime = (date: number) => dateFormat(date, 'hh-MM-ss TT')
 
+// noinspection JSUnusedGlobalSymbols
 export default (client: Client) => {
-  client.on('message', (message) => {
+  if (!fs.existsSync('logs')) fs.mkdirSync('logs')
+
+  client.on('messageCreate', (message) => {
+    if (!message.channel.type.includes('GUILD') || message.author.bot) return
+
     if (message.channel.type !== 'GUILD_TEXT') return
 
     const date = Date.now()

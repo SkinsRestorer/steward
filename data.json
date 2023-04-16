@@ -2,7 +2,9 @@
   "staff_roles": [
     "Contributors",
     "Discord Admin",
-    "Mods"
+    "Mods",
+    "Dev"
   ],
-  "member_role": "821071696848093284"
+  "member_role": "821071696848093284",
+  "accent_color": "#FDEC04"
 }
