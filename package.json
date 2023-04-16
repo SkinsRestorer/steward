@@ -8,7 +8,7 @@
     "start": "tsx main.ts",
     "lint": "ts-standard",
     "fix": "ts-standard --fix",
-    "ci-build": "tsc"
+    "ci-build": "cp config.example.json config.json && tsc"
   },
   "author": "SrTeam",
   "license": " GPL-3.0-or-later",
