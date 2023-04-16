@@ -9,7 +9,7 @@ export default (client: Client): void => {
 
     // If the stripped message contains skinrestorer
     if (message.content.toLowerCase().replace(/\W/gm, '').includes('skinrestorer')) {
-      await message.channel.send({
+      await message.reply({
         embeds: [new EmbedBuilder()
           .setTitle('It looks like you\'re trying to spell SkinsRestorer!')
           .setDescription('A useful tip to remember how to spell it is: **SKINS** is not **SKIN**')

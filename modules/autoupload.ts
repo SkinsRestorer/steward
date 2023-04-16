@@ -38,10 +38,10 @@ export default (client: Client) => {
             'Content-Type': attachment.contentType
           }
         })).json())
-        await message.channel.send(`Please use <${website}> to send files in the future. I have automatically uploaded \`${attachment.name}\` for you: ${website}/${response.key}`)
+        await message.reply(`Please use <${website}> to send files in the future. I have automatically uploaded \`${attachment.name}\` for you: ${website}/${response.key}`)
       } catch (e) {
         console.error(e)
-        await message.channel.send(`Your file could not be automatically uploaded. Please use ${website} to share files.`)
+        await message.reply(`Your file could not be automatically uploaded. Please use ${website} to share files.`)
       }
     }
   })

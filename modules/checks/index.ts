@@ -28,7 +28,7 @@ export default (client: Client): void => {
     } catch (e: any) {
       if (e.response) {
         if (e.response.status === 404) {
-          await message.channel.send({
+          await message.reply({
             embeds: [new EmbedBuilder()
               .setTitle('Invalid Paste!')
               .setColor('#FF0000')
@@ -60,7 +60,7 @@ export default (client: Client): void => {
         }
         embed.setFooter({ text: `${originalLink} | Sent by ${message.author.username}` })
         embed.setColor(data.accent_color as ColorResolvable)
-        await message.channel.send({ embeds: [embed] })
+        await message.reply({ embeds: [embed] })
       }
     }
   })

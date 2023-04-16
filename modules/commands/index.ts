@@ -60,7 +60,7 @@ export default (client: Client): void => {
           { name: '\u200E', value: '`!latest`', inline: true }
         ])
 
-      await message.channel.send({ embeds: [embed] })
+      await message.reply({ embeds: [embed] })
       return
     }
 
@@ -70,7 +70,7 @@ export default (client: Client): void => {
         .setTitle('Latest version')
         .setDescription('`' + (metaData.name ?? 'Unknown') + '`')
 
-      await message.channel.send({ embeds: [embed] })
+      await message.reply({ embeds: [embed] })
       return
     }
 
@@ -90,7 +90,7 @@ export default (client: Client): void => {
 
     // If no command found, throw an error
     if (item === null || item === undefined) {
-      await message.channel.send(`Sorry! I do not understand the command \`!${trigger}\`\nType \`!help\` for a list of commands.`)
+      await message.reply(`Sorry! I do not understand the command \`!${trigger}\`\nType \`!help\` for a list of commands.`)
       return
     }
 
@@ -125,6 +125,6 @@ export default (client: Client): void => {
       })
     }
 
-    await message.channel.send({ embeds: [embed] })
+    await message.reply({ embeds: [embed] })
   })
 }
