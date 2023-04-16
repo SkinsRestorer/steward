@@ -14,7 +14,7 @@
   "license": " GPL-3.0-or-later",
   "dependencies": {
     "dateformat": "^5.0.3",
-    "discord.js": "^14.0.0",
+    "discord.js": "^14.9.0",
     "mime-types": "^2.1.35",
     "mz": "^2.7.0"
   },

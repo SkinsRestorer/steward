@@ -5,8 +5,8 @@ dependencies:
     specifier: ^5.0.3
     version: 5.0.3
   discord.js:
-    specifier: ^14.0.0
-    version: 14.0.0
+    specifier: ^14.9.0
+    version: 14.9.0
   mime-types:
     specifier: ^2.1.35
     version: 2.1.35
@@ -793,25 +793,22 @@ packages:
       path-type: 4.0.0
     dev: true
 
-  /discord-api-types@0.36.3:
-    resolution: {integrity: sha512-bz/NDyG0KBo/tY14vSkrwQ/n3HKPf87a0WFW/1M9+tXYK+vp5Z5EksawfCWo2zkAc6o7CClc0eff1Pjrqznlwg==}
-    dev: false
-
   /discord-api-types@0.37.38:
     resolution: {integrity: sha512-p9dibYycLXY1FUM9bIuohYeHHwa/634394QE90n6Tlb6ID5HtCtXBPYY68oaOlFnlFLBJAOYATMwX5oiV+VqiA==}
     dev: false
 
-  /discord.js@14.0.0:
-    resolution: {integrity: sha512-7ne3Yo7S2SsiKtTZWBAlT58yWEOLMvqu4WAwDf3coky46BjIl+LQpF+0eL/2L1T9S4gUVkql+IPhBYHS9vwrrA==}
+  /discord.js@14.9.0:
+    resolution: {integrity: sha512-ygGms5xP4hG+QrrY9k7d/OYCzMltSMtdl/2Snzq/nLCiZo+Sna91Ulv9l0+B5Jd/Czcq37B7wJAnmja7GOa+bg==}
     engines: {node: '>=16.9.0'}
-    deprecated: Hard crashes on interactions with a channel in the payload, use 14.8.0 and up
     dependencies:
       '@discordjs/builders': 1.6.1
       '@discordjs/collection': 1.5.0
+      '@discordjs/formatters': 0.3.0
       '@discordjs/rest': 1.7.0
+      '@discordjs/util': 0.2.0
       '@sapphire/snowflake': 3.4.2
       '@types/ws': 8.5.4
-      discord-api-types: 0.36.3
+      discord-api-types: 0.37.38
       fast-deep-equal: 3.1.3
       lodash.snakecase: 4.1.1
       tslib: 2.5.0
