@@ -3,10 +3,9 @@ import { Client } from 'discord.js'
 import data from '../data.json'
 
 // noinspection JSUnusedGlobalSymbols
-export default (client: Client) => {
+export default (client: Client): void => {
   client.on('messageCreate', async message => {
-    // Ignore DMs, messages that don't mention anyone, and messages that are a reply.
-    if (!message.channel.type.includes('GUILD') || message.author.bot) return
+    if (!message.channel.isTextBased() || message.channel.isDMBased() || message.author.bot) return
 
     if (message.mentions.members?.size === 0) return
     if (message.reference !== null) return

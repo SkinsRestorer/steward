@@ -1,4 +1,4 @@
-import { Client, ColorResolvable, MessageEmbed } from 'discord.js'
+import {Client, ColorResolvable, Embed, EmbedBuilder} from 'discord.js'
 
 import config, { Checks } from './checks.config'
 import data from 'data.json'
@@ -6,7 +6,7 @@ import data from 'data.json'
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {
   client.on('messageCreate', async message => {
-    if (!message.channel.type.includes('GUILD') || message.author.bot) return
+    if (!message.channel.isTextBased() || message.channel.isDMBased() || message.author.bot) return
 
     let getLink = ''
     let originalLink = ''
@@ -29,7 +29,7 @@ export default (client: Client): void => {
       if (e.response) {
         if (e.response.status === 404) {
           await message.channel.send({
-            embeds: [new MessageEmbed()
+            embeds: [new EmbedBuilder()
               .setTitle('Invalid Paste!')
               .setColor('#FF0000')
               .setDescription('The paste link you sent in is invalid or expired, please check the link or paste a new one.')
@@ -49,7 +49,7 @@ export default (client: Client): void => {
         }
       }
       if (cause != null) {
-        const embed = new MessageEmbed()
+        const embed = new EmbedBuilder()
         embed.setTitle(test.title)
         // if (test.description) embed.setDescription(test.description)
         if (test.link) {

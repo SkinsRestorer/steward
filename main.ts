@@ -1,17 +1,18 @@
-import { Client, Intents } from 'discord.js'
+import {Client, GatewayIntentBits} from 'discord.js'
 
 import config from './config.json'
 
 import fs from 'fs'
+
 const client = new Client({
   intents: [
-    Intents.FLAGS.GUILDS,
-    Intents.FLAGS.GUILD_MEMBERS,
-    Intents.FLAGS.GUILD_PRESENCES,
-    Intents.FLAGS.GUILD_MESSAGES,
-    Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
-    Intents.FLAGS.GUILD_MESSAGE_TYPING,
-    Intents.FLAGS.MESSAGE_CONTENT
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildPresences,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildMessageTyping,
+    GatewayIntentBits.MessageContent
   ]
 })
 
@@ -20,11 +21,11 @@ client.on('ready', () => {
 })
 
 fs.readdirSync('modules')
-  .map(mod => {
-    console.log('Loading module: ' + mod)
-    return `./modules/${mod}`
-  })
-  .map(async mod => await import(mod))
-  .forEach(async mod => await mod.then((modResolved) => modResolved.default(client)))
+    .map(mod => {
+      console.log('Loading module: ' + mod)
+      return `./modules/${mod}`
+    })
+    .map(async mod => await import(mod))
+    .forEach(async mod => await mod.then((modResolved) => modResolved.default(client)))
 
 await client.login(config.token)

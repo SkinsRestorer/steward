@@ -1,4 +1,4 @@
-import discord, { Client, ColorResolvable } from 'discord.js'
+import { Client, ColorResolvable, EmbedBuilder } from 'discord.js'
 
 // Import commands and sort by alphabetical order (for !help command)
 import list from './list.json'
@@ -36,8 +36,7 @@ setInterval(fetchData, 60000)
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {
   client.on('messageCreate', async message => {
-    // Ignore DMs and messages that don't start with the prefix
-    if (!message.channel.type.includes('GUILD') || message.author.bot) return
+    if (!message.channel.isTextBased() || message.channel.isDMBased() || message.author.bot) return
 
     if (!message.content.startsWith('!') || message.author.bot) return
 
@@ -48,7 +47,7 @@ export default (client: Client): void => {
     if (trigger === '') return
 
     // Initiate the embed
-    const embed = new discord.MessageEmbed()
+    const embed = new EmbedBuilder()
 
     // !help command
     if (trigger === 'help') {

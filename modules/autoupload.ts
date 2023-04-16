@@ -7,7 +7,7 @@ const bytebin = 'https://bytebin.lucko.me'
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client) => {
   client.on('messageCreate', async message => {
-    if (!message.channel.type.includes('GUILD') || message.author.bot) return
+    if (!message.channel.isTextBased() || message.channel.isDMBased() || message.author.bot) return
 
     if (!message.attachments) return
     for (const attachment of message.attachments.values()) {

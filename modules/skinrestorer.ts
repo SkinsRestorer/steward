@@ -1,18 +1,16 @@
-import { Client, ColorResolvable, MessageEmbed } from 'discord.js'
+import { Client, ColorResolvable, EmbedBuilder } from 'discord.js'
 import data from '../data.json'
 
 // noinspection JSUnusedGlobalSymbols
-export default (client: Client) => {
-  client.on('messageCreate', async msg => {
+export default (client: Client): void => {
+  client.on('messageCreate', async message => {
     // Ignore ourself
-    if (msg.author.bot) return
-    // Ignore DMs
-    if (msg.channel.type !== 'GUILD_TEXT') return
+    if (!message.channel.isTextBased() || message.channel.isDMBased() || message.author.bot) return
 
     // If the stripped message contains skinrestorer
-    if (msg.content.toLowerCase().replace(/\W/gm, '').includes('skinrestorer')) {
-      await msg.channel.send({
-        embeds: [new MessageEmbed()
+    if (message.content.toLowerCase().replace(/\W/gm, '').includes('skinrestorer')) {
+      await message.channel.send({
+        embeds: [new EmbedBuilder()
           .setTitle('It looks like you\'re trying to spell SkinsRestorer!')
           .setDescription('A useful tip to remember how to spell it is: **SKINS** is not **SKIN**')
           .setColor(data.accent_color as ColorResolvable)
