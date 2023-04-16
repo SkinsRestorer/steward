@@ -1,4 +1,4 @@
-import {Client, GatewayIntentBits} from 'discord.js'
+import {Activity, Client, GatewayIntentBits, ActivityType} from 'discord.js'
 
 import config from './config.json'
 
@@ -13,7 +13,16 @@ const client = new Client({
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.GuildMessageTyping,
     GatewayIntentBits.MessageContent
-  ]
+  ],
+  presence: {
+    status: 'invisible',
+    activities: [
+        {
+            name: 'SkinsRestorer Discord',
+            type: ActivityType.Watching
+        }
+    ]
+  }
 })
 
 client.on('ready', () => {
