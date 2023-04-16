@@ -1,6 +1,6 @@
 import { Client, Intents } from 'discord.js'
 
-import config from './config.json' assert { type: "json" }
+import config from './config.json'
 
 import fs from 'fs'
 const client = new Client({ intents: [Intents.FLAGS.GUILDS] })
@@ -17,4 +17,4 @@ fs.readdirSync('modules')
   .map(mod => import(mod))
   .forEach(mod => mod.then((modResolved) => modResolved(client)))
 
-client.login(config.token)
+await client.login(config.token)

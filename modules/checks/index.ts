@@ -1,6 +1,5 @@
 import { Client, MessageEmbed } from 'discord.js'
 
-import axios from 'axios'
 import config, { Checks } from './checks.config'
 
 export default (client: Client) => {
@@ -22,7 +21,7 @@ export default (client: Client) => {
     let response = ''
     try {
       // console.log(`Getting pastebin ${getLink}`);
-      response = (await axios.get(getLink)).data
+      response = (await (await fetch(getLink)).json())
     } catch (e: any) {
       if (e.response) {
         if (e.response.status === 404) {

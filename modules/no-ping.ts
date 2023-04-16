@@ -1,6 +1,6 @@
 import { Client } from 'discord.js'
 
-import data from '../data.json' assert { type: "json" }
+import data from '../data.json'
 
 export default (client: Client) => {
   client.on('message', async msg => {

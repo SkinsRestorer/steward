@@ -1,5 +1,3 @@
-import axios from 'axios'
-
 import mimeType from 'mime-types'
 import { Client } from 'discord.js'
 
@@ -14,11 +12,15 @@ export default (client: Client) => {
       const contentType = mimeType.lookup(attachment.url)
       if (!contentTypes.some(type => contentType === type)) continue
       try {
-        const content = await axios.get(attachment.url)
-        const response = await axios.post(`${bytebin}/post`, content.data, {
-          headers: { 'Content-Type': contentType }
-        })
-        await message.channel.send(`Please use ${bytebin} to send files in the future. I have automatically uploaded \`${attachment.name}\` for you: ${bytebin}/${response.data.key}`)
+        const content = (await (await fetch(attachment.url)).json())
+        const response = (await (await fetch(`${bytebin}/post`, {
+          method: 'POST',
+          body: content,
+          headers: {
+            'Content-Type': String(contentType)
+          }
+        })).json())
+        await message.channel.send(`Please use ${bytebin} to send files in the future. I have automatically uploaded \`${attachment.name}\` for you: ${bytebin}/${response.key}`)
       } catch (e) {
         await message.channel.send(`Your file could not be automatically uploaded to bytebin. Please use ${bytebin} to share files.`)
       }

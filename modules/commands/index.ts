@@ -1,8 +1,7 @@
 import discord, { Client } from 'discord.js'
-import axios from 'axios'
 
 // Import commands and sort by alphabetical order (for !help command)
-import list from './list.json' assert { type: "json" }
+import list from './list.json'
 
 const commands = list.sort((a, b) => {
   if (a.name < b.name) return -1
@@ -24,14 +23,13 @@ let metaData: {name?: string} = {}
 
 const fetchData = async () => {
   try {
-    const { data } = await axios.get('https://api.spiget.org/v2/resources/2124/versions/latest')
-    metaData = { ...data }
+    metaData = { ...await (await fetch('https://api.spiget.org/v2/resources/2124/versions/latest')).json() }
   } catch (e) {
     console.error(e)
   }
 }
 
-fetchData()
+await fetchData()
 setInterval(async () => {
   await fetchData()
 }, 60000)

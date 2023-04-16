@@ -1,7 +1,5 @@
 import { Client } from 'discord.js'
-
 import dateFormat from 'dateformat'
-
 import fs from 'fs'
 
 const getLogFileName = (date: number) => 'logs/' + dateFormat(date, 'yyyy-mm-dd') + '.log'

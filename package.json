@@ -5,27 +5,25 @@
   "main": "main.ts",
   "type": "module",
   "scripts": {
-    "start": "node --experimental-json-modules --loader ts-node/esm main.ts",
-    "compile": "tsc -p ./tsconfig.json",
+    "start": "tsx main.ts",
     "lint": "ts-standard",
     "fix": "ts-standard --fix"
   },
   "author": "SrTeam",
   "license": " GPL-3.0-or-later",
   "dependencies": {
-    "axios": "^0.27.0",
     "dateformat": "^5.0.3",
-    "discord.js": "^13.6.0",
-    "mime-types": "^2.1.27",
-    "mz": "^2.7.0",
-    "ts-node": "^10.7.0",
-    "typescript": "^4.6.3"
+    "discord.js": "^13.15.1",
+    "mime-types": "^2.1.35",
+    "mz": "^2.7.0"
   },
   "devDependencies": {
-    "ts-standard": "12.0.0",
-    "eslint": "8.24.0",
     "@types/dateformat": "5.0.0",
     "@types/mime-types": "2.1.1",
-    "@types/mz": "2.7.4"
+    "@types/mz": "2.7.4",
+    "eslint": "8.24.0",
+    "ts-standard": "12.0.0",
+    "tsx": "^3.12.6",
+    "typescript": "^4.9.5"
   }
 }
