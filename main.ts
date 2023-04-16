@@ -24,7 +24,7 @@ fs.readdirSync('modules')
     console.log('Loading module: ' + mod)
     return `./modules/${mod}`
   })
-  .map(mod => import(mod))
-  .forEach(mod => mod.then((modResolved) => modResolved.default(client)))
+  .map(async mod => await import(mod))
+  .forEach(async mod => await mod.then((modResolved) => modResolved.default(client)))
 
 await client.login(config.token)

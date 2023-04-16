@@ -11,18 +11,18 @@ const commands = list.sort((a, b) => {
 })
 
 // For !help command
-const splitCommands = (start: number, end?: number) => {
+const splitCommands = (start: number, end?: number): string => {
   return commands.slice(start, end).reduce((prev, command) => {
-    return prev ? prev + `\n\`!${command.name}\`` : `\`!${command.name}\``
+    return (prev !== '') ? prev + `\n\`!${command.name}\`` : `\`!${command.name}\``
   }, '')
 }
 
 const leftList = splitCommands(0, Math.ceil(commands.length / 2))
 const rightList = splitCommands(Math.ceil(commands.length / 2))
 
-let metaData: {name?: string} = {}
+let metaData: { name?: string } = {}
 
-const fetchData = async () => {
+const fetchData = async (): Promise<void> => {
   try {
     metaData = { ...await (await fetch('https://api.spiget.org/v2/resources/2124/versions/latest')).json() }
   } catch (e) {
@@ -31,12 +31,10 @@ const fetchData = async () => {
 }
 
 await fetchData()
-setInterval(async () => {
-  await fetchData()
-}, 60000)
+setInterval(fetchData, 60000)
 
 // noinspection JSUnusedGlobalSymbols
-export default (client: Client) => {
+export default (client: Client): void => {
   client.on('messageCreate', async message => {
     // Ignore DMs and messages that don't start with the prefix
     if (!message.channel.type.includes('GUILD') || message.author.bot) return
@@ -47,7 +45,7 @@ export default (client: Client) => {
     const trigger = message.content.toLowerCase().substring(1).split(' ')[0].replace(/[^0-9a-z]/gi, '')
 
     // Ignore if trigger is blank
-    if (!trigger) return
+    if (trigger === '') return
 
     // Initiate the embed
     const embed = new discord.MessageEmbed()
@@ -92,7 +90,7 @@ export default (client: Client) => {
     }
 
     // If no command found, throw an error
-    if (item == null) {
+    if (item === null || item === undefined) {
       await message.channel.send(`Sorry! I do not understand the command \`!${trigger}\`\nType \`!help\` for a list of commands.`)
       return
     }
@@ -102,22 +100,22 @@ export default (client: Client) => {
       .setColor(data.accent_color as ColorResolvable)
       .setDescription(item.description)
 
-    if (item.url) {
+    if (item.url != null) {
       embed.setURL(item.url)
     }
 
-    if (item.wiki) {
+    if (item.wiki === true) {
       embed
         .setTitle(`🔖 ${item.title}`)
         .setFooter({ text: 'SkinsRestorer wiki', iconURL: 'https://www.spigotmc.org/data/resource_icons/2/2124.jpg' })
 
-      if (item.url) {
+      if (item.url != null) {
         embed.addFields([{ name: 'Read more', value: item.url }])
       }
     } else {
       embed.setTitle(`${item.title}`)
 
-      if (item.url) {
+      if (item.url != null) {
         embed.addFields([{ name: 'Link', value: item.url }])
       }
     }

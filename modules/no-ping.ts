@@ -12,7 +12,7 @@ export default (client: Client) => {
     if (message.reference !== null) return
 
     const senderIsStaff = message.member?.roles.cache.some(role => data.staff_roles.includes(role.name))
-    if (senderIsStaff) {
+    if (senderIsStaff === true) {
       return
     }
 
@@ -26,7 +26,7 @@ export default (client: Client) => {
       return member.roles.cache.some(role => data.staff_roles.includes(role.name))
     })
 
-    if (mentionsStaff) {
+    if (mentionsStaff === true) {
       // Tell them off:
       await message.channel.send(`Hey ${message.member?.nickname ?? message.author.username}! Please don't tag staff members directly.`)
     }

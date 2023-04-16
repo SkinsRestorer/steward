@@ -4,7 +4,7 @@ import config, { Checks } from './checks.config'
 import data from 'data.json'
 
 // noinspection JSUnusedGlobalSymbols
-export default (client: Client) => {
+export default (client: Client): void => {
   client.on('messageCreate', async message => {
     if (!message.channel.type.includes('GUILD') || message.author.bot) return
 
@@ -44,11 +44,11 @@ export default (client: Client) => {
       let cause: RegExpExecArray | null = null
       for (const check of test.checks) {
         const match = check.exec(response)
-        if (match) {
+        if (match != null) {
           cause = match
         }
       }
-      if (cause) {
+      if (cause != null) {
         const embed = new MessageEmbed()
         embed.setTitle(test.title)
         // if (test.description) embed.setDescription(test.description)
