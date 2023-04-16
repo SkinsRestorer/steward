@@ -24,7 +24,7 @@ export default (client: Client): void => {
     let response = ''
     try {
       // console.log(`Getting pastebin ${getLink}`);
-      response = (await (await fetch(getLink)).json())
+      response = (await (await fetch(getLink)).text())
     } catch (e: any) {
       if (e.response) {
         if (e.response.status === 404) {
