@@ -15,7 +15,14 @@ const client = new Client({
     GatewayIntentBits.MessageContent
   ],
   presence: {
-    status: 'invisible',
+    status: 'online',
+    activities: [
+        {
+            name: 'SR Discord',
+            type: ActivityType.Watching
+        }
+    ]
+  }
 })
 
 client.on('ready', () => {
