@@ -16,13 +16,6 @@ const client = new Client({
   ],
   presence: {
     status: 'invisible',
-    activities: [
-        {
-            name: 'SkinsRestorer Discord',
-            type: ActivityType.Watching
-        }
-    ]
-  }
 })
 
 client.on('ready', () => {
