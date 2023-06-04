@@ -15,11 +15,13 @@
   "dependencies": {
     "dateformat": "^5.0.3",
     "discord.js": "^14.9.0",
+    "js-yaml": "^4.1.0",
     "mime-types": "^2.1.35",
     "mz": "^2.7.0"
   },
   "devDependencies": {
     "@types/dateformat": "5.0.0",
+    "@types/js-yaml": "^4.0.5",
     "@types/mime-types": "2.1.1",
     "@types/mz": "2.7.4",
     "eslint": "8.41.0",

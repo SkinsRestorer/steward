@@ -1,6 +1,7 @@
 import {Client} from 'discord.js'
+import jsyaml from 'js-yaml'
 
-const contentTypes = ['application/json', 'text/plain', 'text/yaml']
+const contentTypes = ['application/json', 'application/yaml', 'text/xml', 'text/plain']
 const website = 'https://pastes.dev'
 const api = 'https://api.pastes.dev'
 
@@ -13,9 +14,8 @@ export default (client: Client) => {
 
     for (const attachment of message.attachments.values()) {
       try {
-        console.log(attachment.contentType)
         if (attachment.contentType === null) {
-            continue
+          continue
         }
 
         let found = false
@@ -31,11 +31,12 @@ export default (client: Client) => {
         }
 
         const content = (await (await fetch(attachment.url)).text())
+
         const response = (await (await fetch(`${api}/post`, {
           method: 'POST',
           body: content,
           headers: {
-            'Content-Type': attachment.contentType
+            'Content-Type': detectTextFormat(content) ?? attachment.contentType
           }
         })).json())
         await message.reply(`Please use <${website}> to send files in the future. I have automatically uploaded \`${attachment.name}\` for you: ${website}/${response.key}`)
@@ -45,4 +46,41 @@ export default (client: Client) => {
       }
     }
   })
+}
+
+function detectTextFormat(text: string): string | null {
+  // Trim leading/trailing whitespace
+  text = text.trim();
+
+  // Check if it's JSON
+  if (text.startsWith('{') && text.endsWith('}')) {
+    try {
+      JSON.parse(text);
+      return 'application/json';
+    } catch (error) {
+      // Not valid JSON
+    }
+  }
+
+  // Check if it's YAML
+  try {
+    jsyaml.load(text);
+    return 'application/yaml';
+  } catch (error) {
+    // Not valid YAML
+  }
+
+  // Check if it's XML
+  if (text.startsWith('<') && text.endsWith('>')) {
+    try {
+      // Using DOMParser to parse XML
+      new DOMParser().parseFromString(text, 'text/xml');
+      return 'text/xml';
+    } catch (error) {
+      // Not valid XML
+    }
+  }
+
+  // Unknown format
+  return null;
 }
