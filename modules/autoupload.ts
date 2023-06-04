@@ -37,7 +37,8 @@ export default (client: Client) => {
           method: 'POST',
           body: content,
           headers: {
-            'Content-Type': contentType
+            'Content-Type': contentType,
+            'User-Agent': 'SkinsRestorerSteward'
           }
         })).json())
         await message.reply(`Please use <${website}> to send files in the future. I have automatically uploaded \`${attachment.name}\` for you: ${website}/${response.key}`)
