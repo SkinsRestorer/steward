@@ -31,12 +31,13 @@ export default (client: Client) => {
         }
 
         const content = (await (await fetch(attachment.url)).text())
+        const contentType = detectTextFormat(content) ?? attachment.contentType
 
         const response = (await (await fetch(`${api}/post`, {
           method: 'POST',
           body: content,
           headers: {
-            'Content-Type': detectTextFormat(content) ?? attachment.contentType
+            'Content-Type': contentType
           }
         })).json())
         await message.reply(`Please use <${website}> to send files in the future. I have automatically uploaded \`${attachment.name}\` for you: ${website}/${response.key}`)
@@ -56,7 +57,7 @@ function detectTextFormat(text: string): string | null {
   if (text.startsWith('{') && text.endsWith('}')) {
     try {
       JSON.parse(text);
-      return 'application/json';
+      return 'text/json'; // Required name for pastes.dev
     } catch (error) {
       // Not valid JSON
     }
@@ -65,7 +66,7 @@ function detectTextFormat(text: string): string | null {
   // Check if it's YAML
   try {
     jsyaml.load(text);
-    return 'application/yaml';
+    return 'text/yaml'; // Required name for pastes.dev
   } catch (error) {
     // Not valid YAML
   }
