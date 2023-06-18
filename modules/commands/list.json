@@ -111,6 +111,17 @@
     "wiki": true
   },
   {
+    "name": "launcher",
+    "aliases": [
+      "tl",
+      "tlauncher"
+    ],
+    "title": "Launcher skin issues",
+    "url": "https://skinsrestorer.net/docs/troubleshooting/launcher-issues",
+    "description": "Here is how to fix skin issues with some launchers.",
+    "wiki": true
+  },
+  {
     "name": "downloads",
     "aliases": [
       "download", "update"
