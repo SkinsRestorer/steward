@@ -8,7 +8,7 @@ const api = 'https://api.pastes.dev'
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client) => {
   client.on('messageCreate', async message => {
-    if (!message.channel.isTextBased() || message.channel.isDMBased() || message.author.bot) return
+    if (!message.channel.isTextBased() || message.channel.isDMBased()) return
 
     if (message.attachments.size === 0) return
 
