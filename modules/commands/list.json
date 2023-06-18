@@ -1,13 +1,13 @@
 [
   {
-    "name": "wiki",
+    "name": "docs",
     "aliases": [
       "docs"
     ],
     "title": "SkinsRestorer Documentation",
     "url": "https://skinsrestorer.net/docs",
     "description": "Learn how to use SkinsRestorer and all of its features by reading the wiki.",
-    "wiki": true
+    "docs": true
   },
   {
     "name": "install",
@@ -18,7 +18,7 @@
     "title": "Installing SkinsRestorer",
     "url": "https://skinsrestorer.net/docs/installation",
     "description": "You can install SkinsRestorer on Bukkit/Spigot/Paper, BungeeCord, Sponge and Velocity servers. Check the installation guide for more info on setting up SkinsRestorer.",
-    "wiki": true
+    "docs": true
   },
   {
     "name": "proxy",
@@ -42,7 +42,7 @@
         "value": "https://skinsrestorer.net/docs/installation/velocity"
       }
     ],
-    "wiki": true
+    "docs": true
   },
   {
     "name": "errors",
@@ -52,7 +52,7 @@
     "title": "Troubleshooting",
     "url": "https://skinsrestorer.net/docs/troubleshooting",
     "description": "Here's a page with some common errors.",
-    "wiki": true
+    "docs": true
   },
   {
     "name": "commands",
@@ -62,7 +62,7 @@
     "title": "Command/Permissions Usage",
     "url": "https://skinsrestorer.net/docs/configuration/commands-permissions",
     "description": "Find all of the available SkinsRestorer commands and permissions on the wiki.",
-    "wiki": true
+    "docs": true
   },
   {
     "name": "api",
@@ -86,7 +86,7 @@
         "value": "https://docs.skinsrestorer.net"
       }
     ],
-    "wiki": true
+    "docs": true
   },
   {
     "name": "config",
@@ -97,7 +97,7 @@
     "title": "SkinsRestorer Configuration",
     "url": "https://skinsrestorer.net/docs/configuration",
     "description": "Learn what each of the config options are for.",
-    "wiki": true
+    "docs": true
   },
   {
     "name": "storage",
@@ -108,7 +108,7 @@
     "title": "SkinsRestorer Data Storage",
     "url": "https://skinsrestorer.net/docs/development/storage",
     "description": "Here is how data storage works in SkinsRestorer.",
-    "wiki": true
+    "docs": true
   },
   {
     "name": "launcher",
@@ -119,7 +119,7 @@
     "title": "Launcher skin issues",
     "url": "https://skinsrestorer.net/docs/troubleshooting/launcher-issues",
     "description": "Here is how to fix skin issues with some launchers.",
-    "wiki": true
+    "docs": true
   },
   {
     "name": "downloads",
@@ -152,7 +152,7 @@
     ],
     "title": "Cauldron, Thermos, Forge + Bukkit Hacks, SpongeForge",
     "description": "We don't support those! They are hacky and do not work with our plugin most of the time! Try Skinport or Offlineskin",
-    "wiki": true
+    "docs": true
   },
   {
     "name": "colours",

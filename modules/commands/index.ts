@@ -103,10 +103,10 @@ export default (client: Client): void => {
       embed.setURL(item.url)
     }
 
-    if (item.wiki === true) {
+    if (item.docs === true) {
       embed
         .setTitle(`🔖 ${item.title}`)
-        .setFooter({ text: 'SkinsRestorer wiki', iconURL: 'https://www.spigotmc.org/data/resource_icons/2/2124.jpg' })
+        .setFooter({ text: 'SkinsRestorer documentation', iconURL: 'https://www.spigotmc.org/data/resource_icons/2/2124.jpg' })
 
       if (item.url != null) {
         embed.addFields([{ name: 'Read more', value: item.url }])
