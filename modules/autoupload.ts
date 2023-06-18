@@ -1,4 +1,4 @@
-import {Client} from 'discord.js'
+import { Client } from 'discord.js'
 import jsyaml from 'js-yaml'
 
 const contentTypes = ['application/json', 'application/yaml', 'text/xml', 'text/plain']
@@ -50,15 +50,15 @@ export default (client: Client) => {
   })
 }
 
-function detectTextFormat(text: string): string | null {
+function detectTextFormat (text: string): string | null {
   // Trim leading/trailing whitespace
-  text = text.trim();
+  text = text.trim()
 
   // Check if it's JSON
   if (text.startsWith('{') && text.endsWith('}')) {
     try {
-      JSON.parse(text);
-      return 'text/json'; // Required name for pastes.dev
+      JSON.parse(text)
+      return 'text/json' // Required name for pastes.dev
     } catch (error) {
       // Not valid JSON
     }
@@ -66,8 +66,8 @@ function detectTextFormat(text: string): string | null {
 
   // Check if it's YAML
   try {
-    jsyaml.load(text);
-    return 'text/yaml'; // Required name for pastes.dev
+    jsyaml.load(text)
+    return 'text/yaml' // Required name for pastes.dev
   } catch (error) {
     // Not valid YAML
   }
@@ -76,13 +76,13 @@ function detectTextFormat(text: string): string | null {
   if (text.startsWith('<') && text.endsWith('>')) {
     try {
       // Using DOMParser to parse XML
-      new DOMParser().parseFromString(text, 'text/xml');
-      return 'text/xml';
+      new DOMParser().parseFromString(text, 'text/xml')
+      return 'text/xml'
     } catch (error) {
       // Not valid XML
     }
   }
 
   // Unknown format
-  return null;
+  return null
 }

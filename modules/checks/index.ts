@@ -1,10 +1,10 @@
-import {Client, ColorResolvable, EmbedBuilder, Message} from 'discord.js'
+import { Client, ColorResolvable, EmbedBuilder, Message } from 'discord.js'
 
-import config, {Checks} from './checks.config'
+import config, { Checks } from './checks.config'
 import data from 'data.json'
-import tesseract from "tesseract.js";
+import tesseract from 'tesseract.js'
 
-const imageTypes = ["image/png", "image/jpeg", "image/webp"]
+const imageTypes = ['image/png', 'image/jpeg', 'image/webp']
 
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {
@@ -37,10 +37,10 @@ export default (client: Client): void => {
         if (e.response.status === 404) {
           await message.reply({
             embeds: [new EmbedBuilder()
-                .setTitle('Invalid Paste!')
-                .setColor('#FF0000')
-                .setDescription('The paste link you sent in is invalid or expired, please check the link or paste a new one.')
-                .setFooter({text: `${originalLink} | Sent by ${message.author.username}`})]
+              .setTitle('Invalid Paste!')
+              .setColor('#FF0000')
+              .setDescription('The paste link you sent in is invalid or expired, please check the link or paste a new one.')
+              .setFooter({ text: `${originalLink} | Sent by ${message.author.username}` })]
           })
         }
       }
@@ -63,17 +63,17 @@ export default (client: Client): void => {
     }
 
     const attachments = message.attachments
-        .filter(attachment => imageTypes.includes(attachment.contentType ?? ''))
+      .filter(attachment => imageTypes.includes(attachment.contentType ?? ''))
 
     if (attachments.size === 0) {
       return
     }
 
     for (const attachment of attachments.values()) {
-      const {data: {text}} = await tesseract.recognize(
-          attachment.proxyURL,
-          "eng"
-      );
+      const { data: { text } } = await tesseract.recognize(
+        attachment.proxyURL,
+        'eng'
+      )
 
       await respondToText(message, text, `Sent by ${message.author.username}`)
     }
@@ -82,7 +82,7 @@ export default (client: Client): void => {
   })
 }
 
-async function respondToText(message: Message, text: string, footer: string) {
+async function respondToText (message: Message, text: string, footer: string) {
   for (const test of config.tests) {
     let cause: RegExpExecArray | null = null
     for (const check of test.checks) {
@@ -100,12 +100,12 @@ async function respondToText(message: Message, text: string, footer: string) {
     embed.setTitle(test.title)
     if (test.link) {
       embed.addFields([
-        {name: 'Read More', value: test.link},
-        {name: 'Caused By', value: `\`\`\`${cause}\`\`\``}
+        { name: 'Read More', value: test.link },
+        { name: 'Caused By', value: `\`\`\`${cause}\`\`\`` }
       ])
     }
-    embed.setFooter({text: footer})
+    embed.setFooter({ text: footer })
     embed.setColor(data.accent_color as ColorResolvable)
-    await message.reply({embeds: [embed]})
+    await message.reply({ embeds: [embed] })
   }
 }

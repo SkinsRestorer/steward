@@ -1,4 +1,4 @@
-import {Activity, Client, GatewayIntentBits, ActivityType} from 'discord.js'
+import { Activity, Client, GatewayIntentBits, ActivityType } from 'discord.js'
 
 import config from './config.json'
 
@@ -17,10 +17,10 @@ const client = new Client({
   presence: {
     status: 'online',
     activities: [
-        {
-            name: 'SR Discord',
-            type: ActivityType.Watching
-        }
+      {
+        name: 'SR Discord',
+        type: ActivityType.Watching
+      }
     ]
   }
 })
@@ -30,11 +30,11 @@ client.on('ready', () => {
 })
 
 fs.readdirSync('modules')
-    .map(mod => {
-      console.log('Loading module: ' + mod)
-      return `./modules/${mod}`
-    })
-    .map(async mod => await import(mod))
-    .forEach(async mod => await mod.then((modResolved) => modResolved.default(client)))
+  .map(mod => {
+    console.log('Loading module: ' + mod)
+    return `./modules/${mod}`
+  })
+  .map(async mod => await import(mod))
+  .forEach(async mod => await mod.then((modResolved) => modResolved.default(client)))
 
 await client.login(config.token)
