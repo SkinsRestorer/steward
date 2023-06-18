@@ -4,31 +4,42 @@
     "aliases": [
       "docs"
     ],
-    "title": "SkinsRestorer Wiki",
-    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki",
+    "title": "SkinsRestorer Documentation",
+    "url": "https://skinsrestorer.net/docs",
     "description": "Learn how to use SkinsRestorer and all of its features by reading the wiki.",
     "wiki": true
   },
   {
     "name": "install",
+    "aliases": [
+      "installation",
+      "setup"
+    ],
     "title": "Installing SkinsRestorer",
-    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/Installing-SkinsRestorer",
+    "url": "https://skinsrestorer.net/docs/installation",
     "description": "You can install SkinsRestorer on Bukkit/Spigot/Paper, BungeeCord, Sponge and Velocity servers. Check the installation guide for more info on setting up SkinsRestorer.",
     "wiki": true
   },
   {
-    "name": "bungee",
+    "name": "proxy",
     "aliases": [
+      "bungee",
       "bungeecord",
+      "velocity",
+      "waterfall",
       "network"
     ],
     "title": "Network Installation",
-    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/Installing-SkinsRestorer#installing-Bungee",
-    "description": "If you run a BungeeCord network, learn how to correctly setup SkinsRestorer on all server instances (including Bungee).",
+    "url": "https://skinsrestorer.net/docs/installation",
+    "description": "If you run a BungeeCord/Velocity network, learn how to correctly setup SkinsRestorer on all server instances (including BungeeCord/Velocity).",
     "fields": [
       {
-        "key": "Also read:",
-        "value": "Securing bungee networks\n\nhttps://github.com/SkinsRestorer/SkinsRestorerX/wiki/Installing-SkinsRestorer#securing-bungee-networks"
+        "key": "BungeeCord Installation:",
+        "value": "https://skinsrestorer.net/docs/installation/bungeecord"
+      },
+      {
+        "key": "Velocity Installation:",
+        "value": "https://skinsrestorer.net/docs/installation/velocity"
       }
     ],
     "wiki": true
@@ -39,7 +50,7 @@
       "error", "troubleshooting"
     ],
     "title": "Troubleshooting",
-    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/Troubleshooting",
+    "url": "https://skinsrestorer.net/docs/troubleshooting",
     "description": "Here's a page with some common errors.",
     "wiki": true
   },
@@ -49,15 +60,8 @@
       "command", "permissions", "permission"
     ],
     "title": "Command/Permissions Usage",
-    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/cmds-&-perms",
+    "url": "https://skinsrestorer.net/docs/configuration/commands-permissions",
     "description": "Find all of the available SkinsRestorer commands and permissions on the wiki.",
-    "wiki": true
-  },
-  {
-    "name": "advanced",
-    "title": "Advanced Setup",
-    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/Installing-SkinsRestorer#advanced-installation",
-    "description": "Discover some of the more advanced concepts of SkinsRestorer, such as permission calculation, shorthand permissions and more.",
     "wiki": true
   },
   {
@@ -76,25 +80,34 @@
       {
         "key": "Plugin messaging channel",
         "value": "https://github.com/SkinsRestorer/SRPluginMessagingChannelExample"
+      },
+      {
+        "key": "Javadocs",
+        "value": "https://docs.skinsrestorer.net"
       }
     ],
     "wiki": true
   },
   {
     "name": "config",
+    "aliases": [
+      "configuration",
+      "settings"
+    ],
     "title": "SkinsRestorer Configuration",
-    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/Configuration",
+    "url": "https://skinsrestorer.net/docs/configuration",
     "description": "Learn what each of the config options are for.",
     "wiki": true
   },
   {
-    "name": "skinfile",
+    "name": "storage",
     "aliases": [
-      "skinfiles"
+      "skinfiles",
+      "skinfile"
     ],
-    "title": ".skin files",
-    "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/About-.skin-&-.player",
-    "description": "Here is how they work.",
+    "title": "SkinsRestorer Data Storage",
+    "url": "https://skinsrestorer.net/docs/development/storage",
+    "description": "Here is how data storage works in SkinsRestorer.",
     "wiki": true
   },
   {
@@ -118,7 +131,7 @@
       "translate", "translating", "crowdin"
     ],
     "title": "Translating SkinsRestorer",
-    "url": "https://crowdin.com/project/Skinsrestorer",
+    "url": "https://translate.skinsrestorer.net",
     "description": "Translations for SkinsRestorer are managed on Crowdin. Any contributions are very welcome!"
   },
   {
@@ -153,8 +166,8 @@
     "description": "We really would absolutely love to help you out! However, telling us that it isn't working wastes everyone's time. Please, just **describe the issue you're having clearly** and with as much detail as possible, and **send any relevant screenshots** of whatever problems you're having.",
     "fields": [
       {
-        "key": "For Console Errors:",
-        "value": "https://bytebin.lucko.me/"
+        "key": "For sending us Console Errors:",
+        "value": "https://pastes.dev/"
       }
     ]
   },
@@ -193,18 +206,18 @@
   {
     "name": "pasteit",
     "aliases": [
-      "paste", "pastebin"
+      "paste", "pastebin", "pastes"
     ],
-    "title": "Please use pastebin!",
-    "description": "Seeing a paste of the problem makes everything so much easier! Use https://bytebin.lucko.me/ for easy pasting!",
+    "title": "Please use a paste service!",
+    "description": "Seeing a paste of the problem makes everything so much easier! Use https://pastes.dev/ for easy pasting!",
     "fields": [
       {
         "key": "For console errors:",
-        "value": "Pastebin any relevant segments of the console log. If it's a startup error, this includes the entire startup log!"
+        "value": "Paste any relevant segments of the console log. If it's a startup error, this includes the entire startup log!"
       },
       {
         "key": "Other errors:",
-        "value": "Pastebin the entire SkinsRestorer config file (passwords removed) as well as any other relevant files!"
+        "value": "Paste the entire SkinsRestorer config file (passwords removed) as well as any other relevant files!"
       }
     ]
   },
@@ -218,7 +231,7 @@
     "fields": [
       {
         "key": "Or, try here first:",
-        "value": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki"
+        "value": "https://skinsrestorer.net/docs"
       },
       {
         "key": "Why shouldn't I ask to ask?",
@@ -239,13 +252,5 @@
         "value": "https://nucleuspowered.org/docs/nowildcard.html"
       }
     ]
-  },
-  {
-    "name": "bungeecheck",
-    "aliases": [
-      "checkbungee", "networkcheck", "checknetwork"
-    ],
-    "title": "Running a network and getting UUID mismatches?",
-    "description": "Please double check that:\n`1.` BungeeCord `config.yml` has `ip_forward` **and** `online_mode` set to **`true`**\n`2.` *All* backend servers' `spigot.yml` has `bungeecord` set to **`true`**\n`3.` *All* backend servers' `server.properties` have `online-mode` set to **`false`**"
   }
 ]
