@@ -1,9 +1,6 @@
 [
   {
     "name": "docs",
-    "aliases": [
-      "docs"
-    ],
     "title": "SkinsRestorer Documentation",
     "url": "https://skinsrestorer.net/docs",
     "description": "Learn how to use SkinsRestorer and all of its features by reading the wiki.",
@@ -11,24 +8,13 @@
   },
   {
     "name": "install",
-    "aliases": [
-      "installation",
-      "setup"
-    ],
     "title": "Installing SkinsRestorer",
     "url": "https://skinsrestorer.net/docs/installation",
     "description": "You can install SkinsRestorer on Bukkit/Spigot/Paper, BungeeCord, Sponge and Velocity servers. Check the installation guide for more info on setting up SkinsRestorer.",
     "docs": true
   },
   {
-    "name": "proxy",
-    "aliases": [
-      "bungee",
-      "bungeecord",
-      "velocity",
-      "waterfall",
-      "network"
-    ],
+    "name": "proxy-install",
     "title": "Network Installation",
     "url": "https://skinsrestorer.net/docs/installation",
     "description": "If you run a BungeeCord/Velocity network, learn how to correctly setup SkinsRestorer on all server instances (including BungeeCord/Velocity).",
@@ -45,20 +31,14 @@
     "docs": true
   },
   {
-    "name": "errors",
-    "aliases": [
-      "error", "troubleshooting"
-    ],
+    "name": "troubleshooting",
     "title": "Troubleshooting",
     "url": "https://skinsrestorer.net/docs/troubleshooting",
     "description": "Here's a page with some common errors.",
     "docs": true
   },
   {
-    "name": "commands",
-    "aliases": [
-      "command", "permissions", "permission"
-    ],
+    "name": "command-help",
     "title": "Command/Permissions Usage",
     "url": "https://skinsrestorer.net/docs/configuration/commands-permissions",
     "description": "Find all of the available SkinsRestorer commands and permissions on the wiki.",
@@ -66,9 +46,6 @@
   },
   {
     "name": "api",
-    "aliases": [
-      "javadoc", "javadocs"
-    ],
     "title": "Developer API",
     "url": "https://github.com/SkinsRestorer/SkinsRestorerX/wiki/SkinsRestorerAPI",
     "description": "Learn how to use the SkinsRestorer API in your project.",
@@ -90,10 +67,6 @@
   },
   {
     "name": "config",
-    "aliases": [
-      "configuration",
-      "settings"
-    ],
     "title": "SkinsRestorer Configuration",
     "url": "https://skinsrestorer.net/docs/configuration",
     "description": "Learn what each of the config options are for.",
@@ -101,21 +74,13 @@
   },
   {
     "name": "storage",
-    "aliases": [
-      "skinfiles",
-      "skinfile"
-    ],
     "title": "SkinsRestorer Data Storage",
     "url": "https://skinsrestorer.net/docs/development/storage",
     "description": "Here is how data storage works in SkinsRestorer.",
     "docs": true
   },
   {
-    "name": "launcher",
-    "aliases": [
-      "tl",
-      "tlauncher"
-    ],
+    "name": "launcher-issues",
     "title": "Launcher skin issues",
     "url": "https://skinsrestorer.net/docs/troubleshooting/launcher-issues",
     "description": "Here is how to fix skin issues with some launchers.",
@@ -123,9 +88,6 @@
   },
   {
     "name": "downloads",
-    "aliases": [
-      "download", "update"
-    ],
     "title": "Downloads",
     "url": "https://www.spigotmc.org/resources/skinsrestorer.2124/",
     "description": "You can download SkinsRestorer for Bukkit/Spigot/Paper, BungeeCord, Sponge and Velocity.",
@@ -137,28 +99,19 @@
     ]
   },
   {
-    "name": "translations",
-    "aliases": [
-      "translate", "translating", "crowdin"
-    ],
+    "name": "crowdin",
     "title": "Translating SkinsRestorer",
     "url": "https://translate.skinsrestorer.net",
     "description": "Translations for SkinsRestorer are managed on Crowdin. Any contributions are very welcome!"
   },
   {
-    "name": "cauldron",
-    "aliases": [
-      "thermos", "forge", "fabric", "spongeforge"
-    ],
+    "name": "forge",
     "title": "Cauldron, Thermos, Forge + Bukkit Hacks, SpongeForge",
     "description": "We don't support those! They are hacky and do not work with our plugin most of the time! Try Skinport or Offlineskin",
     "docs": true
   },
   {
-    "name": "colours",
-    "aliases": [
-      "colors"
-    ],
+    "name": "color-codes",
     "title": "Colour Codes",
     "description": "A helpful list of all colour codes that you can use.",
     "fields": [
@@ -169,10 +122,7 @@
     ]
   },
   {
-    "name": "notworking",
-    "aliases": [
-      "nw"
-    ],
+    "name": "not-working",
     "title": "Please tell us what's going on!",
     "description": "We really would absolutely love to help you out! However, telling us that it isn't working wastes everyone's time. Please, just **describe the issue you're having clearly** and with as much detail as possible, and **send any relevant screenshots** of whatever problems you're having.",
     "fields": [
@@ -183,10 +133,7 @@
     ]
   },
   {
-    "name": "suggestions",
-    "aliases": [
-      "suggestion", "suggest", "bugreport", "issues", "issue"
-    ],
+    "name": "issue-tracker",
     "title": "Suggestions and Bug Reports",
     "description": "If you would like to request a feature for SkinsRestorer, or report a bug, feel free to open an issue on GitHub!",
     "fields": [
@@ -197,10 +144,7 @@
     ]
   },
   {
-    "name": "serverinfo",
-    "aliases": [
-      "sendinfo", "ss"
-    ],
+    "name": "server-info",
     "title": "Please take a screenshot!",
     "description": "Seeing a screenshot makes everything so much easier!",
     "fields": [
@@ -215,10 +159,7 @@
     ]
   },
   {
-    "name": "pasteit",
-    "aliases": [
-      "paste", "pastebin", "pastes"
-    ],
+    "name": "paste-it",
     "title": "Please use a paste service!",
     "description": "Seeing a paste of the problem makes everything so much easier! Use https://pastes.dev/ for easy pasting!",
     "fields": [
@@ -233,10 +174,7 @@
     ]
   },
   {
-    "name": "ask",
-    "aliases": [
-      "pleaseask", "justask"
-    ],
+    "name": "just-ask",
     "title": "Please ask your question!",
     "description": "Please ask the question you have. Don't ask to ask, or ask to DM someone. There are people here to help you, but we need to know what to help you with, so please just ask the question you want to in as much detail as possible!",
     "fields": [
@@ -251,7 +189,7 @@
     ]
   },
   {
-    "name": "nowildcard",
+    "name": "no-wildcard",
     "aliases": [
       "nwc"
     ],

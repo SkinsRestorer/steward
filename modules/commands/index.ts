@@ -1,10 +1,25 @@
-import { Client, ColorResolvable, EmbedBuilder } from 'discord.js'
+import { Client, ColorResolvable, EmbedBuilder, REST, Routes, SlashCommandBuilder } from 'discord.js'
 
-// Import commands and sort by alphabetical order (for !help command)
+// Import commands and sort by alphabetical order (for /help command)
 import list from './list.json'
+import config from '../../config.json'
 import data from 'data.json'
 
-const commands = list.sort((a, b) => {
+interface ConfigCommand {
+  name: string
+  url?: string
+  title: string
+  description: string
+  docs?: boolean
+  fields?: CommandField[]
+}
+
+interface CommandField {
+  key: string
+  value: string
+}
+
+const commands: ConfigCommand[] = list.sort((a, b) => {
   if (a.name < b.name) return -1
   if (a.name > b.name) return 1
   return 0
@@ -13,7 +28,7 @@ const commands = list.sort((a, b) => {
 // For !help command
 const splitCommands = (start: number, end?: number): string => {
   return commands.slice(start, end).reduce((prev, command) => {
-    return (prev !== '') ? prev + `\n\`!${command.name}\`` : `\`!${command.name}\``
+    return (prev !== '') ? prev + `\n\`/${command.name}\`` : `\`/${command.name}\``
   }, '')
 }
 
@@ -33,15 +48,34 @@ const fetchData = async (): Promise<void> => {
 await fetchData()
 setInterval(fetchData, 60000)
 
-// noinspection JSUnusedGlobalSymbols
-export default (client: Client): void => {
-  client.on('messageCreate', async message => {
-    if (!message.channel.isTextBased() || message.channel.isDMBased() || message.author.bot) return
+const slashApiCommands: any[] = []
+for (const command of commands) {
+  const slashCommand = new SlashCommandBuilder()
+    .setName(command.name)
+    .setDescription("Support help command")
 
-    if (!message.content.startsWith('!') || message.author.bot) return
+  slashApiCommands.push(slashCommand.toJSON())
+}
+
+// noinspection JSUnusedGlobalSymbols
+export default async (client: Client): Promise<void> => {
+  const rest = new REST().setToken(config.token)
+
+  console.log(`Started refreshing ${commands.length} application (/) commands.`)
+
+  // The put method is used to fully refresh all commands in the guild with the current set
+  const responseData = await rest.put(
+    Routes.applicationCommands(config.clientId),
+    { body: slashApiCommands }
+  ) as any
+
+  console.log(`Successfully reloaded ${responseData.length} application (/) commands.`)
+
+  client.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) return
 
     // Grab the command
-    const trigger = message.content.toLowerCase().substring(1).split(' ')[0].replace(/[^0-9a-z]/gi, '')
+    const trigger = interaction.commandName
 
     // Ignore if trigger is blank
     if (trigger === '') return
@@ -49,7 +83,7 @@ export default (client: Client): void => {
     // Initiate the embed
     const embed = new EmbedBuilder()
 
-    // !help command
+    // /help command
     if (trigger === 'help') {
       embed
         .setColor(data.accent_color as ColorResolvable)
@@ -57,10 +91,10 @@ export default (client: Client): void => {
         .addFields([
           { name: '\u200E', value: leftList, inline: true },
           { name: '\u200E', value: rightList, inline: true },
-          { name: '\u200E', value: '`!latest`', inline: true }
+          { name: '\u200E', value: '`/latest`', inline: true }
         ])
 
-      await message.reply({ embeds: [embed] })
+      await interaction.reply({ embeds: [embed], ephemeral: true })
       return
     }
 
@@ -70,27 +104,18 @@ export default (client: Client): void => {
         .setTitle('Latest version')
         .setDescription('`' + (metaData.name ?? 'Unknown') + '`')
 
-      await message.reply({ embeds: [embed] })
+      await interaction.reply({ embeds: [embed] })
       return
     }
 
     // Check if command name exists
-    let item = commands.find(command => {
+    const item = commands.find(command => {
       return command.name === trigger
     })
 
-    // Check for an alias
-    if (item == null) {
-      item = commands.find(command => {
-        if (command.aliases == null) return false
-
-        return command.aliases.includes(trigger)
-      })
-    }
-
     // If no command found, throw an error
     if (item === null || item === undefined) {
-      await message.reply(`Sorry! I do not understand the command \`!${trigger}\`\nType \`!help\` for a list of commands.`)
+      await interaction.reply(`Sorry! I do not understand the command \`!${trigger}\`\nType \`!help\` for a list of commands.`)
       return
     }
 
@@ -125,6 +150,6 @@ export default (client: Client): void => {
       })
     }
 
-    await message.reply({ embeds: [embed] })
+    await interaction.reply({ embeds: [embed] })
   })
 }

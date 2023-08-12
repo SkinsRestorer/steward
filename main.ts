@@ -1,4 +1,4 @@
-import { Activity, Client, GatewayIntentBits, ActivityType } from 'discord.js'
+import { Client, GatewayIntentBits, ActivityType } from 'discord.js'
 
 import config from './config.json'
 
@@ -35,6 +35,9 @@ fs.readdirSync('modules')
     return `./modules/${mod}`
   })
   .map(async mod => await import(mod))
-  .forEach(async mod => await mod.then((modResolved) => modResolved.default(client)))
+  .forEach(async mod => {
+    const modResolved = await mod
+    await modResolved.default(client)
+  })
 
 await client.login(config.token)
