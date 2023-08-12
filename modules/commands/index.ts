@@ -67,7 +67,7 @@ for (const command of commands) {
 export default async (client: Client): Promise<void> => {
   const rest = new REST().setToken(config.token)
 
-  console.log(`Started refreshing ${commands.length} application (/) commands.`)
+  console.log(`Started refreshing ${slashApiCommands.length} application (/) commands.`)
 
   // The put method is used to fully refresh all commands in the guild with the current set
   const responseData = await rest.put(
