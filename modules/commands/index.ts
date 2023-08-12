@@ -1,4 +1,4 @@
-import { Client, ColorResolvable, EmbedBuilder, REST, Routes, SlashCommandBuilder } from 'discord.js'
+import {Client, ColorResolvable, EmbedBuilder, REST, Routes, SlashCommandBuilder} from 'discord.js'
 
 // Import commands and sort by alphabetical order (for /help command)
 import list from './list.json'
@@ -39,7 +39,7 @@ let metaData: { name?: string } = {}
 
 const fetchData = async (): Promise<void> => {
   try {
-    metaData = { ...await (await fetch('https://api.spiget.org/v2/resources/2124/versions/latest')).json() }
+    metaData = {...await (await fetch('https://api.spiget.org/v2/resources/2124/versions/latest')).json()}
   } catch (e) {
     console.error(e)
   }
@@ -48,7 +48,13 @@ const fetchData = async (): Promise<void> => {
 await fetchData()
 setInterval(fetchData, 60000)
 
-const slashApiCommands: any[] = []
+const slashApiCommands: any[] = [
+  new SlashCommandBuilder()
+    .setName("help")
+    .setDescription("Show list of commands")
+    .toJSON()
+]
+
 for (const command of commands) {
   const slashCommand = new SlashCommandBuilder()
     .setName(command.name)
@@ -66,7 +72,7 @@ export default async (client: Client): Promise<void> => {
   // The put method is used to fully refresh all commands in the guild with the current set
   const responseData = await rest.put(
     Routes.applicationCommands(config.clientId),
-    { body: slashApiCommands }
+    {body: slashApiCommands}
   ) as any
 
   console.log(`Successfully reloaded ${responseData.length} application (/) commands.`)
@@ -89,12 +95,12 @@ export default async (client: Client): Promise<void> => {
         .setColor(data.accent_color as ColorResolvable)
         .setTitle('Available commands:')
         .addFields([
-          { name: '\u200E', value: leftList, inline: true },
-          { name: '\u200E', value: rightList, inline: true },
-          { name: '\u200E', value: '`/latest`', inline: true }
+          {name: '\u200E', value: leftList, inline: true},
+          {name: '\u200E', value: rightList, inline: true},
+          {name: '\u200E', value: '`/latest`', inline: true}
         ])
 
-      await interaction.reply({ embeds: [embed], ephemeral: true })
+      await interaction.reply({embeds: [embed], ephemeral: true})
       return
     }
 
@@ -104,7 +110,7 @@ export default async (client: Client): Promise<void> => {
         .setTitle('Latest version')
         .setDescription('`' + (metaData.name ?? 'Unknown') + '`')
 
-      await interaction.reply({ embeds: [embed] })
+      await interaction.reply({embeds: [embed]})
       return
     }
 
@@ -131,25 +137,28 @@ export default async (client: Client): Promise<void> => {
     if (item.docs === true) {
       embed
         .setTitle(`🔖 ${item.title}`)
-        .setFooter({ text: 'SkinsRestorer documentation', iconURL: 'https://www.spigotmc.org/data/resource_icons/2/2124.jpg' })
+        .setFooter({
+          text: 'SkinsRestorer documentation',
+          iconURL: 'https://www.spigotmc.org/data/resource_icons/2/2124.jpg'
+        })
 
       if (item.url != null) {
-        embed.addFields([{ name: 'Read more', value: item.url }])
+        embed.addFields([{name: 'Read more', value: item.url}])
       }
     } else {
       embed.setTitle(`${item.title}`)
 
       if (item.url != null) {
-        embed.addFields([{ name: 'Link', value: item.url }])
+        embed.addFields([{name: 'Link', value: item.url}])
       }
     }
 
     if (item.fields != null) {
       item.fields.forEach(field => {
-        embed.addFields([{ name: field.key, value: field.value, inline: false }])
+        embed.addFields([{name: field.key, value: field.value, inline: false}])
       })
     }
 
-    await interaction.reply({ embeds: [embed] })
+    await interaction.reply({embeds: [embed]})
   })
 }
