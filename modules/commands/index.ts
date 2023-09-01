@@ -52,6 +52,7 @@ const slashApiCommands: any[] = [
   new SlashCommandBuilder()
     .setName("help")
     .setDescription("Show list of commands")
+    .addUserOption(option => option.setName('user').setDescription('Mention a specific user with the command'))
     .toJSON()
 ]
 
@@ -59,6 +60,7 @@ for (const command of commands) {
   const slashCommand = new SlashCommandBuilder()
     .setName(command.name)
     .setDescription("Support help command")
+    .addUserOption(option => option.setName('user').setDescription('Mention a specific user with the command'))
 
   slashApiCommands.push(slashCommand.toJSON())
 }
@@ -85,6 +87,8 @@ export default async (client: Client): Promise<void> => {
 
     // Ignore if trigger is blank
     if (trigger === '') return
+
+    const user = interaction.options.getUser('user')
 
     // Initiate the embed
     const embed = new EmbedBuilder()
@@ -159,6 +163,11 @@ export default async (client: Client): Promise<void> => {
       })
     }
 
-    await interaction.reply({embeds: [embed]})
+    let message
+    if (user != null) {
+      message = `<@${user.id}>`
+    }
+
+    await interaction.reply({content: message, embeds: [embed]})
   })
 }
