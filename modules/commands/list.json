@@ -1,5 +1,11 @@
 [
   {
+    "name": "wrong-channel",
+    "title": "This channel is not for support!",
+    "url": "https://discord.com/channels/186794372468178944/1058044481246605383",
+    "description": "This channel is not for support for the **SkinsRestorer Minecraft plugin**. Please use the <#1058044481246605383> channel for support, you need to create a post in that channel. You will not receive support in this specific Discord channel."
+  },
+  {
     "name": "docs",
     "title": "SkinsRestorer Documentation",
     "url": "https://skinsrestorer.net/docs",
