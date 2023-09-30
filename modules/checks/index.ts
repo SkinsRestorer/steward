@@ -85,7 +85,6 @@ export default (client: Client): void => {
 
 function checkMatch (text: string, checks: RegExp[]) {
   for (const check of checks) {
-    console.log(`Checking ${check} against ${text}`)
     const match = check.exec(text)
     if (match != null) {
       return match
