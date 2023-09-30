@@ -98,6 +98,11 @@ async function respondToText (message: Message, text: string, footer: string) {
 
     const embed = new EmbedBuilder()
     embed.setTitle(test.title)
+    embed.setDescription(test.content)
+    if (test.tips) {
+      embed.addFields(test.tips.map((tip, i) => ({ name: `Tip #${i + 1}`, value: tip })))
+    }
+
     if (test.link) {
       embed.addFields([
         { name: 'Read More', value: test.link },

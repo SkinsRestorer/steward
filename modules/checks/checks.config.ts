@@ -6,7 +6,9 @@ export interface Checks {
 export interface Tests {
   checks: RegExp[]
   title: string
-  link: string
+  content: string
+  tips?: string[]
+  link?: string
 }
 
 export interface ChecksConfig {
@@ -27,7 +29,18 @@ const checksConfig: ChecksConfig = {
     { regex: /https?:\/\/gitlab\.com\/snippets\/(\w+)(?:\.\w+)?/g, getLink: 'https://gitlab.com/snippets/{code}/raw' }
   ],
 
-  tests: []
+  tests: [
+    {
+      checks: [/SkinsRestorerAPI is not inizialized yet/g],
+      title: 'SkinsRestorerAPI is not initialized yet',
+      content: 'This error occurs when a third-party plugin tries to access SkinsRestorerAPI before it is fully loaded. This is a bug in the third-party plugin, and should be reported to the plugin developer.',
+      tips: [
+        "Make sure SkinsRestorer is installed and enabled. There may have been a startup error that prevented SkinsRestorer from loading.",
+        'Your plugin may be loading before SkinsRestorer. To load your plugin after SkinsRestorer, add `softdepend: [ "SkinsRestorer" ]` to your plugin.yml file.'
+      ],
+      link: 'https://skinsrestorer.net/docs/development/api#add-skinsrestorer-as-a-dependency'
+    }
+  ]
 }
 
 export default checksConfig
