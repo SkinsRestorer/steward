@@ -1,25 +1,10 @@
 import {Client, ColorResolvable, EmbedBuilder, REST, Routes, SlashCommandBuilder} from 'discord.js'
 
-// Import commands and sort by alphabetical order (for /help command)
-import list from './list.json'
 import config from '../../config.json'
 import data from 'data.json'
+import {ConfigCommand, configCommands} from "./commands.config";
 
-interface ConfigCommand {
-  name: string
-  url?: string
-  title: string
-  description: string
-  docs?: boolean
-  fields?: CommandField[]
-}
-
-interface CommandField {
-  key: string
-  value: string
-}
-
-const commands: ConfigCommand[] = list.sort((a, b) => {
+const commands: ConfigCommand[] = configCommands.sort((a, b) => {
   if (a.name < b.name) return -1
   if (a.name > b.name) return 1
   return 0
@@ -51,7 +36,12 @@ setInterval(fetchData, 60000)
 const slashApiCommands: any[] = [
   new SlashCommandBuilder()
     .setName("help")
-    .setDescription("Show list of commands")
+    .setDescription("Show Steward help")
+    .addUserOption(option => option.setName('user').setDescription('Mention a specific user with the command'))
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName("latest")
+    .setDescription("Show latest version on SpigotMC")
     .addUserOption(option => option.setName('user').setDescription('Mention a specific user with the command'))
     .toJSON()
 ]
@@ -88,21 +78,16 @@ export default async (client: Client): Promise<void> => {
     // Ignore if trigger is blank
     if (trigger === '') return
 
-    const user = interaction.options.getUser('user')
+    const targetUser = interaction.options.getUser('user')
 
     // Initiate the embed
     const embed = new EmbedBuilder()
 
-    // /help command
     if (trigger === 'help') {
       embed
         .setColor(data.accent_color as ColorResolvable)
-        .setTitle('Available commands:')
-        .addFields([
-          {name: '\u200E', value: leftList, inline: true},
-          {name: '\u200E', value: rightList, inline: true},
-          {name: '\u200E', value: '`/latest`', inline: true}
-        ])
+        .setTitle('Steward help')
+        .setDescription("Hi! :wave: I am Steward. Here to help out at SkinsRestorer. The code for commands can be [found on GitHub](https://github.com/SkinsRestorer/steward/tree/main/modules/commands)")
 
       await interaction.reply({embeds: [embed], ephemeral: true})
       return
@@ -164,8 +149,8 @@ export default async (client: Client): Promise<void> => {
     }
 
     let message
-    if (user != null) {
-      message = `<@${user.id}>`
+    if (targetUser != null) {
+      message = `<@${targetUser.id}>`
     }
 
     await interaction.reply({content: message, embeds: [embed]})
