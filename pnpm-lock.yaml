@@ -32,8 +32,8 @@ devDependencies:
     specifier: ^4.0.5
     version: 4.0.5
   '@types/mime-types':
-    specifier: 2.1.1
-    version: 2.1.1
+    specifier: 2.1.2
+    version: 2.1.2
   '@types/mz':
     specifier: 2.7.4
     version: 2.7.4
@@ -431,8 +431,8 @@ packages:
     resolution: {integrity: sha512-dRLjCWHYg4oaA77cxO64oO+7JwCwnIzkZPdrrC71jQmQtlhM556pwKo5bUzqvZndkVbeFLIIi+9TC40JNF5hNQ==}
     dev: true
 
-  /@types/mime-types@2.1.1:
-    resolution: {integrity: sha512-vXOTGVSLR2jMw440moWTC7H19iUyLtP3Z1YTj7cSsubOICinjMxFeb/V57v9QdyyPGbbWolUFSSmSiRSn94tFw==}
+  /@types/mime-types@2.1.2:
+    resolution: {integrity: sha512-q9QGHMGCiBJCHEvd4ZLdasdqXv570agPsUW0CeIm/B8DzhxsYMerD0l3IlI+EQ1A2RWHY2mmM9x1YIuuWxisCg==}
     dev: true
 
   /@types/mz@2.7.4:
