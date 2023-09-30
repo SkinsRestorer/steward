@@ -83,19 +83,23 @@ export default (client: Client): void => {
   })
 }
 
+function checkMatch (text: string, checks: RegExp[]) {
+  for (const check of checks) {
+    console.log(`Checking ${check} against ${text}`)
+    const match = check.exec(text)
+    if (match != null) {
+      return match
+    }
+  }
+
+  return null
+}
+
 async function respondToText (message: Message, text: string, footer: string) {
   for (const test of config.tests) {
-    let cause: RegExpExecArray | null = null
-    for (const check of test.checks) {
-      console.log(`Checking ${check} against ${text}`)
-      const match = check.exec(text)
-      if (match != null) {
-        cause = match
-      }
-    }
-
+    let cause = checkMatch(text, test.checks)
     if (cause == null) {
-      return
+      continue
     }
 
     const embed = new EmbedBuilder()
