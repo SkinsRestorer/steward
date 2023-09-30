@@ -39,6 +39,15 @@ const checksConfig: ChecksConfig = {
         'Your plugin may be loading before SkinsRestorer. To load your plugin after SkinsRestorer, add `softdepend: [ "SkinsRestorer" ]` to your plugin.yml file.'
       ],
       link: 'https://skinsrestorer.net/docs/development/api#add-skinsrestorer-as-a-dependency'
+    },
+    {
+      checks: [/NoMappingException/g],
+      title: 'Missing mapping in SkinsRestorer',
+      content: 'This error occurs when the current build does not support the current Minecraft version. Every new version of Minecraft requires a new mapping to be added to SkinsRestorer because of Spigot\'s obfuscation.',
+      tips: [
+        "Check announcements for updates for new versions of SkinsRestorer. If there is no update, please be patient.",
+        'If PaperMC has released a new version, try switching from Spigot to Paper. We recommend PaperMC over Spigot because we don\'t use mappings for Paper.'
+      ],
     }
   ]
 }
