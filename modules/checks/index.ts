@@ -109,11 +109,10 @@ async function respondToText (message: Message, text: string, footer: string) {
     }
 
     if (test.link) {
-      embed.addFields([
-        { name: 'Read More', value: test.link },
-        { name: 'Caused By', value: `\`\`\`${cause}\`\`\`` }
-      ])
+      embed.addFields({ name: 'Read More', value: test.link },)
     }
+
+    embed.addFields({ name: 'Caused By', value: `\`\`\`${cause}\`\`\`` })
     embed.setFooter({ text: footer })
     embed.setColor(data.accent_color as ColorResolvable)
     await message.reply({ embeds: [embed] })
