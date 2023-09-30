@@ -21,7 +21,7 @@ jobs:
         name: Install pnpm
         id: pnpm-install
         with:
-          version: 7
+          version: 8
           run_install: false
 
       - name: Get pnpm store directory
@@ -40,6 +40,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
-      
+
       - name: Typescript compile
         run: pnpm ci-build
