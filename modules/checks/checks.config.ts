@@ -33,7 +33,7 @@ const checksConfig: ChecksConfig = {
     {
       checks: [/SkinsRestorerAPI is not initialized yet/g],
       title: 'SkinsRestorerAPI is not initialized yet',
-      content: 'This error occurs when a third-party plugin tries to access SkinsRestorerAPI before it is fully loaded. This is a bug in the third-party plugin, and should be reported to the plugin developer.',
+      content: 'This error occurs when a third-party plugin tries to access SkinsRestorerAPI before SkinsRestorer is fully loaded. This is a bug in the third-party plugin, and should be reported to the plugin developer.',
       tips: [
         "Make sure SkinsRestorer is installed and enabled. There may have been a startup error that prevented SkinsRestorer from loading.",
         'Your plugin may be loading before SkinsRestorer. To load your plugin after SkinsRestorer, add `softdepend: [ "SkinsRestorer" ]` to your plugin.yml file.'
