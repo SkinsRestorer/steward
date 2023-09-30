@@ -27,7 +27,7 @@ export default (client: Client): void => {
 
     if (mentionsStaff === true) {
       // Tell them off:
-      await message.channel.send(`Hey ${message.member?.nickname ?? message.author.username}! Please don't tag staff members directly.`)
+      await message.reply(`Hey ${message.member?.nickname ?? message.author.username}! Please don't tag staff members directly.`)
     }
   })
 }
