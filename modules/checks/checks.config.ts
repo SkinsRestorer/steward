@@ -31,7 +31,7 @@ const checksConfig: ChecksConfig = {
 
   tests: [
     {
-      checks: [/SkinsRestorerAPI is not inizialized yet/g],
+      checks: [/SkinsRestorerAPI is not initialized yet/g],
       title: 'SkinsRestorerAPI is not initialized yet',
       content: 'This error occurs when a third-party plugin tries to access SkinsRestorerAPI before it is fully loaded. This is a bug in the third-party plugin, and should be reported to the plugin developer.',
       tips: [
