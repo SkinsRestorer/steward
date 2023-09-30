@@ -30,7 +30,7 @@ export default (client: Client): void => {
 
     let response = ''
     try {
-      // console.log(`Getting pastebin ${getLink}`);
+      console.log(`Getting upload bin ${getLink}`);
       response = (await (await fetch(getLink)).text())
     } catch (e: any) {
       if (e.response) {
@@ -63,7 +63,8 @@ export default (client: Client): void => {
     }
 
     const attachments = message.attachments
-      .filter(attachment => imageTypes.includes(attachment.contentType ?? ''))
+      .filter(attachment => attachment.contentType != null)
+      .filter(attachment => imageTypes.includes(attachment.contentType as string))
 
     if (attachments.size === 0) {
       return
@@ -86,6 +87,7 @@ async function respondToText (message: Message, text: string, footer: string) {
   for (const test of config.tests) {
     let cause: RegExpExecArray | null = null
     for (const check of test.checks) {
+      console.log(`Checking ${check} against ${text}`)
       const match = check.exec(text)
       if (match != null) {
         cause = match

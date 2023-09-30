@@ -10,16 +10,6 @@ const commands: ConfigCommand[] = configCommands.sort((a, b) => {
   return 0
 })
 
-// For !help command
-const splitCommands = (start: number, end?: number): string => {
-  return commands.slice(start, end).reduce((prev, command) => {
-    return (prev !== '') ? prev + `\n\`/${command.name}\`` : `\`/${command.name}\``
-  }, '')
-}
-
-const leftList = splitCommands(0, Math.ceil(commands.length / 2))
-const rightList = splitCommands(Math.ceil(commands.length / 2))
-
 let metaData: { name?: string } = {}
 
 const fetchData = async (): Promise<void> => {
@@ -97,7 +87,7 @@ export default async (client: Client): Promise<void> => {
       embed
         .setColor(data.accent_color as ColorResolvable)
         .setTitle('Latest version')
-        .setDescription('`' + (metaData.name ?? 'Unknown') + '`')
+        .setDescription(`\`${metaData.name ?? 'Unknown'}\``)
 
       await interaction.reply({embeds: [embed]})
       return
