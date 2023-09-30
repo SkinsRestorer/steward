@@ -18,7 +18,7 @@
     "js-yaml": "^4.1.0",
     "mime-types": "^2.1.35",
     "mz": "^2.7.0",
-    "tesseract.js": "^4.1.0"
+    "tesseract.js": "^5.0.0"
   },
   "devDependencies": {
     "@types/dateformat": "5.0.0",
