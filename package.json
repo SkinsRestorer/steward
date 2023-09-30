@@ -1,7 +1,7 @@
 {
   "name": "steward",
   "version": "1.0.0",
-  "description": "Our support discord bot! Most code stolen from LuckPerms clippy. :D",
+  "description": "Our support discord bot! Most code taken from LuckPerms clippy. :D",
   "main": "main.ts",
   "type": "module",
   "scripts": {
