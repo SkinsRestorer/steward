@@ -239,5 +239,33 @@ export const configCommands: ConfigCommand[] = [
         value: "https://nucleuspowered.org/docs/nowildcard.html"
       }
     ]
+  },
+  {
+    name: "proxy-mode",
+    cmdDescription: "Send a message that explains Proxy Mode",
+    title: "SkinsRestorer Proxy Mode",
+    description: "SkinsRestorer Proxy Mode is one of the modes that SkinsRestorer can run in. It is used for servers in BungeeCord/Velocity networks.",
+    fields: [
+      {
+        key: "What does it do?",
+        value: "In this mode SkinsRestorer acts as a receiver of skin data from the proxy. By itself the plugin does not store any data on the server and only acts as a middleman between the proxy and the player.",
+      },
+      {
+        key: "What does it differently?",
+        value: "SkinsRestorer no longer stores data, does not have a API, and does not register commands. It will listen for messages for applying a skin and opening the skin GUI on a plugin messaging channel.",
+      },
+      {
+        key: "How do I use it?",
+        value: "SkinsRestorer Proxy Mode is automatically detected when the server is configured to only accept connections from proxies. Usually this is configured in `spigot.yml`, `paper.yml`, or `config/paper-global.yml`.",
+      },
+      {
+        key: "What if I don't want to use it?",
+        value: "If you don't put SkinsRestorer on your backend servers, your proxy will no longer be able to refresh your players skin without rejoining and the skin GUI will not work.",
+      },
+      {
+        key: "What other options do I have?",
+        value: "You can use SkinsRestorer in standalone mode, which is the default mode, in that case you should not put the plugin on your proxy and you need to manually link your backend servers via MySQL.",
+      }
+    ]
   }
 ]
