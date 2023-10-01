@@ -39,7 +39,7 @@ const slashApiCommands: any[] = [
 for (const command of commands) {
   const slashCommand = new SlashCommandBuilder()
     .setName(command.name)
-    .setDescription("Support help command")
+    .setDescription(command.cmdDescription)
     .addUserOption(option => option.setName('user').setDescription('Mention a specific user with the command'))
 
   slashApiCommands.push(slashCommand.toJSON())
