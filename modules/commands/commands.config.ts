@@ -118,6 +118,14 @@ export const configCommands: ConfigCommand[] = [
     docs: true
   },
   {
+    name: "tlauncher",
+    cmdDescription: "Explain how to fix TLauncher issues",
+    title: "TLauncher skin issues",
+    description: "TLauncher is malware. If you still want to use it, you have to know that its own skin system breaks SkinsRestorer. It simply ignores the skin set by SkinsRestorer in favor of its own skin system. You have to disable it in the TLauncher settings. A link to the documentation is below.",
+    url: "https://skinsrestorer.net/docs/troubleshooting/launcher-issues#tlauncher",
+    docs: true
+  },
+  {
     name: "downloads",
     cmdDescription: "Send a link to the downloads page",
     title: "Downloads",
