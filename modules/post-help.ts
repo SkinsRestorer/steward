@@ -40,10 +40,10 @@ export default (client: Client) => {
       },
       {
         name: 'Be patient',
-        value: 'We are a small team and cannot always respond immediately. If we do not respond within a few days, feel free to ping us.'
+        value: 'We are a small team and cannot always respond immediately. If we do not respond within a few days, feel free to ping us. While you\'re waiting, you can chat with other users in <#199827109458214913>. :D'
       }
     ])
-    embed.setFooter({text: 'If you have any questions, feel free to ask them here. We are a small team, if you would like to support us, you can donate [via PayPal](https://skinsrestorer.net/donate).'})
+    embed.setFooter({text: 'If you have any questions, feel free to ask them here.'})
 
     await thread.send({embeds: [embed]})
   })
