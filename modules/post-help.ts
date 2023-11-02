@@ -24,6 +24,10 @@ export default (client: Client) => {
         value: 'We have a [documentation](https://skinsrestorer.net/docs) on our website. It contains a lot of useful information, including how to setup SkinsRestorer.'
       },
       {
+        name: 'Is anyone using TLauncher?',
+        value: 'TLauncher is known to work incorrectly with SkinsRestorer. The malicious russian company behind TLauncher uses the brand to **spread malware** and **steal your Minecraft accounts**, therefore they do not care to support SkinsRestorer. If you still want to use it, you will have to disable the TLauncher skin system to use SkinsRestorer. You can read more in the [documentation](https://skinsrestorer.net/docs/troubleshooting/launcher-issues#tlauncher).'
+      },
+      {
         name: 'Search the issue tracker',
         value: 'We have a [issue tracker](https://github.com/SkinsRestorer/SkinsRestorerX/issues) on GitHub. You can search for your issue there. If you find it, you can subscribe to it to get notified when it is fixed.'
       },
