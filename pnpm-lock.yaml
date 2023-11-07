@@ -23,8 +23,8 @@ dependencies:
 
 devDependencies:
   '@types/dateformat':
-    specifier: 5.0.1
-    version: 5.0.1
+    specifier: 5.0.2
+    version: 5.0.2
   '@types/js-yaml':
     specifier: ^4.0.5
     version: 4.0.6
@@ -414,8 +414,8 @@ packages:
     resolution: {integrity: sha512-OvjF+z51L3ov0OyAU0duzsYuvO01PH7x4t6DJx+guahgTnBHkhJdG7soQeTSFLWN3efnHyibZ4Z8l2EuWwJN3A==}
     dev: false
 
-  /@types/dateformat@5.0.1:
-    resolution: {integrity: sha512-mdFQYNj44kRls3iZTgW0vkMOyko70KRsxkjD6qjSdfkVZLXlIFU6w9mYd62zv2uZBYyKbYkr9Mh0EVulIvyZ3g==}
+  /@types/dateformat@5.0.2:
+    resolution: {integrity: sha512-M95hNBMa/hnwErH+a+VOD/sYgTmo15OTYTM2Hr52/e0OdOuY+Crag+kd3/ioZrhg0WGbl9Sm3hR7UU+MH6rfOw==}
     dev: true
 
   /@types/js-yaml@4.0.6:
