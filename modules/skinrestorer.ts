@@ -12,9 +12,9 @@ export default (client: Client): void => {
       await message.reply({
         embeds: [new EmbedBuilder()
           .setTitle('It looks like you\'re trying to spell SkinsRestorer!')
-          .setDescription('A useful tip to remember how to spell it is: **SKINS** is not **SKIN**')
+          .setDescription('A useful tip to remember how to spell it is that we restore __many__ **SKINS**, not just one **SKIN**!')
           .setColor(data.accent_color as ColorResolvable)
-          .setThumbnail('https://www.spigotmc.org/data/resource_icons/2/2124.jpg')]
+          .setThumbnail('https://skinsrestorer.net/logo.png')]
       })
     }
   })

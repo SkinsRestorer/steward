@@ -118,7 +118,7 @@ export default async (client: Client): Promise<void> => {
         .setTitle(`🔖 ${item.title}`)
         .setFooter({
           text: 'SkinsRestorer documentation',
-          iconURL: 'https://www.spigotmc.org/data/resource_icons/2/2124.jpg'
+          iconURL: 'https://skinsrestorer.net/logo.png'
         })
 
       if (item.url != null) {
