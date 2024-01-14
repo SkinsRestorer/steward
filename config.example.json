@@ -1,4 +1,5 @@
 {
   "token": "<token>",
-  "clientId": "<clientId>"
+  "clientId": "<clientId>",
+  "resolvedTag": "<forumTagSnowflake>"
 }

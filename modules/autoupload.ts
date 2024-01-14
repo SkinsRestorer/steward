@@ -6,7 +6,7 @@ const website = 'https://pastes.dev'
 const api = 'https://api.pastes.dev'
 
 // noinspection JSUnusedGlobalSymbols
-export default (client: Client) => {
+export default (client: Client): void => {
   client.on('messageCreate', async message => {
     if (!message.channel.isTextBased() || message.channel.isDMBased()) return
 

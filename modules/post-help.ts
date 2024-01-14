@@ -1,7 +1,7 @@
-import {ChannelType, Client, EmbedBuilder} from 'discord.js'
+import { ChannelType, Client, EmbedBuilder } from 'discord.js'
 
 // noinspection JSUnusedGlobalSymbols
-export default (client: Client) => {
+export default (client: Client): void => {
   client.on('threadCreate', async thread => {
     if (thread.parent?.type !== ChannelType.GuildForum) return
 
@@ -47,8 +47,8 @@ export default (client: Client) => {
         value: 'We are a small team and cannot always respond immediately. If we do not respond within a few days, feel free to ping us. While you\'re waiting, you can chat with other users in <#199827109458214913>. :D'
       }
     ])
-    embed.setFooter({text: 'If you have any questions, feel free to ask them here.'})
+    embed.setFooter({ text: 'If you have any questions, feel free to ask them here.' })
 
-    await thread.send({embeds: [embed]})
+    await thread.send({ embeds: [embed] })
   })
 }

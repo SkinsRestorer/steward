@@ -1,6 +1,6 @@
 import { Client, GatewayIntentBits, ActivityType } from 'discord.js'
 
-import config from './config.json'
+import config from 'config.json'
 
 import fs from 'fs'
 
@@ -26,7 +26,7 @@ const client = new Client({
 })
 
 client.on('ready', () => {
-  console.log(`Logged in as ${client.user?.tag}!`)
+  console.log(`Logged in as ${client.user?.tag ?? 'unknown'}!`)
 })
 
 fs.readdirSync('modules')

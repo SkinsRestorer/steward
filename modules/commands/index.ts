@@ -1,8 +1,9 @@
-import {Client, ColorResolvable, EmbedBuilder, REST, Routes, SlashCommandBuilder} from 'discord.js'
+import { Client, ColorResolvable, EmbedBuilder, PermissionFlagsBits, REST, Routes, SlashCommandBuilder } from 'discord.js'
 
-import config from '../../config.json'
+import config from 'config.json'
 import data from 'data.json'
-import {ConfigCommand, configCommands} from "./commands.config";
+import { ConfigCommand, configCommands } from './commands.config'
+import { getMetadata } from './metadata'
 
 const commands: ConfigCommand[] = configCommands.sort((a, b) => {
   if (a.name < b.name) return -1
@@ -10,29 +11,25 @@ const commands: ConfigCommand[] = configCommands.sort((a, b) => {
   return 0
 })
 
-let metaData: { name?: string } = {}
-
-const fetchData = async (): Promise<void> => {
-  try {
-    metaData = {...await (await fetch('https://api.spiget.org/v2/resources/2124/versions/latest')).json()}
-  } catch (e) {
-    console.error(e)
-  }
-}
-
-await fetchData()
-setInterval(fetchData, 60000)
-
 const slashApiCommands: any[] = [
   new SlashCommandBuilder()
-    .setName("help")
-    .setDescription("Show Steward help")
+    .setName('help')
+    .setDescription('Show Steward help')
     .addUserOption(option => option.setName('user').setDescription('Mention a specific user with the command'))
     .toJSON(),
   new SlashCommandBuilder()
-    .setName("latest")
-    .setDescription("Show latest version on SpigotMC")
-    .addUserOption(option => option.setName('user').setDescription('Mention a specific user with the command'))
+    .setName('latest')
+    .setDescription('Show latest version on SpigotMC')
+    .addUserOption(option => option
+      .setName('user')
+      .setDescription('Mention a specific user with the command')
+    )
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName('resolved')
+    .setDescription('Moderator command to mark a forum post as resolved')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageThreads)
+    .setDMPermission(false)
     .toJSON()
 ]
 
@@ -40,7 +37,10 @@ for (const command of commands) {
   const slashCommand = new SlashCommandBuilder()
     .setName(command.name)
     .setDescription(command.cmdDescription)
-    .addUserOption(option => option.setName('user').setDescription('Mention a specific user with the command'))
+    .addUserOption(option => option
+      .setName('user')
+      .setDescription('Mention a specific user with the command')
+    )
 
   slashApiCommands.push(slashCommand.toJSON())
 }
@@ -54,7 +54,7 @@ export default async (client: Client): Promise<void> => {
   // The put method is used to fully refresh all commands in the guild with the current set
   const responseData = await rest.put(
     Routes.applicationCommands(config.clientId),
-    {body: slashApiCommands}
+    { body: slashApiCommands }
   ) as any
 
   console.log(`Successfully reloaded ${responseData.length} application (/) commands.`)
@@ -68,6 +68,27 @@ export default async (client: Client): Promise<void> => {
     // Ignore if trigger is blank
     if (trigger === '') return
 
+    if (trigger === 'resolved') {
+      const channel = interaction.channel
+      if (channel == null || !channel.isThread()) {
+        await interaction.reply('This command can only be used in threads.')
+        return
+      }
+
+      if (channel.appliedTags.includes(config.resolvedTag)) {
+        await interaction.reply('This thread is already marked as resolved.')
+        return
+      }
+
+      // Send a message before locking the thread, so we can still reply to it
+      await interaction.reply('This thread has been marked as resolved, locked and archived. Thank you for using SkinRestorer! For any future issues, please create a new post.')
+      await channel.setAppliedTags([...channel.appliedTags, config.resolvedTag])
+      await channel.setLocked(true)
+      await channel.setArchived(true, 'resolved')
+
+      return
+    }
+
     const targetUser = interaction.options.getUser('user')
 
     // Initiate the embed
@@ -77,9 +98,9 @@ export default async (client: Client): Promise<void> => {
       embed
         .setColor(data.accent_color as ColorResolvable)
         .setTitle('Steward help')
-        .setDescription("Hi! :wave: I am Steward. Here to help out at SkinsRestorer. The code for commands can be [found on GitHub](https://github.com/SkinsRestorer/steward/tree/main/modules/commands)")
+        .setDescription('Hi! :wave: I am Steward. Here to help out at SkinsRestorer. The code for commands can be [found on GitHub](https://github.com/SkinsRestorer/steward/tree/main/modules/commands)')
 
-      await interaction.reply({embeds: [embed], ephemeral: true})
+      await interaction.reply({ embeds: [embed], ephemeral: true })
       return
     }
 
@@ -87,9 +108,9 @@ export default async (client: Client): Promise<void> => {
       embed
         .setColor(data.accent_color as ColorResolvable)
         .setTitle('Latest version')
-        .setDescription(`\`${metaData.name ?? 'Unknown'}\``)
+        .setDescription(`\`${getMetadata().name ?? 'Unknown'}\``)
 
-      await interaction.reply({embeds: [embed]})
+      await interaction.reply({ embeds: [embed] })
       return
     }
 
@@ -122,19 +143,19 @@ export default async (client: Client): Promise<void> => {
         })
 
       if (item.url != null) {
-        embed.addFields([{name: 'Read more', value: item.url}])
+        embed.addFields([{ name: 'Read more', value: item.url }])
       }
     } else {
       embed.setTitle(`${item.title}`)
 
       if (item.url != null) {
-        embed.addFields([{name: 'Link', value: item.url}])
+        embed.addFields([{ name: 'Link', value: item.url }])
       }
     }
 
     if (item.fields != null) {
       item.fields.forEach(field => {
-        embed.addFields([{name: field.key, value: field.value, inline: false}])
+        embed.addFields([{ name: field.key, value: field.value, inline: false }])
       })
     }
 
@@ -143,6 +164,6 @@ export default async (client: Client): Promise<void> => {
       message = `<@${targetUser.id}>`
     }
 
-    await interaction.reply({content: message, embeds: [embed]})
+    await interaction.reply({ content: message, embeds: [embed] })
   })
 }

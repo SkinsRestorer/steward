@@ -30,7 +30,7 @@ export default (client: Client): void => {
 
     let response = ''
     try {
-      console.log(`Getting upload bin ${getLink}`);
+      console.log(`Getting upload bin ${getLink}`)
       response = (await (await fetch(getLink)).text())
     } catch (e: any) {
       if (e.response) {
@@ -96,7 +96,7 @@ function checkMatch (text: string, checks: RegExp[]) {
 
 async function respondToText (message: Message, text: string, footer: string) {
   for (const test of config.tests) {
-    let cause = checkMatch(text, test.checks)
+    const cause = checkMatch(text, test.checks)
     if (cause == null) {
       continue
     }
@@ -104,12 +104,12 @@ async function respondToText (message: Message, text: string, footer: string) {
     const embed = new EmbedBuilder()
     embed.setTitle(test.title)
     embed.setDescription(test.content)
-    if (test.tips) {
+    if (test.tips != null) {
       embed.addFields(test.tips.map((tip, i) => ({ name: `Tip #${i + 1}`, value: tip })))
     }
 
     if (test.link) {
-      embed.addFields({ name: 'Read More', value: test.link },)
+      embed.addFields({ name: 'Read More', value: test.link })
     }
 
     embed.addFields({ name: 'Caused By', value: `\`\`\`${cause}\`\`\`` })

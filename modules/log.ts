@@ -2,8 +2,8 @@ import { Client } from 'discord.js'
 import dateFormat from 'dateformat'
 import fs from 'fs'
 
-const getLogFileName = (date: number) => 'logs/' + dateFormat(date, 'yyyy-mm-dd') + '.log'
-const getLogFileTime = (date: number) => dateFormat(date, 'hh-MM-ss TT')
+const getLogFileName = (date: number): string => 'logs/' + dateFormat(date, 'yyyy-mm-dd') + '.log'
+const getLogFileTime = (date: number): string => dateFormat(date, 'hh-MM-ss TT')
 
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {
