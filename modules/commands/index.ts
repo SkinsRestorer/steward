@@ -45,6 +45,14 @@ for (const command of commands) {
   slashApiCommands.push(slashCommand.toJSON())
 }
 
+interface CommandData {
+  id: string
+  description: string
+  private: boolean
+}
+
+export const commandIdRegistry: Record<string, CommandData> = {}
+
 // noinspection JSUnusedGlobalSymbols
 export default async (client: Client): Promise<void> => {
   const rest = new REST().setToken(config.token)
@@ -56,6 +64,14 @@ export default async (client: Client): Promise<void> => {
     Routes.applicationCommands(config.clientId),
     { body: slashApiCommands }
   ) as any
+
+  for (const response of responseData) {
+    commandIdRegistry[response.name] = {
+      id: response.id,
+      description: response.description,
+      private: !!response.defaultPermission
+    }
+  }
 
   console.log(`Successfully reloaded ${responseData.length} application (/) commands.`)
 
@@ -98,7 +114,16 @@ export default async (client: Client): Promise<void> => {
       embed
         .setColor(data.accent_color as ColorResolvable)
         .setTitle('Steward help')
-        .setDescription('Hi! :wave: I am Steward. Here to help out at SkinsRestorer. The code for commands can be [found on GitHub](https://github.com/SkinsRestorer/steward/tree/main/modules/commands)')
+        .setDescription('Hi! :wave: I am Steward. Here to help out at SkinsRestorer. The code for steward can be [found on GitHub](https://github.com/SkinsRestorer/steward)')
+        .addFields(Object.entries(commandIdRegistry)
+          .filter(([, data]) => !data.private)
+          .map(([name, data]) => {
+            return {
+              name: `</${name}:${data.id}>`,
+              value: data.description,
+              inline: true
+            }
+          }))
 
       await interaction.reply({ embeds: [embed], ephemeral: true })
       return
@@ -121,7 +146,7 @@ export default async (client: Client): Promise<void> => {
 
     // If no command found, throw an error
     if (item === null || item === undefined) {
-      await interaction.reply(`Sorry! I do not understand the command \`!${trigger}\`\nType \`!help\` for a list of commands.`)
+      await interaction.reply("Something went wrong! I couldn't find that command.")
       return
     }
 
