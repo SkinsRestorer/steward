@@ -19,7 +19,7 @@ dependencies:
     version: 2.1.35
   tesseract.js:
     specifier: ^5.0.0
-    version: 5.0.0
+    version: 5.0.4
 
 devDependencies:
   '@types/dateformat':
@@ -1841,8 +1841,8 @@ packages:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
     dev: true
 
-  /node-fetch@2.6.11:
-    resolution: {integrity: sha512-4I6pdBY1EthSqDmJkiNk3JIT8cswwR9nfeW/cPdUagJYEQG7R95WRH74wpz7ma8Gh/9dI9FP+OU+0E4FvtA55w==}
+  /node-fetch@2.7.0:
+    resolution: {integrity: sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==}
     engines: {node: 4.x || >=6.0.0}
     peerDependencies:
       encoding: ^0.1.0
@@ -2328,19 +2328,19 @@ packages:
     resolution: {integrity: sha512-lJur5LzjinW5VYMKlVNnBU2JPLpO+A9VqAYBeuV+ZgH0hKvsnm+536Yyp+/zRTBdLe7D6Kok0FN9g+TE4J8qGA==}
     dev: false
 
-  /tesseract.js@5.0.0:
-    resolution: {integrity: sha512-dveto1IstLTEVYSquddE/2iZgtVUElgmRzxwZ67ALZRCpgw0AHRCQ7GIVooNJygbUFDP1QOsBRO5r2c1eQwquw==}
+  /tesseract.js@5.0.4:
+    resolution: {integrity: sha512-GCIoSQMZlvTP2AaHrjUOH29/oyO7ZyHVe+BhTexEcO7/nDClRVDRjl2sYJLOWSSNbTDrm5q2m1+gfaf3lUrZ5Q==}
     requiresBuild: true
     dependencies:
       bmp-js: 0.1.0
       idb-keyval: 6.2.1
       is-electron: 2.2.2
       is-url: 1.2.4
-      node-fetch: 2.6.11
+      node-fetch: 2.7.0
       opencollective-postinstall: 2.0.3
       regenerator-runtime: 0.13.11
       tesseract.js-core: 5.0.0
-      wasm-feature-detect: 1.5.1
+      wasm-feature-detect: 1.6.1
       zlibjs: 0.3.1
     transitivePeerDependencies:
       - encoding
@@ -2495,8 +2495,8 @@ packages:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
     dev: false
 
-  /wasm-feature-detect@1.5.1:
-    resolution: {integrity: sha512-GHr23qmuehNXHY4902/hJ6EV5sUANIJC3R/yMfQ7hWDg3nfhlcJfnIL96R2ohpIwa62araN6aN4bLzzzq5GXkg==}
+  /wasm-feature-detect@1.6.1:
+    resolution: {integrity: sha512-R1i9ED8UlLu/foILNB1ck9XS63vdtqU/tP1MCugVekETp/ySCrBZRk5I/zI67cI1wlQYeSonNm1PLjDHZDNg6g==}
     dev: false
 
   /webidl-conversions@3.0.1:
