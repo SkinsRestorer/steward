@@ -19,7 +19,7 @@ dependencies:
     version: 2.1.35
   tesseract.js:
     specifier: ^5.0.0
-    version: 5.0.5
+    version: 5.1.0
 
 devDependencies:
   '@types/dateformat':
@@ -2285,12 +2285,12 @@ packages:
     engines: {node: '>= 0.4'}
     dev: true
 
-  /tesseract.js-core@5.0.0:
-    resolution: {integrity: sha512-lJur5LzjinW5VYMKlVNnBU2JPLpO+A9VqAYBeuV+ZgH0hKvsnm+536Yyp+/zRTBdLe7D6Kok0FN9g+TE4J8qGA==}
+  /tesseract.js-core@5.1.0:
+    resolution: {integrity: sha512-D4gc5ET1DF/sDayF/eVmHgVGo7nqVC2e3d7uVgVOSAk4NOcmUqvJRTj8etqEmI/2390ZkXCRiDMxTD1RFYyp1g==}
     dev: false
 
-  /tesseract.js@5.0.5:
-    resolution: {integrity: sha512-xtTfec4IynE63sl6kAFkGl1mejlNxr9qQXzVGAUHd7IPdQXveopjGO9Eph6xkSuW5sUCC9AT6VdBmODh8ZymGg==}
+  /tesseract.js@5.1.0:
+    resolution: {integrity: sha512-2fH9pqWdS2C6ue/3OoGg91Wtv7Rt/1atYu/g0Q1SGFrowEW/kIBkG361hLienHsWe4KWEjxOJBrCQYpIBWG6WA==}
     requiresBuild: true
     dependencies:
       bmp-js: 0.1.0
@@ -2300,7 +2300,7 @@ packages:
       node-fetch: 2.7.0
       opencollective-postinstall: 2.0.3
       regenerator-runtime: 0.13.11
-      tesseract.js-core: 5.0.0
+      tesseract.js-core: 5.1.0
       wasm-feature-detect: 1.6.1
       zlibjs: 0.3.1
     transitivePeerDependencies:
