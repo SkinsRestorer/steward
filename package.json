@@ -17,6 +17,7 @@
     "discord.js": "^14.9.0",
     "js-yaml": "^4.1.0",
     "mime-types": "^2.1.35",
+    "modelfusion": "^0.137.0",
     "tesseract.js": "^5.0.0"
   },
   "devDependencies": {

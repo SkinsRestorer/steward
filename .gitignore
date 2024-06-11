@@ -99,3 +99,4 @@ config.json
 *.js.flow
 
 *.traineddata
+tmp
