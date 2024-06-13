@@ -1,8 +1,7 @@
 import { Client, GatewayIntentBits, ActivityType } from 'discord.js'
-
 import config from 'config.json'
-
 import fs from 'fs'
+import "dotenv";
 
 const client = new Client({
   intents: [

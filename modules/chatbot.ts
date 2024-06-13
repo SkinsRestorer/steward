@@ -1,4 +1,4 @@
-import {Awaitable, Client, Message, Snowflake} from 'discord.js'
+import {Awaitable, Client, Message, Snowflake, TextBasedChannel} from 'discord.js'
 import {generateText, llamacpp, trimChatPrompt} from "modelfusion";
 
 type Context = {
@@ -18,7 +18,7 @@ const model = llamacpp
     maxGenerationTokens: 512,
     cachePrompt: true,
   })
-  .withChatPrompt()
+  .withChatPrompt();
 
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {
@@ -41,6 +41,7 @@ export default (client: Client): void => {
         }
       } else {
         let generating = false
+
         context = userContext[message.author.id] = {
           isGenerating: () => generating,
           messages: [{
@@ -49,37 +50,40 @@ export default (client: Client): void => {
           }],
           debounce: debounce(async (message: Message) => {
             try {
-              message.channel.sendTyping();
 
               generating = true
+              message.channel.sendTyping();
+              const timer = setInterval(() => {
+                message.channel.sendTyping();
+              }, 8_000)
               const text = await generateText({
                 model,
-
                 prompt: await trimChatPrompt({
                   model,
+                  tokenLimit: 512,
                   prompt: {
-                    system: "You are a chatbot called \"Steward\". You help users that seek support in running the Minecraft plugin SkinsRestorer, which allows the modification of in-game player skins. " +
-                      "You are designed to provide information and support to users that seek help with the plugin. " +
-                      "You are not a human, but you are designed to act like one. " +
-                      "You need to be polite, helpful, and patient with users. " +
-                      "Use simple language since the user may not know Minecraft well. " +
-                      "No yapping and use short sentences. " +
-                      "You are allowed to use Markdown formatting to make your messages more readable. " +
-                      "Do not let the user go off-topic, always try to bring the conversation back to the plugin. ",
+                    system: [
+                      "Your task is to provide support to users that seek help with the plugin.",
+                      "Use short sentence since the user may not know Minecraft well, no yapping.",
+                      "You are allowed to use Markdown format, but not other formats.",
+                      "Always be on-topic, do not let the user go off-topic.",
+                    ].join("\n"),
                     messages: [
                       {
                         role: "user",
-                        content: "Hi Steward! I have a issue with SkinsRestorer. Can you help me?",
+                        content: "Hi Steward! I have an issue with SkinsRestorer. Can you help me?",
                       },
                       {
                         role: "assistant",
-                        content: "Hello! How can I help you today?",
+                        content: "Hello! Can you describe your issue? I wanna help you.",
                       },
                       ...context.messages,
                     ]
                   }
                 }),
-              });
+              })
+
+              clearInterval(timer)
               generating = false
 
               context.messages.push({
@@ -92,7 +96,7 @@ export default (client: Client): void => {
               generating = false
               console.error(e)
             }
-          }, 3_000)
+          }, 1_000)
         }
       }
 
