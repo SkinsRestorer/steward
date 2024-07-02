@@ -138,7 +138,7 @@ async function respondToText(message: Message, text: string, footer: string) {
           embeds: [new EmbedBuilder()
             .setTitle('Outdated SkinsRestorer Version!')
             .setColor('#FF0000')
-            .setDescription(`The SkinsRestorer version you're using is outdated! Please update to the latest version: ${latestVersion}`)
+            .setDescription(`The SkinsRestorer version you're using (${version}) is outdated! Please update to the latest version: ${latestVersion}`)
             .setFooter({text: footer})]
         })
       }
