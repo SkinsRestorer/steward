@@ -1,8 +1,9 @@
-import { Client, ColorResolvable, EmbedBuilder, Message } from 'discord.js'
+import {Client, ColorResolvable, EmbedBuilder, Message} from 'discord.js'
 
-import config, { Checks } from './checks.config'
+import config, {Checks, MessagePredicate} from './checks.config'
 import data from 'data.json'
 import tesseract from 'tesseract.js'
+import {getMetadata} from "../commands/metadata";
 
 const imageTypes = ['image/png', 'image/jpeg', 'image/webp']
 
@@ -40,7 +41,7 @@ export default (client: Client): void => {
               .setTitle('Invalid Paste!')
               .setColor('#FF0000')
               .setDescription('The paste link you sent in is invalid or expired, please check the link or paste a new one.')
-              .setFooter({ text: `${originalLink} | Sent by ${message.author.username}` })]
+              .setFooter({text: `${originalLink} | Sent by ${message.author.username}`})]
           })
         }
       }
@@ -71,7 +72,7 @@ export default (client: Client): void => {
     }
 
     for (const attachment of attachments.values()) {
-      const { data: { text } } = await tesseract.recognize(
+      const {data: {text}} = await tesseract.recognize(
         attachment.proxyURL,
         'eng'
       )
@@ -83,18 +84,24 @@ export default (client: Client): void => {
   })
 }
 
-function checkMatch (text: string, checks: RegExp[]) {
+function checkMatch(text: string, checks: (RegExp | MessagePredicate)[]) {
   for (const check of checks) {
-    const match = check.exec(text)
-    if (match != null) {
-      return match
+    if (typeof check === 'function') {
+      if (check(text)) {
+        return text
+      }
+    } else {
+      const match = check.exec(text)
+      if (match != null) {
+        return match
+      }
     }
   }
 
   return null
 }
 
-async function respondToText (message: Message, text: string, footer: string) {
+async function respondToText(message: Message, text: string, footer: string) {
   for (const test of config.tests) {
     const cause = checkMatch(text, test.checks)
     if (cause == null) {
@@ -105,16 +112,49 @@ async function respondToText (message: Message, text: string, footer: string) {
     embed.setTitle(test.title)
     embed.setDescription(test.content)
     if (test.tips != null) {
-      embed.addFields(test.tips.map((tip, i) => ({ name: `Tip #${i + 1}`, value: tip })))
+      embed.addFields(test.tips.map((tip, i) => ({name: `Tip #${i + 1}`, value: tip})))
     }
 
     if (test.link) {
-      embed.addFields({ name: 'Read More', value: test.link })
+      embed.addFields({name: 'Read More', value: test.link})
     }
 
-    embed.addFields({ name: 'Caused By', value: `\`\`\`${cause}\`\`\`` })
-    embed.setFooter({ text: footer })
+    embed.addFields({name: 'Caused By', value: `\`\`\`${cause}\`\`\``})
+    embed.setFooter({text: footer})
     embed.setColor(data.accent_color as ColorResolvable)
-    await message.reply({ embeds: [embed] })
+    await message.reply({embeds: [embed]})
+  }
+
+  // Try parsing SkinsRestorer dump
+  if (isJson(text)) {
+    try {
+      const rawDump = JSON.parse(text)
+      const buildInfo = rawDump.buildInfo
+      const version = buildInfo.version
+      const latestVersion = getMetadata().name
+
+      if (version !== latestVersion) {
+        await message.reply({
+          embeds: [new EmbedBuilder()
+            .setTitle('Outdated SkinsRestorer Version!')
+            .setColor('#FF0000')
+            .setDescription(`The SkinsRestorer version you're using is outdated! Please update to the latest version: ${latestVersion}`)
+            .setFooter({text: footer})]
+        })
+      }
+    } catch (e) {
+      // Can be ignored, as it's not a SkinsRestorer dump
+      console.error(e)
+    }
   }
 }
+
+function isJson(str: string) {
+  try {
+    JSON.parse(str);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+

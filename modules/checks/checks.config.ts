@@ -3,8 +3,10 @@ export interface Checks {
   getLink: string
 }
 
+export type MessagePredicate = (message: string) => boolean
+
 export interface Tests {
-  checks: RegExp[]
+  checks: (RegExp | MessagePredicate)[]
   title: string
   content: string
   tips?: string[]
