@@ -29,7 +29,7 @@ export default (client: Client): void => {
       },
       {
         name: 'Search the issue tracker',
-        value: 'We have a [issue tracker](https://github.com/SkinsRestorer/SkinsRestorerX/issues) on GitHub. You can search for your issue there. If you find it, you can subscribe to it to get notified when it is fixed.'
+        value: 'We have a [issue tracker](https://github.com/SkinsRestorer/SkinsRestorer/issues) on GitHub. You can search for your issue there. If you find it, you can subscribe to it to get notified when it is fixed.'
       },
       {
         name: 'Give us more information!',

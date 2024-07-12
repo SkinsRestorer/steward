@@ -75,7 +75,7 @@ export const configCommands: ConfigCommand[] = [
     name: 'api',
     cmdDescription: 'Send a link to the API page',
     title: 'Developer API',
-    url: 'https://github.com/SkinsRestorer/SkinsRestorerX/wiki/SkinsRestorerAPI',
+    url: 'https://github.com/SkinsRestorer/SkinsRestorer/wiki/SkinsRestorerAPI',
     description: 'Learn how to use the SkinsRestorer API in your project.',
     fields: [
       {
@@ -134,7 +134,7 @@ export const configCommands: ConfigCommand[] = [
     fields: [
       {
         key: 'Dev downloads',
-        value: 'https://ci.codemc.io/job/SkinsRestorer/job/SkinsRestorerX-DEV/'
+        value: 'https://ci.codemc.io/job/SkinsRestorer/job/SkinsRestorer-DEV/'
       }
     ]
   },
@@ -184,7 +184,7 @@ export const configCommands: ConfigCommand[] = [
     fields: [
       {
         key: 'Issue Tracker:',
-        value: 'https://github.com/SkinsRestorer/SkinsRestorerX/issues'
+        value: 'https://github.com/SkinsRestorer/SkinsRestorer/issues'
       }
     ]
   },
