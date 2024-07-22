@@ -1,5 +1,5 @@
-import {Awaitable, Client, Message, Snowflake, TextBasedChannel} from 'discord.js'
-import {generateText, llamacpp, trimChatPrompt} from "modelfusion";
+import {Awaitable, Client, Message, Snowflake} from 'discord.js'
+import {generateText, ollama} from "modelfusion";
 
 type Context = {
   isGenerating: () => boolean,
@@ -11,12 +11,10 @@ type Context = {
 }
 const userContext: Record<Snowflake, Context> = {}
 
-const model = llamacpp
-  .CompletionTextGenerator({
-    promptTemplate: llamacpp.prompt.Llama2,
-    contextWindowSize: 4096, // Llama 2 context window size
+const model = ollama
+  .ChatTextGenerator({
+    model: "llama3",
     maxGenerationTokens: 512,
-    cachePrompt: true,
   })
   .withChatPrompt();
 
@@ -41,6 +39,11 @@ export default (client: Client): void => {
         }
       } else {
         let generating = false
+        setInterval(() => {
+          if (generating) {
+            void message.channel.sendTyping();
+          }
+        }, 8_000)
 
         context = userContext[message.author.id] = {
           isGenerating: () => generating,
@@ -50,40 +53,30 @@ export default (client: Client): void => {
           }],
           debounce: debounce(async (message: Message) => {
             try {
-
               generating = true
-              message.channel.sendTyping();
-              const timer = setInterval(() => {
-                message.channel.sendTyping();
-              }, 8_000)
+              await message.channel.sendTyping();
               const text = await generateText({
                 model,
-                prompt: await trimChatPrompt({
-                  model,
-                  tokenLimit: 512,
-                  prompt: {
-                    system: [
-                      "Your task is to provide support to users that seek help with the plugin.",
-                      "Use short sentence since the user may not know Minecraft well, no yapping.",
-                      "You are allowed to use Markdown format, but not other formats.",
-                      "Always be on-topic, do not let the user go off-topic.",
-                    ].join("\n"),
-                    messages: [
-                      {
-                        role: "user",
-                        content: "Hi Steward! I have an issue with SkinsRestorer. Can you help me?",
-                      },
-                      {
-                        role: "assistant",
-                        content: "Hello! Can you describe your issue? I wanna help you.",
-                      },
-                      ...context.messages,
-                    ]
-                  }
-                }),
+                prompt: {
+                  system: [
+                    "Your task is to provide support to users that seek help with the plugin.",
+                    "Use short sentence since the user may not know Minecraft well, no yapping.",
+                    "You are allowed to use Markdown format, but not other formats.",
+                    "Always be on-topic, do not let the user go off-topic.",
+                  ].join("\n"),
+                  messages: [
+                    {
+                      role: "user",
+                      content: "Hi Steward! I have an issue with SkinsRestorer. Can you help me?",
+                    },
+                    {
+                      role: "assistant",
+                      content: "Hello! Can you describe your issue? I wanna help you.",
+                    },
+                    ...context.messages,
+                  ]
+                }
               })
-
-              clearInterval(timer)
               generating = false
 
               context.messages.push({
