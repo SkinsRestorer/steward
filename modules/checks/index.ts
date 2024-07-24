@@ -142,7 +142,7 @@ async function respondToText(message: Message, text: string, footer: string) {
 
       const messageEmbeds: EmbedBuilder[] = []
       {
-        const buildInfo = rawDump.buildInfo
+        const {buildInfo} = rawDump
         const version = semver.coerce(buildInfo.version)
         const metadata = getMetadata()
         const latestVersion = semver.coerce(metadata.tag_name)
@@ -157,8 +157,15 @@ async function respondToText(message: Message, text: string, footer: string) {
                 value: `[Download ${latestVersion}](${metadata.assets.find(a => a.name === "SkinsRestorer.jar")?.browser_download_url})`
               }
             )
-            .setDescription(`The SkinsRestorer version you're using (\`${version}\`) is outdated! Please update to the latest version: \`${latestVersion}\``))
+            .setDescription(`The SkinsRestorer version you're using (\`${version}\`) is outdated! Please update to the latest version: \`${latestVersion}\``)
+          )
         }
+
+        messageEmbeds.push(new EmbedBuilder()
+          .setTitle('Info: Build')
+          .setColor(Colors.Blurple)
+          .setDescription(`You are running version \`${version}\` of SkinsRestorer, built on \`${buildInfo.buildTime}\`.`)
+        )
       }
 
       {
@@ -168,13 +175,36 @@ async function respondToText(message: Message, text: string, footer: string) {
             .setTitle('Info: Docker detected')
             .setColor(Colors.Blurple)
             .setDescription('We detected you are running SkinsRestorer in a Docker container and likely using a panel like Pterodactyl/Pelican. ' +
-              'This is not an error, but we need to know this to better help you.'))
+              'This is not an error, but we need to know this to better help you.')
+          )
         }
 
         messageEmbeds.push(new EmbedBuilder()
           .setTitle('Info: OS/Java')
           .setColor(Colors.Blurple)
-          .setDescription(`We detected you are running SkinsRestorer on \`${osInfo.name}\` with arch \`${osInfo.arch}\` and Java \`${javaInfo.version}\``))
+          .setDescription(`We detected you are running SkinsRestorer on \`${osInfo.name}\` with arch \`${osInfo.arch}\` and Java \`${javaInfo.version}\``)
+        )
+      }
+
+      {
+        const {platformInfo, environmentInfo} = rawDump
+        messageEmbeds.push(new EmbedBuilder()
+          .setTitle('Info: Platform/Environment')
+          .setColor(Colors.Blurple)
+          .setDescription(`The dump is from the platform \`${platformInfo.platformName}\` (${environmentInfo["platform"]} & ${environmentInfo["platformType"]}) with version \`${platformInfo.platformVersion}\`.`)
+          .addFields({
+            name: `Plugins (${platformInfo.plugins.length})`,
+            value: platformInfo.plugins.map((p: any) => `\`${p.name} (${p.version}, enabled: ${p.enabled})\``).join(', ')
+          })
+        )
+        if (environmentInfo.hybrid) {
+          messageEmbeds.push(new EmbedBuilder()
+            .setTitle('Warning: Hybrid detected!')
+            .setColor(Colors.Red)
+            .setDescription(`The platform appears to be a hybrid platform (mix of mods with plugins). This is not supported and may cause issues.`
+            )
+          )
+        }
       }
 
       if (messageEmbeds.length > 0) {
