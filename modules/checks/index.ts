@@ -139,24 +139,44 @@ async function respondToText(message: Message, text: string, footer: string) {
   if (isJson(text)) {
     try {
       const rawDump = JSON.parse(text)
-      const buildInfo = rawDump.buildInfo
-      const version = semver.coerce(buildInfo.version)
-      const metadata = getMetadata()
-      const latestVersion = semver.coerce(metadata.tag_name)
 
       const messageEmbeds: EmbedBuilder[] = []
-      if (version !== null && latestVersion !== null && semver.lt(version, latestVersion)) {
-        messageEmbeds.push(new EmbedBuilder()
-          .setTitle('Outdated SkinsRestorer Version!')
-          .setColor(Colors.Red)
-          .addFields(
-            {
-              name: ' ',
-              value: `[Download ${latestVersion}](${metadata.assets.find(a => a.name === "SkinsRestorer.jar")?.browser_download_url})`
-            }
-          )
-          .setDescription(`The SkinsRestorer version you're using (\`${version}\`) is outdated! Please update to the latest version: \`${latestVersion}\``)
+      {
+        const buildInfo = rawDump.buildInfo
+        const version = semver.coerce(buildInfo.version)
+        const metadata = getMetadata()
+        const latestVersion = semver.coerce(metadata.tag_name)
 
+        if (version !== null && latestVersion !== null && semver.lt(version, latestVersion)) {
+          messageEmbeds.push(new EmbedBuilder()
+            .setTitle('Important: Outdated SkinsRestorer Version!')
+            .setColor(Colors.Red)
+            .addFields(
+              {
+                name: ' ',
+                value: `[Download ${latestVersion}](${metadata.assets.find(a => a.name === "SkinsRestorer.jar")?.browser_download_url})`
+              }
+            )
+            .setDescription(`The SkinsRestorer version you're using (\`${version}\`) is outdated! Please update to the latest version: \`${latestVersion}\``)
+            .setFooter({text: footer}))
+        }
+      }
+
+      {
+        const {osInfo, javaInfo, userInfo} = rawDump
+        if (userInfo.name === "?" || userInfo.dir === "/home/container" || userInfo.home === "/home/container") {
+          messageEmbeds.push(new EmbedBuilder()
+            .setTitle('Info: Docker detected')
+            .setColor(Colors.Blurple)
+            .setDescription('We detected you are running SkinsRestorer in a Docker container and likely using a panel like Pterodactyl/Pelican. ' +
+              'This is not an error, but we need to know this to better help you.')
+            .setFooter({text: footer}))
+        }
+
+        messageEmbeds.push(new EmbedBuilder()
+          .setTitle('Info: OS/Java')
+          .setColor(Colors.Blurple)
+          .setDescription(`We detected you are running SkinsRestorer on \`${osInfo.name}\` with arch \`${osInfo.arch}\` and Java \`${javaInfo.version}\``)
           .setFooter({text: footer}))
       }
 
