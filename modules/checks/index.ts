@@ -157,8 +157,7 @@ async function respondToText(message: Message, text: string, footer: string) {
                 value: `[Download ${latestVersion}](${metadata.assets.find(a => a.name === "SkinsRestorer.jar")?.browser_download_url})`
               }
             )
-            .setDescription(`The SkinsRestorer version you're using (\`${version}\`) is outdated! Please update to the latest version: \`${latestVersion}\``)
-            .setFooter({text: footer}))
+            .setDescription(`The SkinsRestorer version you're using (\`${version}\`) is outdated! Please update to the latest version: \`${latestVersion}\``))
         }
       }
 
@@ -169,19 +168,20 @@ async function respondToText(message: Message, text: string, footer: string) {
             .setTitle('Info: Docker detected')
             .setColor(Colors.Blurple)
             .setDescription('We detected you are running SkinsRestorer in a Docker container and likely using a panel like Pterodactyl/Pelican. ' +
-              'This is not an error, but we need to know this to better help you.')
-            .setFooter({text: footer}))
+              'This is not an error, but we need to know this to better help you.'))
         }
 
         messageEmbeds.push(new EmbedBuilder()
           .setTitle('Info: OS/Java')
           .setColor(Colors.Blurple)
-          .setDescription(`We detected you are running SkinsRestorer on \`${osInfo.name}\` with arch \`${osInfo.arch}\` and Java \`${javaInfo.version}\``)
-          .setFooter({text: footer}))
+          .setDescription(`We detected you are running SkinsRestorer on \`${osInfo.name}\` with arch \`${osInfo.arch}\` and Java \`${javaInfo.version}\``))
       }
 
       if (messageEmbeds.length > 0) {
-        await message.reply({embeds: messageEmbeds})
+        await message.reply({
+          content: `Found the following for: \`${footer}\``,
+          embeds: messageEmbeds
+        })
       }
     } catch (e) {
       // Can be ignored, as it's not a SkinsRestorer dump
