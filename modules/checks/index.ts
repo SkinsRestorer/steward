@@ -194,7 +194,7 @@ async function respondToText(message: Message, text: string, footer: string) {
           .setDescription(`The dump is from the platform \`${platformInfo.platformName}\` (${environmentInfo["platform"]} & ${environmentInfo["platformType"]}) with version \`${platformInfo.platformVersion}\`.`)
           .addFields({
             name: `Plugins (${platformInfo.plugins.length})`,
-            value: platformInfo.plugins.map((p: any) => `\`${p.name}\` Version: \`${p.version}\` Enabled: \`${p.enabled})\``).join(', ')
+            value: platformInfo.plugins.map((p: any) => `\`${p.name}\` \`Version: ${p.version}\` \`Enabled: ${p.enabled}\``).join(', ')
           })
         )
         if (environmentInfo.hybrid) {
