@@ -210,7 +210,7 @@ async function respondToText(message: Message, text: string, footer: string) {
         messageEmbeds.push(new EmbedBuilder()
           .setTitle('Info: Plugin')
           .setColor(Colors.Blurple)
-          .setDescription(`You are in proxy mode: \`${Boolean(pluginInfo.proxyMode)}\`, debug enabled: \`${Boolean(configData.debug.enabled)}\``)
+          .setDescription(`You are in proxy mode: \`${Boolean(pluginInfo.proxyMode)}\`, debug enabled: \`${Boolean(configData.dev.debug)}\``)
         )
       }
 
