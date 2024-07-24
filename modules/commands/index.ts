@@ -1,4 +1,14 @@
-import { Client, ColorResolvable, EmbedBuilder, PermissionFlagsBits, REST, Routes, SlashCommandBuilder } from 'discord.js'
+import {
+  ApplicationCommandType,
+  Client,
+  ColorResolvable,
+  ContextMenuCommandBuilder,
+  EmbedBuilder,
+  PermissionFlagsBits,
+  REST,
+  Routes,
+  SlashCommandBuilder
+} from 'discord.js'
 
 import config from 'config.json'
 import data from 'data.json'
@@ -41,8 +51,12 @@ for (const command of commands) {
       .setName('user')
       .setDescription('Mention a specific user with the command')
     )
+  const contextMenuCommand = new ContextMenuCommandBuilder()
+    .setName(command.name)
+    .setType(ApplicationCommandType.Message)
 
   slashApiCommands.push(slashCommand.toJSON())
+  slashApiCommands.push(contextMenuCommand.toJSON())
 }
 
 interface CommandData {
@@ -76,7 +90,7 @@ export default async (client: Client): Promise<void> => {
   console.log(`Successfully reloaded ${responseData.length} application (/) commands.`)
 
   client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return
+    if (!interaction.isChatInputCommand() && !interaction.isMessageContextMenuCommand()) return
 
     // Grab the command
     const trigger = interaction.commandName
@@ -104,8 +118,6 @@ export default async (client: Client): Promise<void> => {
 
       return
     }
-
-    const targetUser = interaction.options.getUser('user')
 
     // Initiate the embed
     const embed = new EmbedBuilder()
@@ -184,9 +196,15 @@ export default async (client: Client): Promise<void> => {
       })
     }
 
+    const targetUser = interaction.isChatInputCommand() ? interaction.options.getUser('user') : null
     let message
     if (targetUser != null) {
       message = `<@${targetUser.id}>`
+    }
+
+    const sourceUser = interaction.isMessageContextMenuCommand() ? interaction.user : null
+    if (sourceUser != null) {
+      message = `Requested by <@${sourceUser.id}>`
     }
 
     await interaction.reply({ content: message, embeds: [embed] })
