@@ -5,59 +5,68 @@ import data from 'data.json'
 import tesseract from 'tesseract.js'
 import {getMetadata} from "../commands/metadata";
 
-const imageTypes = ['image/png', 'image/jpeg', 'image/webp']
+const imageTypes = ['image/png', 'image/jpeg', 'image/webp'];
+
+function findCheckMath(message: Message) {
+  function matchToReturn(check: Checks, match: RegExpMatchArray) {
+    return {
+      getLink: check.getLink.replace('{code}', match[1]),
+      originalLink: match[0]
+    }
+  }
+
+  for (const check of config.checks) {
+    const match = check.regex.exec(message.content)
+    if (match != null) {
+      return matchToReturn(check, match)
+    }
+
+    for (const embedValue of message.embeds) {
+      for (const field of embedValue.fields) {
+        const match = check.regex.exec(field.value)
+        if (match != null) {
+          return matchToReturn(check, match)
+        }
+      }
+    }
+  }
+
+  return null
+}
 
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {
   client.on('messageCreate', async message => {
-    if (!message.channel.isTextBased() || message.channel.isDMBased() || message.author.bot) return
+    if (!message.channel.isTextBased() || message.channel.isDMBased() || client.user?.equals(message.author)) return
 
-    let getLink = ''
-    let originalLink = ''
-    config.checks.every((element: Checks) => {
-      const match = element.regex.exec(message.content)
-      if (match != null) {
-        getLink = element.getLink.replace('{code}', match[1])
-        originalLink = match[0]
-        return false
-      } else {
-        return true
-      }
-    })
-
-    if (!getLink) {
+    let checkResult = findCheckMath(message)
+    if (!checkResult) {
       return
     }
 
-    let response = ''
     try {
-      console.log(`Getting upload bin ${getLink}`)
-      response = (await (await fetch(getLink)).text())
-    } catch (e: any) {
-      if (e.response) {
-        if (e.response.status === 404) {
-          await message.reply({
-            embeds: [new EmbedBuilder()
-              .setTitle('Invalid Paste!')
-              .setColor('#FF0000')
-              .setDescription('The paste link you sent in is invalid or expired, please check the link or paste a new one.')
-              .setFooter({text: `${originalLink} | Sent by ${message.author.username}`})]
-          })
-        }
+      console.log(`Getting upload bin ${checkResult.getLink}`)
+      const response = await (await fetch(checkResult.getLink)).text()
+      if (!response) {
+        return
       }
 
-      return
+      await respondToText(message, response, `${checkResult.originalLink} | Sent by ${message.author.username}`)
+    } catch (e: any) {
+      if (e.response?.status === 404) {
+        await message.reply({
+          embeds: [new EmbedBuilder()
+            .setTitle('Invalid Paste!')
+            .setColor('#FF0000')
+            .setDescription('The paste link you sent in is invalid or expired, please check the link or paste a new one.')
+            .setFooter({text: `${checkResult.originalLink} | Sent by ${message.author.username}`})]
+        })
+      }
     }
-
-    if (!response) {
-      return
-    }
-
-    await respondToText(message, response, `${originalLink} | Sent by ${message.author.username}`)
   })
 
   client.on('messageCreate', async message => {
-    if (!message.channel.isTextBased() || message.channel.isDMBased() || message.author.bot) return
+    if (!message.channel.isTextBased() || message.channel.isDMBased() || client.user?.equals(message.author)) return
 
     if (message.attachments.size === 0) {
       return
