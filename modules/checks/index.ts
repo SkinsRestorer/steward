@@ -151,13 +151,11 @@ async function respondToText(message: Message, text: string, footer: string) {
           messageEmbeds.push(new EmbedBuilder()
             .setTitle('Important: Outdated SkinsRestorer Version!')
             .setColor(Colors.Red)
-            .addFields(
-              {
-                name: ' ',
-                value: `[Download ${latestVersion}](${metadata.assets.find(a => a.name === "SkinsRestorer.jar")?.browser_download_url})`
-              }
-            )
             .setDescription(`The SkinsRestorer version you're using (\`${version}\`) is outdated! Please update to the latest version: \`${latestVersion}\``)
+            .addFields({
+              name: ' ',
+              value: `[Download ${latestVersion}](${metadata.assets.find(a => a.name === "SkinsRestorer.jar")?.browser_download_url})`
+            })
           )
         }
 
@@ -191,7 +189,7 @@ async function respondToText(message: Message, text: string, footer: string) {
         messageEmbeds.push(new EmbedBuilder()
           .setTitle('Info: Platform/Environment')
           .setColor(Colors.Blurple)
-          .setDescription(`The dump is from the platform \`${platformInfo.platformName}\` (${environmentInfo["platform"]} & ${environmentInfo["platformType"]}) with version \`${platformInfo.platformVersion}\`.`)
+          .setDescription(`The dump is from the platform \`${platformInfo.platformName}\` (\`${environmentInfo["platform"]}\` & \`${environmentInfo["platformType"]}\`) with version \`${platformInfo.platformVersion}\`.`)
           .addFields({
             name: `Plugins (${platformInfo.plugins.length})`,
             value: platformInfo.plugins.map((p: any) => `\`${p.name} Version: ${p.version} Enabled: ${p.enabled}\``).join(', ')
@@ -201,10 +199,18 @@ async function respondToText(message: Message, text: string, footer: string) {
           messageEmbeds.push(new EmbedBuilder()
             .setTitle('Warning: Hybrid detected!')
             .setColor(Colors.Red)
-            .setDescription(`The platform appears to be a hybrid platform (mix of mods with plugins). This is not supported and may cause issues.`
-            )
+            .setDescription(`The platform appears to be a hybrid platform (mix of mods with plugins). This is not supported and may cause issues.`)
           )
         }
+      }
+
+      {
+        const {pluginInfo} = rawDump
+        messageEmbeds.push(new EmbedBuilder()
+          .setTitle('Info: Plugin')
+          .setColor(Colors.Blurple)
+          .setDescription(`You are in proxy mode: \`${Boolean(pluginInfo.proxyMode)}\``)
+        )
       }
 
       if (messageEmbeds.length > 0) {
