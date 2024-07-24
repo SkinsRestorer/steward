@@ -1,9 +1,10 @@
-import {Client, ColorResolvable, EmbedBuilder, Message} from 'discord.js'
+import {Client, ColorResolvable, Colors, EmbedBuilder, Message} from 'discord.js'
 
 import config, {Checks, MessagePredicate} from './checks.config'
 import data from 'data.json'
 import tesseract from 'tesseract.js'
 import {getMetadata} from "../commands/metadata";
+import semver from "semver/preload";
 
 const imageTypes = ['image/png', 'image/jpeg', 'image/webp'];
 
@@ -139,17 +140,28 @@ async function respondToText(message: Message, text: string, footer: string) {
     try {
       const rawDump = JSON.parse(text)
       const buildInfo = rawDump.buildInfo
-      const version = buildInfo.version
-      const latestVersion = getMetadata().name
+      const version = semver.coerce(buildInfo.version)
+      const metadata = getMetadata()
+      const latestVersion = semver.coerce(metadata.tag_name)
 
-      if (version !== latestVersion) {
-        await message.reply({
-          embeds: [new EmbedBuilder()
-            .setTitle('Outdated SkinsRestorer Version!')
-            .setColor('#FF0000')
-            .setDescription(`The SkinsRestorer version you're using (\`${version}\`) is outdated! Please update to the latest version: \`${latestVersion}\``)
-            .setFooter({text: footer})]
-        })
+      const messageEmbeds: EmbedBuilder[] = []
+      if (version !== null && latestVersion !== null && semver.lt(version, latestVersion)) {
+        messageEmbeds.push(new EmbedBuilder()
+          .setTitle('Outdated SkinsRestorer Version!')
+          .setColor(Colors.Red)
+          .addFields(
+            {
+              name: ' ',
+              value: `[Download ${latestVersion}](${metadata.assets.find(a => a.name === "SkinsRestorer.jar")?.browser_download_url})`
+            }
+          )
+          .setDescription(`The SkinsRestorer version you're using (\`${version}\`) is outdated! Please update to the latest version: \`${latestVersion}\``)
+
+          .setFooter({text: footer}))
+      }
+
+      if (messageEmbeds.length > 0) {
+        await message.reply({embeds: messageEmbeds})
       }
     } catch (e) {
       // Can be ignored, as it's not a SkinsRestorer dump

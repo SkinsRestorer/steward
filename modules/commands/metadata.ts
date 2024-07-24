@@ -1,16 +1,19 @@
-let metadata: { name?: string } = {}
-
-const fetchData = async (): Promise<void> => {
-  try {
-    metadata = { ...await (await fetch('https://api.spiget.org/v2/resources/2124/versions/latest')).json() }
-  } catch (e) {
-    console.error(e)
-  }
+type Metadata = {
+  tag_name: string
+  assets: {
+    name: string
+    browser_download_url: string
+  }[]
 }
 
-await fetchData()
-setInterval(fetchData, 1_000 * 60) // 60 requests per hour
+const fetchData = async (): Promise<Metadata> => {
+  return await (await fetch('https://api.github.com/repos/SkinsRestorer/SkinsRestorer/releases/latest')).json()
+}
+let metadata = await fetchData()
+setInterval(() => {
+  void fetchData().catch(console.error)
+}, 1_000 * 60) // 60 requests per hour
 
-export function getMetadata () {
+export function getMetadata() {
   return metadata
 }
