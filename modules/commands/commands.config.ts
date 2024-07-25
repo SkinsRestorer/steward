@@ -275,5 +275,11 @@ export const configCommands: ConfigCommand[] = [
         value: 'You can use SkinsRestorer in standalone mode, which is the default mode, in that case you should not put the plugin on your proxy and you need to manually link your backend servers via MySQL.'
       }
     ]
+  },
+  {
+    name: 'sr-dump',
+    cmdDescription: 'Send a message to run /sr dump',
+    title: 'Please run `/sr dump` in-game or in the console',
+    description: 'You will be sent a link by the server with a dump of your SkinsRestorer configuration and system information. Please send the link in this channel.'
   }
 ]
