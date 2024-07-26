@@ -208,7 +208,7 @@ export const configCommands: ConfigCommand[] = [
     name: 'send-logs',
     cmdDescription: 'Send a message with info to send logs',
     title: 'Please send us your server logs!',
-    description: 'Paste any relevant segments of the console log. If it\'s a startup error, this includes the entire startup log! Use a service like https://mclo.gs/ to paste the logs.',
+    description: 'Send us your entire console log. Use a service like https://mclo.gs/ to paste the logs.',
     fields: [
       {
         key: 'Where to find logs?',
