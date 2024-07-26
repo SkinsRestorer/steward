@@ -195,7 +195,7 @@ export default async (client: Client): Promise<void> => {
       embed
         .setColor(data.accent_color as ColorResolvable)
         .setTitle('Latest version')
-        .setDescription(`\`${getMetadata().name ?? 'Unknown'}\``)
+        .setDescription(`\`${getMetadata().tag_name ?? 'Unknown'}\``)
 
       await interaction.reply({embeds: [embed]})
       return
