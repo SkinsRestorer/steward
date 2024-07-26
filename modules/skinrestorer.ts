@@ -6,10 +6,10 @@ export default (client: Client): void => {
   client.on('messageCreate', async message => {
     // Ignore ourself
     if (!message.channel.isTextBased() || message.channel.isDMBased() || message.author.bot) return
-    const strippedMessage = message.content.toLowerCase().replace(/\W/gm, '')
+    const strippedMessage = message.content.toLowerCase()
 
     // If the stripped message contains skinrestorer
-    if (strippedMessage.includes('skinrestorer')) {
+    if (strippedMessage.replace(/\W/gm, '').includes('skinrestorer')) {
       await message.reply({
         embeds: [new EmbedBuilder()
           .setTitle('It looks like you\'re trying to spell SkinsRestorer!')
@@ -20,7 +20,7 @@ export default (client: Client): void => {
     }
 
     // If the stripped message starts with "/sr"
-    if (strippedMessage.startsWith('/sr')) {
+    if (strippedMessage.startsWith('/sr ')) {
       await message.reply({
         embeds: [new EmbedBuilder()
           .setTitle('Not in Discord you fool! Run it in the server 😄')
