@@ -19,8 +19,15 @@ export default (client: Client): void => {
       })
     }
 
+    let spaces = 0
+    for (const char of strippedMessage) {
+      if (char === ' ') {
+        spaces++
+      }
+    }
+
     // If the stripped message starts with "/sr"
-    if (strippedMessage.startsWith('/sr ')) {
+    if (strippedMessage.startsWith('/sr ') && spaces <= 1) {
       await message.reply({
         embeds: [new EmbedBuilder()
           .setTitle('Not in Discord you fool! Run it in the server 😄')
