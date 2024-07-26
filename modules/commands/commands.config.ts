@@ -205,18 +205,22 @@ export const configCommands: ConfigCommand[] = [
     ]
   },
   {
-    name: 'paste-it',
-    cmdDescription: 'Send a message with a link to a paste service',
-    title: 'Please use a paste service!',
-    description: 'Seeing a paste of the problem makes everything so much easier! Use https://pastes.dev/ for easy pasting!',
+    name: 'send-logs',
+    cmdDescription: 'Send a message with info to send logs',
+    title: 'Please send us your server logs!',
+    description: 'Paste any relevant segments of the console log. If it\'s a startup error, this includes the entire startup log! Use a service like https://mclo.gs/ to paste the logs.',
     fields: [
       {
-        key: 'For console errors:',
-        value: "Paste any relevant segments of the console log. If it's a startup error, this includes the entire startup log!"
+        key: 'Where to find logs?',
+        value: 'In your server console or in the `./logs/latest.log` file of your server.'
       },
       {
-        key: 'Other errors:',
-        value: 'Paste the entire SkinsRestorer config file (passwords removed) as well as any other relevant files!'
+        key: 'Why do we need logs?',
+        value: 'Error message are most useful to us when they are in the context of the rest of the log and give us info about what part of the plugin is causing the issue.'
+      },
+      {
+        key: 'Do not leak private player IPs!',
+        value: 'Services like https://mclo.gs/ hide player IPs from the uploaded logs, so you can safely share them. Make sure you manually remove them if you use a different service.'
       }
     ]
   },
