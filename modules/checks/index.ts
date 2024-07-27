@@ -217,7 +217,7 @@ async function respondToText(message: Message, text: string, footer: string) {
           files: [{
             contentType: 'application/json',
             name: 'dump.json',
-            attachment: Buffer.from(text)
+            attachment: Buffer.from(JSON.stringify(rawDump, null, 2))
           }]
         })
       }
