@@ -35,14 +35,16 @@ export default (client: Client): void => {
         },
         {
           name: 'Give us more information!',
-          value: 'When you create a thread, please include as much information as possible. This includes:\n' +
-            '- Your SkinsRestorer version\n' +
-            '- Your server version\n' +
-            '- Your server software (Spigot, Paper, etc.)\n' +
-            '- Your server log\n' +
-            '- The link created by running `/sr dump`\n' +
-            '- Any other relevant information\n' +
+          value: [
+            'When you create a thread, please include as much information as possible. This includes:',
+            '- Your SkinsRestorer version',
+            '- Your server version',
+            '- Your server software (Spigot, Paper, etc.)',
+            '- Your server log',
+            '- The link created by running `/sr dump`',
+            '- Any other relevant information',
             'You can use [pastes.dev](https://pastes.dev) to share files. If you do not include this information, we will ask for it and your thread will be closed until you provide it.'
+          ].join('\n')
         },
         {
           name: 'Be patient',
