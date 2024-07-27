@@ -213,7 +213,12 @@ async function respondToText(message: Message, text: string, footer: string) {
       if (messageEmbeds.length > 0) {
         await message.reply({
           content: `Found the following for: \`${footer}\``,
-          embeds: messageEmbeds
+          embeds: messageEmbeds,
+          files: [{
+            contentType: 'application/json',
+            name: 'dump.json',
+            attachment: Buffer.from(text)
+          }]
         })
       }
     } catch (e) {
