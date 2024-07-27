@@ -38,7 +38,7 @@ function findCheckMath(message: Message) {
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {
   client.on('messageCreate', async message => {
-    if (!message.channel.isTextBased() || message.channel.isDMBased() || client.user?.equals(message.author)) return
+    if (!message.channel.isTextBased() || message.channel.isDMBased() || client.user?.id === message.author.id) return
 
     let checkResult = findCheckMath(message)
     if (!checkResult) {
@@ -67,7 +67,7 @@ export default (client: Client): void => {
   })
 
   client.on('messageCreate', async message => {
-    if (!message.channel.isTextBased() || message.channel.isDMBased() || client.user?.equals(message.author)) return
+    if (!message.channel.isTextBased() || message.channel.isDMBased() || client.user?.id === message.author.id) return
 
     if (message.attachments.size === 0) {
       return
