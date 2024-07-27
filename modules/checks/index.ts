@@ -189,11 +189,7 @@ async function respondToText(message: Message, text: string, footer: string) {
         messageEmbeds.push(new EmbedBuilder()
           .setTitle('Info: Platform/Environment')
           .setColor(Colors.Blurple)
-          .setDescription(`The dump is from the platform \`${platformInfo.platformName}\` (\`${environmentInfo["platform"]}\` & \`${environmentInfo["platformType"]}\`) with version \`${platformInfo.platformVersion}\`.`)
-          .addFields({
-            name: `Plugins (${platformInfo.plugins.length})`,
-            value: platformInfo.plugins.map((p: any) => `\`${p.name} Version: ${p.version} Enabled: ${p.enabled}\``).join(', ')
-          })
+          .setDescription(`The dump is from the platform \`${platformInfo.platformName}\` (\`${environmentInfo["platform"]}\` & \`${environmentInfo["platformType"]}\`) with version \`${platformInfo.platformVersion}\` and \`${platformInfo.plugins.length}\` plugins.`)
         )
         if (environmentInfo.hybrid) {
           messageEmbeds.push(new EmbedBuilder()
