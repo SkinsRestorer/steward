@@ -161,7 +161,7 @@ export default async (client: Client): Promise<void> => {
       }
 
       // Send a message before locking the thread, so we can still reply to it
-      await interaction.reply('This thread has been marked as resolved, locked and archived. Thank you for using SkinRestorer! For any future issues, please create a new post.')
+      await interaction.reply('This thread has been marked as resolved, locked and archived. Thank you for using SkinsRestorer! For any future issues, please create a new post.')
       await channel.setAppliedTags([...channel.appliedTags, config.resolvedTag])
       await channel.setLocked(true)
       await channel.setArchived(true, 'resolved')
