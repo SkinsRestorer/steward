@@ -169,11 +169,8 @@ export default async (client: Client): Promise<void> => {
       return
     }
 
-    // Initiate the embed
-    const embed = new EmbedBuilder()
-
     if (trigger === 'help') {
-      embed
+      const embed = new EmbedBuilder()
         .setColor(data.accent_color as ColorResolvable)
         .setTitle('Steward help')
         .setDescription('Hi! :wave: I am Steward. Here to help out at SkinsRestorer. The code for steward can be [found on GitHub](https://github.com/SkinsRestorer/steward)')
@@ -192,7 +189,7 @@ export default async (client: Client): Promise<void> => {
     }
 
     if (trigger === 'latest') {
-      embed
+      const embed = new EmbedBuilder()
         .setColor(data.accent_color as ColorResolvable)
         .setTitle('Latest version')
         .setDescription(`\`${getMetadata().tag_name ?? 'Unknown'}\``)
@@ -211,6 +208,8 @@ export default async (client: Client): Promise<void> => {
       await interaction.reply("Something went wrong! I couldn't find that command.")
       return
     }
+
+    const embed = new EmbedBuilder()
 
     // Begin formatting the command embed
     embed
