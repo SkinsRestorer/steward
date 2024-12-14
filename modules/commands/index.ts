@@ -1,13 +1,17 @@
 import {
-  ActionRowBuilder, ActionRowData,
+  ActionRowBuilder,
+  ActionRowData,
   ApplicationCommandType,
   Client,
   ColorResolvable,
   ComponentType,
   ContextMenuCommandBuilder,
-  EmbedBuilder, MessageActionRowComponentData,
+  EmbedBuilder,
+  InteractionContextType,
+  MessageActionRowComponentData,
   PermissionFlagsBits,
   REST,
+  RESTPostAPIApplicationCommandsJSONBody,
   Routes,
   SlashCommandBuilder,
   StringSelectMenuBuilder,
@@ -25,7 +29,7 @@ const commands: ConfigCommand[] = configCommands.sort((a, b) => {
   return 0
 })
 
-const slashApiCommands: any[] = [
+const slashApiCommands: RESTPostAPIApplicationCommandsJSONBody[] = [
   new SlashCommandBuilder()
     .setName('help')
     .setDescription('Show Steward help')
@@ -43,7 +47,7 @@ const slashApiCommands: any[] = [
     .setName('resolved')
     .setDescription('Moderator command to mark a forum post as resolved')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageThreads)
-    .setDMPermission(false)
+    .setContexts([InteractionContextType.Guild])
     .toJSON()
 ]
 
@@ -59,11 +63,12 @@ for (const command of commands) {
   slashApiCommands.push(slashCommand.toJSON())
 }
 
-const sendHelpContext = new ContextMenuCommandBuilder()
-  .setName("Send Help")
-  .setType(ApplicationCommandType.Message)
-
-slashApiCommands.push(sendHelpContext.toJSON())
+slashApiCommands.push(
+  new ContextMenuCommandBuilder()
+    .setName("Send Help")
+    .setType(ApplicationCommandType.Message)
+    .toJSON()
+)
 
 interface CommandData {
   id: string
@@ -109,10 +114,10 @@ export default async (client: Client): Promise<void> => {
           .setCustomId(customId)
           .setPlaceholder('Choose a help type!')
           .addOptions(commands.map(command => new StringSelectMenuOptionBuilder()
-              .setLabel(command.name)
-              .setValue(command.name)
-              .setDescription(command.cmdDescription)
-            ))
+            .setLabel(command.name)
+            .setValue(command.name)
+            .setDescription(command.cmdDescription)
+          ))
 
         const row = new ActionRowBuilder()
           .addComponents(select)
