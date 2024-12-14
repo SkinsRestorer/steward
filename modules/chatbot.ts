@@ -21,9 +21,10 @@ const model = ollama
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {
   client.on('messageCreate', async (message) => {
-      if (!message.channel.isTextBased() || message.channel.isDMBased() || message.author.bot) return
+      const channel = message.channel
+      if (!channel.isTextBased() || channel.isDMBased() || message.author.bot) return
 
-      if (!message.channel.name.startsWith('chat-experiment')) return
+      if (!channel.name.startsWith('chat-experiment')) return
 
       const messageContent = message.content;
       let context = userContext[message.author.id]
@@ -41,7 +42,7 @@ export default (client: Client): void => {
         let generating = false
         setInterval(() => {
           if (generating) {
-            void message.channel.sendTyping();
+            void channel.sendTyping();
           }
         }, 8_000)
 
@@ -54,7 +55,7 @@ export default (client: Client): void => {
           debounce: debounce(async (message: Message) => {
             try {
               generating = true
-              await message.channel.sendTyping();
+              await channel.sendTyping();
               const text = await generateText({
                 model,
                 prompt: {
