@@ -31,7 +31,7 @@ importers:
         version: 0.137.0
       semver:
         specifier: ^7.6.3
-        version: 7.7.0
+        version: 7.7.1
       tesseract.js:
         specifier: ^6.0.0
         version: 6.0.0
@@ -1257,8 +1257,8 @@ packages:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
     hasBin: true
 
-  semver@7.7.0:
-    resolution: {integrity: sha512-DrfFnPzblFmNrIZzg5RzHegbiRWg7KMR7btwi2yjHwx06zsUbO5g613sVwEV7FTwmzJu+Io0lJe2GJ3LxqpvBQ==}
+  semver@7.7.1:
+    resolution: {integrity: sha512-hlq8tAfn0m/61p4BVRcPzIGr6LKiMwo4VM6dGi6pt4qcRkmNzTcWq6eCEjEh+qXjkMDvPlOFFSGwQjoEa6gyMA==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -1686,7 +1686,7 @@ snapshots:
       grapheme-splitter: 1.0.4
       ignore: 5.3.1
       natural-compare-lite: 1.4.0
-      semver: 7.7.0
+      semver: 7.7.1
       tsutils: 3.21.0(typescript@5.7.3)
     optionalDependencies:
       typescript: 5.7.3
@@ -1731,7 +1731,7 @@ snapshots:
       debug: 4.3.5
       globby: 11.1.0
       is-glob: 4.0.3
-      semver: 7.7.0
+      semver: 7.7.1
       tsutils: 3.21.0(typescript@5.7.3)
     optionalDependencies:
       typescript: 5.7.3
@@ -1748,7 +1748,7 @@ snapshots:
       '@typescript-eslint/typescript-estree': 5.58.0(typescript@5.7.3)
       eslint: 8.57.1
       eslint-scope: 5.1.1
-      semver: 7.7.0
+      semver: 7.7.1
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -1839,7 +1839,7 @@ snapshots:
 
   builtins@5.0.1:
     dependencies:
-      semver: 7.7.0
+      semver: 7.7.1
 
   call-bind@1.0.2:
     dependencies:
@@ -2088,7 +2088,7 @@ snapshots:
       is-core-module: 2.12.0
       minimatch: 3.1.2
       resolve: 1.22.3
-      semver: 7.7.0
+      semver: 7.7.1
 
   eslint-plugin-promise@6.1.1(eslint@8.57.1):
     dependencies:
@@ -2744,7 +2744,7 @@ snapshots:
 
   semver@6.3.1: {}
 
-  semver@7.7.0: {}
+  semver@7.7.1: {}
 
   shebang-command@2.0.0:
     dependencies:
