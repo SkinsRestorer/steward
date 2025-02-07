@@ -126,6 +126,14 @@ export const configCommands: ConfigCommand[] = [
     docs: true
   },
   {
+    name: 'auto-update',
+    cmdDescription: 'Explain what auto update is for',
+    title: 'Why does SkinsRestorer auto-update?',
+    description: 'Auto-updating is a feature that allows SkinsRestorer to automatically update to the latest version. This is to ensure that you are always running the latest version of the plugin, which may contain important bug fixes and new features. The latest version always supports older versions of Minecraft.',
+    url: 'https://skinsrestorer.net/docs/configuration/auto-update',
+    docs: true
+  },
+  {
     name: 'downloads',
     cmdDescription: 'Send a link to the downloads page',
     title: 'Downloads',

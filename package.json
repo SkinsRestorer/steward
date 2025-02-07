@@ -5,6 +5,7 @@
   "main": "main.ts",
   "type": "module",
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "start": "tsx main.ts",
     "lint": "ts-standard",
     "fix": "ts-standard --fix",

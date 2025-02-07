@@ -16,7 +16,6 @@ import {
   SlashCommandBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
-  ContextMenuCommandType
 } from 'discord.js'
 
 import config from 'config.json'
@@ -67,7 +66,7 @@ for (const command of commands) {
 const sendHelpContext =
   new ContextMenuCommandBuilder()
     .setName("Send Help")
-    .setType(ApplicationCommandType.Message as ContextMenuCommandType) // TODO: Remove this "as" once discord.js fixes their api types
+    .setType(ApplicationCommandType.Message)
     .toJSON();
 slashApiCommands.push(sendHelpContext)
 
