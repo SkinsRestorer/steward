@@ -37,7 +37,7 @@ const slashApiCommands: RESTPostAPIApplicationCommandsJSONBody[] = [
     .toJSON(),
   new SlashCommandBuilder()
     .setName('latest')
-    .setDescription('Show latest version on SpigotMC')
+    .setDescription('Show latest version on GitHub')
     .addUserOption(option => option
       .setName('user')
       .setDescription('Mention a specific user with the command')

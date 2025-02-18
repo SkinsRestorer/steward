@@ -137,7 +137,7 @@ export const configCommands: ConfigCommand[] = [
     name: 'downloads',
     cmdDescription: 'Send a link to the downloads page',
     title: 'Downloads',
-    url: 'https://www.spigotmc.org/resources/skinsrestorer.2124/',
+    url: 'https://modrinth.com/plugin/skinsrestorer',
     description: 'You can download SkinsRestorer for Bukkit/Spigot/Paper, BungeeCord, Sponge and Velocity.',
     fields: [
       {
