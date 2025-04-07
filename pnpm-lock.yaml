@@ -34,7 +34,7 @@ importers:
         version: 7.7.1
       tesseract.js:
         specifier: ^6.0.0
-        version: 6.0.0
+        version: 6.0.1
     devDependencies:
       '@types/dateformat':
         specifier: 5.0.3
@@ -1323,8 +1323,8 @@ packages:
   tesseract.js-core@6.0.0:
     resolution: {integrity: sha512-1Qncm/9oKM7xgrQXZXNB+NRh19qiXGhxlrR8EwFbK5SaUbPZnS5OMtP/ghtqfd23hsr1ZvZbZjeuAGcMxd/ooA==}
 
-  tesseract.js@6.0.0:
-    resolution: {integrity: sha512-tqYCod1HwJzkeZw1l6XWx+ly2hhisGcBtak9MArhYwDAxL0NgeVhLJcUjqPxZMQtpgtVUzWcpZPryi+hnaQGVw==}
+  tesseract.js@6.0.1:
+    resolution: {integrity: sha512-/sPvMvrCtgxnNRCjbTYbr7BRu0yfWDsMZQ2a/T5aN/L1t8wUQN6tTWv6p6FwzpoEBA0jrN2UD2SX4QQFRdoDbA==}
 
   text-table@0.2.0:
     resolution: {integrity: sha512-N+8UisAXDGk8PFXP4HAzVR9nbfmVJ3zYLAWiTIoqC5v5isinhr+r5uaO8+7r3BMfuNIufIsA7RdpVgacC2cSpw==}
@@ -1403,8 +1403,8 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
-  wasm-feature-detect@1.6.2:
-    resolution: {integrity: sha512-4dnaZ+Fq/q+BbMlTIfaNS851i+0zmHzui++NUZdskESRu3xwB6g6x2FnGvBdWtpijqO5yuj1l+EUTJGc4S4DKg==}
+  wasm-feature-detect@1.8.0:
+    resolution: {integrity: sha512-zksaLKM2fVlnB5jQQDqKXXwYHLQUVH9es+5TOOHwGOVJOCeRBCiPjwSg+3tN2AdTCzjgli4jijCH290kXb/zWQ==}
 
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
@@ -2822,7 +2822,7 @@ snapshots:
 
   tesseract.js-core@6.0.0: {}
 
-  tesseract.js@6.0.0:
+  tesseract.js@6.0.1:
     dependencies:
       bmp-js: 0.1.0
       idb-keyval: 6.2.1
@@ -2831,7 +2831,7 @@ snapshots:
       opencollective-postinstall: 2.0.3
       regenerator-runtime: 0.13.11
       tesseract.js-core: 6.0.0
-      wasm-feature-detect: 1.6.2
+      wasm-feature-detect: 1.8.0
       zlibjs: 0.3.1
     transitivePeerDependencies:
       - encoding
@@ -2922,7 +2922,7 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  wasm-feature-detect@1.6.2: {}
+  wasm-feature-detect@1.8.0: {}
 
   webidl-conversions@3.0.1: {}
 
