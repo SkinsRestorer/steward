@@ -15,5 +15,7 @@ RUN cd /temp/dev && bun install --frozen-lockfile
 FROM base AS release
 COPY --from=install /temp/dev/node_modules node_modules
 COPY src src
+COPY tsconfig.json .
+COPY package.json .
 
 ENTRYPOINT [ "bun", "run", "src/main.ts" ]
