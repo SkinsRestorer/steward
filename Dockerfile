@@ -16,7 +16,4 @@ FROM base AS release
 COPY --from=install /temp/dev/node_modules node_modules
 COPY src src
 
-# run the app
-USER bun
-
 ENTRYPOINT [ "bun", "run", "src/main.ts" ]
