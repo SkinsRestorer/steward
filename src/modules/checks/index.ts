@@ -1,6 +1,6 @@
-import {Client, ColorResolvable, Colors, EmbedBuilder, Message} from 'discord.js'
+import {Client, type ColorResolvable, Colors, EmbedBuilder, Message} from 'discord.js'
 
-import config, {Checks, MessagePredicate} from './checks.config'
+import config, {type Checks, type MessagePredicate} from './checks-config'
 import data from 'data.json'
 import tesseract from 'tesseract.js'
 import {getMetadata} from "../commands/metadata";

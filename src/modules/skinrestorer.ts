@@ -1,5 +1,5 @@
 import { Client, ColorResolvable, EmbedBuilder } from 'discord.js'
-import data from '../data.json'
+import data from 'data.json'
 
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {

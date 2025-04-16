@@ -1,7 +1,8 @@
 import { Client, GatewayIntentBits, ActivityType } from 'discord.js'
-import config from 'config.json'
 import fs from 'fs'
 import "dotenv";
+import { fileURLToPath } from 'url';
+import path from 'path';
 
 const client = new Client({
   intents: [
@@ -28,7 +29,9 @@ client.on('ready', () => {
   console.log(`Logged in as ${client.user?.tag ?? 'unknown'}!`)
 })
 
-fs.readdirSync('modules')
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+fs.readdirSync(path.resolve(__dirname, './modules'))
   .map(mod => {
     console.log('Loading module: ' + mod)
     return `./modules/${mod}`
@@ -39,4 +42,4 @@ fs.readdirSync('modules')
     await modResolved.default(client)
   })
 
-await client.login(config.token)
+await client.login(process.env.DISCORD_TOKEN!)

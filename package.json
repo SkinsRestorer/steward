@@ -6,10 +6,9 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "start": "tsx main.ts",
+    "start": "bun run src/main.ts",
     "lint": "ts-standard",
-    "fix": "ts-standard --fix",
-    "ci-build": "cp config.example.json config.json && tsc"
+    "fix": "ts-standard --fix"
   },
   "author": "SrTeam",
   "license": "GPL-3.0-or-later",

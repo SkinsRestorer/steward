@@ -1,0 +1,12 @@
+services:
+  steward-bot:
+    build: .
+    restart: always
+    env_file:
+      - .env
+    networks:
+      - bot-network
+
+networks:
+  bot-network:
+    driver: bridge

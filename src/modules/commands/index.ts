@@ -1,26 +1,25 @@
 import {
   ActionRowBuilder,
-  ActionRowData,
+  type ActionRowData,
   ApplicationCommandType,
   Client,
-  ColorResolvable,
+  type ColorResolvable,
   ComponentType,
   ContextMenuCommandBuilder,
   EmbedBuilder,
   InteractionContextType,
-  MessageActionRowComponentData,
+  type MessageActionRowComponentData,
   PermissionFlagsBits,
   REST,
-  RESTPostAPIApplicationCommandsJSONBody,
+  type RESTPostAPIApplicationCommandsJSONBody,
   Routes,
   SlashCommandBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
 } from 'discord.js'
 
-import config from 'config.json'
 import data from 'data.json'
-import {ConfigCommand, configCommands} from './commands.config'
+import {type ConfigCommand, configCommands} from './commands-config'
 import {getMetadata} from './metadata'
 
 const commands: ConfigCommand[] = configCommands.sort((a, b) => {
@@ -80,13 +79,13 @@ export const commandIdRegistry: Record<string, CommandData> = {}
 
 // noinspection JSUnusedGlobalSymbols
 export default async (client: Client): Promise<void> => {
-  const rest = new REST().setToken(config.token)
+  const rest = new REST().setToken(process.env.DISCORD_TOKEN!)
 
   console.log(`Started refreshing ${slashApiCommands.length} application (/) commands.`)
 
   // The put method is used to fully refresh all commands in the guild with the current set
   const responseData = await rest.put(
-    Routes.applicationCommands(config.clientId),
+    Routes.applicationCommands(data.clientId),
     {body: slashApiCommands}
   ) as any
 
@@ -160,14 +159,14 @@ export default async (client: Client): Promise<void> => {
         return
       }
 
-      if (channel.appliedTags.includes(config.resolvedTag)) {
+      if (channel.appliedTags.includes(data.resolvedTag)) {
         await interaction.reply('This thread is already marked as resolved.')
         return
       }
 
       // Send a message before locking the thread, so we can still reply to it
       await interaction.reply('This thread has been marked as resolved, locked and archived. Thank you for using SkinsRestorer! For any future issues, please create a new post.')
-      await channel.setAppliedTags([...channel.appliedTags, config.resolvedTag])
+      await channel.setAppliedTags([...channel.appliedTags, data.resolvedTag])
       await channel.setLocked(true)
       await channel.setArchived(true, 'resolved')
 
