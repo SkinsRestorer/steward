@@ -1,12 +1,14 @@
 import { type Awaitable, Client, Message, type Snowflake } from 'discord.js';
 import { generateText, ollama } from 'modelfusion';
 
+type ChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 type Context = {
   isGenerating: () => boolean;
-  messages: {
-    role: 'user' | 'assistant';
-    content: string;
-  }[];
+  messages: ChatMessage[];
   debounce: (message: Message) => Awaitable<void>;
 };
 const userContext: Record<Snowflake, Context> = {};
@@ -30,7 +32,7 @@ export default (client: Client): void => {
     const messageContent = message.content;
     let context = userContext[message.author.id];
     if (context) {
-      const lastMessage = context.messages[context.messages.length - 1];
+      const lastMessage = context.messages[context.messages.length - 1]!;
       if (lastMessage.role === 'user') {
         lastMessage.content += '\n' + messageContent;
       } else {
@@ -79,13 +81,13 @@ export default (client: Client): void => {
                     content:
                       'Hello! Can you describe your issue? I wanna help you.',
                   },
-                  ...context.messages,
+                  ...context!.messages,
                 ],
               },
             });
             generating = false;
 
-            context.messages.push({
+            context!.messages.push({
               role: 'assistant',
               content: text,
             });
