@@ -1,6 +1,6 @@
 import { Client } from 'discord.js'
 import jsyaml from 'js-yaml'
-import { DOMParser } from 'xmldom';
+import { DOMParser } from '@xmldom/xmldom';
 
 const contentTypes = ['application/json', 'application/yaml', 'text/xml', 'text/plain']
 const website = 'https://pastes.dev'
