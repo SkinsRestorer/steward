@@ -10,6 +10,10 @@ const imageTypes = ['image/png', 'image/jpeg', 'image/webp'];
 
 function findCheckMath(message: Message) {
   function matchToReturn(check: Checks, match: RegExpMatchArray) {
+    if (!match[1]) {
+      return null
+    }
+
     return {
       getLink: check.getLink.replace('{code}', match[1]),
       originalLink: match[0]

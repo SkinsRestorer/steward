@@ -135,6 +135,11 @@ export default async (client: Client): Promise<void> => {
             filter: (i) => i.user.id === interaction.user.id && i.customId === customId
           })
 
+          if (!component.values[0]) {
+            await interaction.editReply({content: 'No value selected', components: []})
+            return
+          }
+
           trigger = component.values[0]
           await interaction.deleteReply()
         } catch (e) {

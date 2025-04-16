@@ -1,5 +1,6 @@
 import { Client } from 'discord.js'
 import jsyaml from 'js-yaml'
+import { DOMParser } from 'xmldom';
 
 const contentTypes = ['application/json', 'application/yaml', 'text/xml', 'text/plain']
 const website = 'https://pastes.dev'
@@ -40,7 +41,7 @@ export default (client: Client): void => {
             'Content-Type': contentType,
             'User-Agent': 'SkinsRestorerSteward'
           }
-        })).json())
+        })).json()) as { key: string }
         await message.reply(`Please use <${website}> to send files in the future. I have automatically uploaded \`${attachment.name}\` for you: ${website}/${response.key}`)
       } catch (e) {
         console.error(e)
