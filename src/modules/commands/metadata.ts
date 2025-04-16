@@ -1,19 +1,25 @@
-type Metadata = {
-  tag_name: string
-  assets: {
-    name: string
-    browser_download_url: string
-  }[]
-}
+import type { paths } from '@octokit/openapi-types';
 
-const fetchData = async (): Promise<Metadata> => {
-  return await (await fetch('https://api.github.com/repos/SkinsRestorer/SkinsRestorer/releases/latest')).json()
-}
-let metadata = await fetchData()
+type LatestReleaseResponse =
+  paths['/repos/{owner}/{repo}/releases/latest']['get']['responses']['200']['content']['application/json'];
+
+const fetchData = async (): Promise<LatestReleaseResponse> => {
+  return (await (
+    await fetch(
+      'https://api.github.com/repos/SkinsRestorer/SkinsRestorer/releases/latest',
+    )
+  ).json()) as LatestReleaseResponse;
+};
+
+let metadata: LatestReleaseResponse = await fetchData();
 setInterval(() => {
-  void fetchData().catch(console.error)
-}, 1_000 * 60) // 60 requests per hour
+  void fetchData()
+    .then((data) => {
+      metadata = data;
+    })
+    .catch(console.error);
+}, 1_000 * 60); // 60 requests per hour
 
-export function getMetadata() {
-  return metadata
+export function getMetadata(): LatestReleaseResponse {
+  return metadata;
 }
