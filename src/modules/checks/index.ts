@@ -158,7 +158,7 @@ async function respondToText(message: Message, text: string, footer: string) {
             .setDescription(`The SkinsRestorer version you're using (\`${version}\`) is outdated! Please update to the latest version: \`${latestVersion}\``)
             .addFields({
               name: ' ',
-              value: `[Download ${latestVersion}](${metadata.assets.find(a => a.name === "SkinsRestorer.jar")?.browser_download_url})`
+              value: `[Download ${latestVersion}](https://modrinth.com/plugin/skinsrestorer/version/${latestVersion})`
             })
           )
         }
