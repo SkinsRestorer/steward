@@ -14,6 +14,7 @@
   "license": "GPL-3.0-or-later",
   "dependencies": {
     "@modelfusion/google-custom-search-tool": "^0.10.0",
+    "@xmldom/xmldom": "^0.9.0",
     "dateformat": "^5.0.3",
     "discord.js": "^14.9.0",
     "dotenv": "^16.4.5",
@@ -21,8 +22,7 @@
     "mime-types": "^3.0.0",
     "modelfusion": "^0.137.0",
     "semver": "^7.6.3",
-    "tesseract.js": "^6.0.0",
-    "@xmldom/xmldom": "^0.9.0"
+    "tesseract.js": "^6.0.0"
   },
   "devDependencies": {
     "@octokit/openapi-types": "^25.0.0",
@@ -30,9 +30,7 @@
     "@types/js-yaml": "^4.0.5",
     "@types/mime-types": "2.1.4",
     "@types/semver": "^7.5.8",
-    "eslint": "9.37.0",
-    "prettier": "^3.5.3",
-    "ts-standard": "12.0.2",
+    "biome": "^0.3.3",
     "typescript": "^5.0.0"
   },
   "pnpm": {
