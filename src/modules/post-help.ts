@@ -1,7 +1,7 @@
-import {ChannelType, Client, EmbedBuilder} from 'discord.js'
+import type { Client } from "discord.js";
 
 // noinspection JSUnusedGlobalSymbols
-export default (client: Client): void => {
+export default (_client: Client): void => {
   /*
   client.on('threadCreate', async thread => {
     if (thread.parent?.type !== ChannelType.GuildForum) return
@@ -57,4 +57,4 @@ export default (client: Client): void => {
     await originalMessage.reply({embeds: [embed]})
   })
    */
-}
+};

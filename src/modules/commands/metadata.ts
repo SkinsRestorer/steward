@@ -1,12 +1,12 @@
-import type { paths } from '@octokit/openapi-types';
+import type { paths } from "@octokit/openapi-types";
 
 type LatestReleaseResponse =
-  paths['/repos/{owner}/{repo}/releases/latest']['get']['responses']['200']['content']['application/json'];
+  paths["/repos/{owner}/{repo}/releases/latest"]["get"]["responses"]["200"]["content"]["application/json"];
 
 async function fetchData(): Promise<LatestReleaseResponse> {
   return (await (
     await fetch(
-      'https://api.github.com/repos/SkinsRestorer/SkinsRestorer/releases/latest',
+      "https://api.github.com/repos/SkinsRestorer/SkinsRestorer/releases/latest",
     )
   ).json()) as LatestReleaseResponse;
 }

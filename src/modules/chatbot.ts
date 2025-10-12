@@ -1,10 +1,10 @@
-import { type Awaitable, Client, Message, type Snowflake } from 'discord.js';
-import { generateText, ollama } from 'modelfusion';
+import type { Awaitable, Client, Message, Snowflake } from "discord.js";
+import { generateText, ollama } from "modelfusion";
 
 type ChatMessage = {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
-}
+};
 
 type Context = {
   isGenerating: () => boolean;
@@ -15,29 +15,29 @@ const userContext: Record<Snowflake, Context> = {};
 
 const model = ollama
   .ChatTextGenerator({
-    model: 'llama3',
+    model: "llama3",
     maxGenerationTokens: 512,
   })
   .withChatPrompt();
 
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {
-  client.on('messageCreate', async (message) => {
+  client.on("messageCreate", async (message) => {
     const channel = message.channel;
     if (!channel.isTextBased() || channel.isDMBased() || message.author.bot)
       return;
 
-    if (!channel.name.startsWith('chat-experiment')) return;
+    if (!channel.name.startsWith("chat-experiment")) return;
 
     const messageContent = message.content;
     let context = userContext[message.author.id];
     if (context) {
       const lastMessage = context.messages[context.messages.length - 1]!;
-      if (lastMessage.role === 'user') {
-        lastMessage.content += '\n' + messageContent;
+      if (lastMessage.role === "user") {
+        lastMessage.content += `\n${messageContent}`;
       } else {
         context.messages.push({
-          role: 'user',
+          role: "user",
           content: messageContent,
         });
       }
@@ -53,7 +53,7 @@ export default (client: Client): void => {
         isGenerating: () => generating,
         messages: [
           {
-            role: 'user',
+            role: "user",
             content: messageContent,
           },
         ],
@@ -65,30 +65,30 @@ export default (client: Client): void => {
               model,
               prompt: {
                 system: [
-                  'Your task is to provide support to users that seek help with the plugin.',
-                  'Use short sentence since the user may not know Minecraft well, no yapping.',
-                  'You are allowed to use Markdown format, but not other formats.',
-                  'Always be on-topic, do not let the user go off-topic.',
-                ].join('\n'),
+                  "Your task is to provide support to users that seek help with the plugin.",
+                  "Use short sentence since the user may not know Minecraft well, no yapping.",
+                  "You are allowed to use Markdown format, but not other formats.",
+                  "Always be on-topic, do not let the user go off-topic.",
+                ].join("\n"),
                 messages: [
                   {
-                    role: 'user',
+                    role: "user",
                     content:
-                      'Hi Steward! I have an issue with SkinsRestorer. Can you help me?',
+                      "Hi Steward! I have an issue with SkinsRestorer. Can you help me?",
                   },
                   {
-                    role: 'assistant',
+                    role: "assistant",
                     content:
-                      'Hello! Can you describe your issue? I wanna help you.',
+                      "Hello! Can you describe your issue? I wanna help you.",
                   },
-                  ...context!.messages,
+                  ...context?.messages,
                 ],
               },
             });
             generating = false;
 
-            context!.messages.push({
-              role: 'assistant',
+            context?.messages.push({
+              role: "assistant",
               content: text,
             });
 

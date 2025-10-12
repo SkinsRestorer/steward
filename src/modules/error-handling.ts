@@ -1,6 +1,6 @@
-import { Client } from 'discord.js'
+import type { Client } from "discord.js";
 
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client) => {
-  client.on('error', console.error)
-}
+  client.on("error", console.error);
+};
