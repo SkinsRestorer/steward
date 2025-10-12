@@ -25,4 +25,4 @@ jobs:
 
       - name: Run check
         run: |
-          bun run check
+          bun run biome ci
