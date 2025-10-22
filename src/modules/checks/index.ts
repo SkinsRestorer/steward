@@ -71,21 +71,25 @@ export default (client: Client): void => {
         response,
         `${checkResult.originalLink} | Sent by ${message.author.username}`,
       );
-    } catch (e: any) {
-      if (e.response?.status === 404) {
-        await message.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setTitle("Invalid Paste!")
-              .setColor("#FF0000")
-              .setDescription(
-                "The paste link you sent in is invalid or expired, please check the link or paste a new one.",
-              )
-              .setFooter({
-                text: `${checkResult.originalLink} | Sent by ${message.author.username}`,
-              }),
-          ],
-        });
+    } catch (error: unknown) {
+      if (typeof error === "object" && error != null && "response" in error) {
+        const status = (error as { response?: { status?: number } }).response
+          ?.status;
+        if (status === 404) {
+          await message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setTitle("Invalid Paste!")
+                .setColor("#FF0000")
+                .setDescription(
+                  "The paste link you sent in is invalid or expired, please check the link or paste a new one.",
+                )
+                .setFooter({
+                  text: `${checkResult.originalLink} | Sent by ${message.author.username}`,
+                }),
+            ],
+          });
+        }
       }
     }
   });

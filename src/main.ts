@@ -42,4 +42,10 @@ fs.readdirSync(path.resolve(__dirname, "./modules"))
     await modResolved.default(client);
   });
 
-await client.login(process.env.DISCORD_TOKEN!);
+const discordToken = process.env.DISCORD_TOKEN;
+
+if (discordToken == null || discordToken === "") {
+  throw new Error("DISCORD_TOKEN environment variable is not defined");
+}
+
+await client.login(discordToken);

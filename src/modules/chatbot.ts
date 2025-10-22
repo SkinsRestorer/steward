@@ -1,4 +1,4 @@
-import type { Awaitable, Client, Message, Snowflake } from "discord.js";
+import type { Client, Message, Snowflake } from "discord.js";
 import { generateText, ollama } from "modelfusion";
 
 type ChatMessage = {
@@ -9,7 +9,7 @@ type ChatMessage = {
 type Context = {
   isGenerating: () => boolean;
   messages: ChatMessage[];
-  debounce: (message: Message) => Awaitable<void>;
+  debounce: (message: Message) => void;
 };
 const userContext: Record<Snowflake, Context> = {};
 
@@ -31,9 +31,9 @@ export default (client: Client): void => {
 
     const messageContent = message.content;
     let context = userContext[message.author.id];
-    if (context) {
-      const lastMessage = context.messages[context.messages.length - 1]!;
-      if (lastMessage.role === "user") {
+    if (context != null) {
+      const lastMessage = context.messages.at(-1);
+      if (lastMessage?.role === "user") {
         lastMessage.content += `\n${messageContent}`;
       } else {
         context.messages.push({
@@ -49,7 +49,7 @@ export default (client: Client): void => {
         }
       }, 8_000);
 
-      context = userContext[message.author.id] = {
+      const newContext: Context = {
         isGenerating: () => generating,
         messages: [
           {
@@ -81,13 +81,13 @@ export default (client: Client): void => {
                     content:
                       "Hello! Can you describe your issue? I wanna help you.",
                   },
-                  ...context?.messages,
+                  ...newContext.messages,
                 ],
               },
             });
             generating = false;
 
-            context?.messages.push({
+            newContext.messages.push({
               role: "assistant",
               content: text,
             });
@@ -99,6 +99,8 @@ export default (client: Client): void => {
           }
         }, 1_000),
       };
+
+      context = userContext[message.author.id] = newContext;
     }
 
     if (context.isGenerating()) {
@@ -111,21 +113,21 @@ export default (client: Client): void => {
   });
 };
 
-function debounce<T extends (...args: any[]) => any>(
-  fn: T,
+function debounce<TArgs extends unknown[]>(
+  fn: (...args: TArgs) => unknown,
   delay: number,
-): (...args: Parameters<T>) => void {
-  let timeoutId: NodeJS.Timeout;
+): (...args: TArgs) => void {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
-  return (...args: Parameters<T>): void => {
+  return (...args: TArgs): void => {
     // Clear the previous timeout
-    if (timeoutId) {
+    if (timeoutId != null) {
       clearTimeout(timeoutId);
     }
 
     // Set a new timeout
     timeoutId = setTimeout(() => {
-      fn(...args);
+      void fn(...args);
     }, delay);
   };
 }
