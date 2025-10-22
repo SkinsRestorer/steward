@@ -18,6 +18,7 @@ import {
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
 } from "discord.js";
+import type { RESTPutAPIApplicationCommandsResult } from "discord-api-types/v10";
 import { type ConfigCommand, configCommands } from "./commands-config";
 import { getMetadata } from "./metadata";
 
@@ -83,7 +84,12 @@ export const commandIdRegistry: Record<string, CommandData> = {};
 
 // noinspection JSUnusedGlobalSymbols
 export default async (client: Client): Promise<void> => {
-  const rest = new REST().setToken(process.env.DISCORD_TOKEN!);
+  const discordToken = process.env.DISCORD_TOKEN;
+  if (discordToken == null || discordToken === "") {
+    throw new Error("DISCORD_TOKEN environment variable is not defined");
+  }
+
+  const rest = new REST().setToken(discordToken);
 
   console.log(
     `Started refreshing ${slashApiCommands.length} application (/) commands.`,
@@ -93,13 +99,13 @@ export default async (client: Client): Promise<void> => {
   const responseData = (await rest.put(
     Routes.applicationCommands(data.clientId),
     { body: slashApiCommands },
-  )) as any;
+  )) as RESTPutAPIApplicationCommandsResult;
 
   for (const response of responseData) {
     commandIdRegistry[response.name] = {
       id: response.id,
       description: response.description,
-      private: !!response.defaultPermission,
+      private: Boolean(response.default_permission),
     };
   }
 
@@ -282,10 +288,8 @@ export default async (client: Client): Promise<void> => {
     }
 
     if (interaction.isChatInputCommand()) {
-      const targetUser = interaction.isChatInputCommand()
-        ? interaction.options.getUser("user")
-        : null;
-      let message;
+      const targetUser = interaction.options.getUser("user");
+      let message: string | undefined;
       if (targetUser != null) {
         message = `<@${targetUser.id}>`;
       }
