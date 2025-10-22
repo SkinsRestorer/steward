@@ -17,7 +17,7 @@
       },
       "devDependencies": {
         "@biomejs/biome": "2.2.7",
-        "@octokit/openapi-types": "^25.0.0",
+        "@octokit/openapi-types": "^26.0.0",
         "@types/dateformat": "5.0.3",
         "@types/js-yaml": "^4.0.5",
         "@types/mime-types": "2.1.4",
@@ -59,7 +59,7 @@
 
     "@modelfusion/google-custom-search-tool": ["@modelfusion/google-custom-search-tool@0.10.0", "", { "peerDependencies": { "modelfusion": ">=0.131.0 <1.0.0-0", "zod": "^3.22" } }, "sha512-Bw0RmZE/EoCCidLUzRD1NO6uMW7hvNlP1lqVXNgovShDR+OAL1aPY+wfPoMQsXdy1iI+g4+FFRZQBVrYMFyCUQ=="],
 
-    "@octokit/openapi-types": ["@octokit/openapi-types@25.0.0", "", {}, "sha512-FZvktFu7HfOIJf2BScLKIEYjDsw6RKc7rBJCdvCTfKsVnx2GEB/Nbzjr29DUdb7vQhlzS/j8qDzdditP0OC6aw=="],
+    "@octokit/openapi-types": ["@octokit/openapi-types@26.0.0", "", {}, "sha512-7AtcfKtpo77j7Ts73b4OWhOZHTKo/gGY8bB3bNBQz4H+GRSWqx2yvj8TXRsbdTE0eRmYmXOEY66jM7mJ7LzfsA=="],
 
     "@sapphire/async-queue": ["@sapphire/async-queue@1.5.5", "", {}, "sha512-cvGzxbba6sav2zZkH8GPf2oGk9yYoD5qrNWdu9fRehifgnFZJMV+nuy2nON2roRO4yQQ+v7MK/Pktl/HgfsUXg=="],
 
