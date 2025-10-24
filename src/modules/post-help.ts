@@ -1,4 +1,4 @@
-import { ChannelType, EmbedBuilder, type Client } from "discord.js";
+import { ChannelType, type Client, EmbedBuilder } from "discord.js";
 
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {
