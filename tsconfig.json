@@ -21,6 +21,9 @@
     "noUncheckedIndexedAccess": true,
     "rootDir": "./src",
     "baseUrl": "./src",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
 
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,

@@ -1,4 +1,3 @@
-import data from "data.json";
 import {
   type Client,
   type ColorResolvable,
@@ -8,6 +7,7 @@ import {
 } from "discord.js";
 import semver from "semver/preload";
 import tesseract from "tesseract.js";
+import data from "@/data.json" with { type: "json" };
 import { getMetadata } from "../commands/metadata";
 import config, { type Checks, type MessagePredicate } from "./checks-config";
 

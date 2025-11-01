@@ -1,4 +1,3 @@
-import data from "data.json";
 import {
   ActionRowBuilder,
   type ActionRowData,
@@ -19,6 +18,7 @@ import {
   StringSelectMenuOptionBuilder,
 } from "discord.js";
 import type { RESTPutAPIApplicationCommandsResult } from "discord-api-types/v10";
+import data from "@/data.json" with { type: "json" };
 import { type ConfigCommand, configCommands } from "./commands-config";
 import { getMetadata } from "./metadata";
 
