@@ -96,7 +96,6 @@ export default async (client: Client): Promise<void> => {
                tools: {
                  browser_search: groq.tools.browserSearch({}),
                } as {},
-               toolChoice: 'required', // Ensure the tool is used
              });
             generating = false;
 
