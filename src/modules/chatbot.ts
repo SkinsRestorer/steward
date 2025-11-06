@@ -23,7 +23,7 @@ let systemPrompt = "Loading documentation...";
 
 const fetchSystemPrompt = async (): Promise<void> => {
   try {
-    const response = await fetch("https://skinsrestorer.net/llms-full.txt");
+    const response = await fetch("https://skinsrestorer.net/llms.txt");
     systemPrompt = await response.text();
   } catch (error) {
     console.error("Failed to fetch system prompt:", error);
