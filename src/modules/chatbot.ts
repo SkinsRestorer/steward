@@ -15,12 +15,26 @@ type Context = {
 const userContext: Record<Snowflake, Context> = {};
 
 const model = wrapLanguageModel({
-  model: groq("qwen/qwen3-32b"),
+  model: groq("openai/gpt-oss-120b"),
   middleware: extractReasoningMiddleware({ tagName: 'think' }),
 });
 
+let systemPrompt = "Loading documentation...";
+
+const fetchSystemPrompt = async (): Promise<void> => {
+  try {
+    const response = await fetch("https://skinsrestorer.net/llms-full.txt");
+    systemPrompt = await response.text();
+  } catch (error) {
+    console.error("Failed to fetch system prompt:", error);
+    systemPrompt = "Error loading documentation.";
+  }
+};
+
 // noinspection JSUnusedGlobalSymbols
-export default (client: Client): void => {
+export default async (client: Client): Promise<void> => {
+  await fetchSystemPrompt();
+  setInterval(fetchSystemPrompt, 24 * 60 * 60 * 1000); // Refresh every 24 hours
   client.on("messageCreate", async (message) => {
     const channel = message.channel;
     if (!channel.isTextBased() || channel.isDMBased() || message.author.bot)
@@ -60,31 +74,30 @@ export default (client: Client): void => {
           try {
             generating = true;
             await channel.sendTyping();
-            const { text } = await generateText({
-              model,
-              messages: [
-                {
-                  role: "system",
-                  content: [
-                    "Your task is to provide support to users that seek help with the plugin.",
-                    "Use short sentence since the user may not know Minecraft well, no yapping.",
-                    "You are allowed to use Markdown format, but not other formats.",
-                    "Always be on-topic, do not let the user go off-topic.",
-                  ].join("\n"),
-                },
-                {
-                  role: "user",
-                  content:
-                    "Hi Steward! I have an issue with SkinsRestorer. Can you help me?",
-                },
-                {
-                  role: "assistant",
-                  content:
-                    "Hello! Can you describe your issue? I wanna help you.",
-                },
-                ...newContext.messages,
-              ],
-            });
+             const { text } = await generateText({
+               model,
+               messages: [
+                 {
+                   role: "system",
+                   content: systemPrompt,
+                 },
+                 {
+                   role: "user",
+                   content:
+                     "Hi Steward! I have an issue with SkinsRestorer. Can you help me?",
+                 },
+                 {
+                   role: "assistant",
+                   content:
+                     "Hello! Can you describe your issue? I wanna help you.",
+                 },
+                 ...newContext.messages,
+               ],
+               tools: {
+                 browser_search: groq.tools.browserSearch({}),
+               } as {},
+               toolChoice: 'required', // Ensure the tool is used
+             });
             generating = false;
 
             newContext.messages.push({
