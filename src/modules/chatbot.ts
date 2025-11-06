@@ -1,6 +1,6 @@
 import type { Client, Message, Snowflake } from "discord.js";
 import { generateText } from "ai";
-import { ollama } from "ollama-ai-provider-v2";
+import { groq } from "@ai-sdk/groq";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -14,7 +14,7 @@ type Context = {
 };
 const userContext: Record<Snowflake, Context> = {};
 
-const model = ollama("llama3");
+const model = groq("qwen/qwen3-32b");
 
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {
