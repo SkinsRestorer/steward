@@ -74,6 +74,12 @@ const sendHelpContext = new ContextMenuCommandBuilder()
   .toJSON();
 slashApiCommands.push(sendHelpContext);
 
+const sendSupportContext = new ContextMenuCommandBuilder()
+  .setName("Send to Support Forum")
+  .setType(ApplicationCommandType.Message)
+  .toJSON();
+slashApiCommands.push(sendSupportContext);
+
 interface CommandData {
   id: string;
   description: string;
@@ -171,6 +177,25 @@ export default async (client: Client): Promise<void> => {
           await interaction.editReply({ content: "Timed out", components: [] });
           return;
         }
+      } else if (interaction.commandName === sendSupportContext.name) {
+        const embed = new EmbedBuilder()
+          .setColor(data.accent_color as ColorResolvable)
+          .setTitle("This channel is not for support!")
+          .setDescription(
+            "This channel is not for support for the **SkinsRestorer Minecraft plugin**. Please use the <#1058044481246605383> channel for support, you need to create a post in that channel. You will not receive support in this specific Discord channel.",
+          )
+          .setURL(
+            "https://discord.com/channels/186794372468178944/1058044481246605383",
+          );
+
+        const message = `<@${interaction.targetMessage.author.id}> Requested by <@${interaction.user.id}>`;
+
+        await interaction.targetMessage.reply({
+          content: message,
+          embeds: [embed],
+        });
+
+        return;
       } else {
         await interaction.reply("Unknown command");
         return;
@@ -295,7 +320,7 @@ export default async (client: Client): Promise<void> => {
       }
 
       await interaction.reply({ content: message, embeds: [embed] });
-    } else if (interaction.isContextMenuCommand()) {
+    } else if (interaction.isMessageContextMenuCommand()) {
       const message = `Requested by <@${interaction.user.id}>`;
       await interaction.targetMessage.reply({
         content: message,
