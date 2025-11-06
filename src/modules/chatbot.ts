@@ -1,10 +1,6 @@
-import { groq } from "@ai-sdk/groq";
-import {
-  extractReasoningMiddleware,
-  generateText,
-  wrapLanguageModel,
-} from "ai";
-import type { Client, Message, Snowflake } from "discord.js";
+import {groq} from "@ai-sdk/groq";
+import {extractReasoningMiddleware, generateText, wrapLanguageModel,} from "ai";
+import type {Client, Message, Snowflake} from "discord.js";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -20,19 +16,15 @@ const userContext: Record<Snowflake, Context> = {};
 
 const model = wrapLanguageModel({
   model: groq("openai/gpt-oss-120b"),
-  middleware: extractReasoningMiddleware({ tagName: "think" }),
+  middleware: extractReasoningMiddleware({tagName: "think"}),
 });
 
 let systemPrompt = "Loading documentation...";
 
 const fetchSystemPrompt = async (): Promise<void> => {
-  try {
-    const response = await fetch("https://skinsrestorer.net/llms.txt");
-    systemPrompt = await response.text();
-  } catch (error) {
-    console.error("Failed to fetch system prompt:", error);
-    systemPrompt = "Error loading documentation.";
-  }
+  const response = await fetch("https://skinsrestorer.net/llms.txt");
+  systemPrompt = await response.text();
+  systemPrompt += "\n\nAdditional instructions: Keep responses very short due to Discord's 2000 character limit. Do not use table syntax or advanced formatting like spoilers. Use only basic Discord formatting: **bold**, *italic*, __underline__, [link text](url).\n\nYour task is to provide support to users that seek help with the plugin.\nUse short sentence since the user may not know Minecraft well, no yapping.\nYou are allowed to use Markdown format, but not other formats.\nAlways be on-topic, do not let the user go off-topic.";
 };
 
 // noinspection JSUnusedGlobalSymbols
@@ -78,7 +70,7 @@ export default async (client: Client): Promise<void> => {
           try {
             generating = true;
             await channel.sendTyping();
-            const { text } = await generateText({
+            const {text} = await generateText({
               model,
               messages: [
                 {
