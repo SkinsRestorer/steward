@@ -1,5 +1,6 @@
 import type { Client, Message, Snowflake } from "discord.js";
-import { generateText, ollama } from "modelfusion";
+import { generateText } from "ai";
+import { ollama } from "ollama-ai-provider-v2";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -13,12 +14,7 @@ type Context = {
 };
 const userContext: Record<Snowflake, Context> = {};
 
-const model = ollama
-  .ChatTextGenerator({
-    model: "llama3",
-    maxGenerationTokens: 512,
-  })
-  .withChatPrompt();
+const model = ollama("llama3");
 
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {
@@ -61,29 +57,30 @@ export default (client: Client): void => {
           try {
             generating = true;
             await channel.sendTyping();
-            const text = await generateText({
+            const { text } = await generateText({
               model,
-              prompt: {
-                system: [
-                  "Your task is to provide support to users that seek help with the plugin.",
-                  "Use short sentence since the user may not know Minecraft well, no yapping.",
-                  "You are allowed to use Markdown format, but not other formats.",
-                  "Always be on-topic, do not let the user go off-topic.",
-                ].join("\n"),
-                messages: [
-                  {
-                    role: "user",
-                    content:
-                      "Hi Steward! I have an issue with SkinsRestorer. Can you help me?",
-                  },
-                  {
-                    role: "assistant",
-                    content:
-                      "Hello! Can you describe your issue? I wanna help you.",
-                  },
-                  ...newContext.messages,
-                ],
-              },
+              messages: [
+                {
+                  role: "system",
+                  content: [
+                    "Your task is to provide support to users that seek help with the plugin.",
+                    "Use short sentence since the user may not know Minecraft well, no yapping.",
+                    "You are allowed to use Markdown format, but not other formats.",
+                    "Always be on-topic, do not let the user go off-topic.",
+                  ].join("\n"),
+                },
+                {
+                  role: "user",
+                  content:
+                    "Hi Steward! I have an issue with SkinsRestorer. Can you help me?",
+                },
+                {
+                  role: "assistant",
+                  content:
+                    "Hello! Can you describe your issue? I wanna help you.",
+                },
+                ...newContext.messages,
+              ],
             });
             generating = false;
 
