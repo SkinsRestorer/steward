@@ -1,5 +1,5 @@
 import type { Client, Message, Snowflake } from "discord.js";
-import { generateText } from "ai";
+import {extractReasoningMiddleware, generateText, wrapLanguageModel} from "ai";
 import { groq } from "@ai-sdk/groq";
 
 type ChatMessage = {
@@ -14,7 +14,10 @@ type Context = {
 };
 const userContext: Record<Snowflake, Context> = {};
 
-const model = groq("qwen/qwen3-32b");
+const model = wrapLanguageModel({
+  model: groq("qwen/qwen3-32b"),
+  middleware: extractReasoningMiddleware({ tagName: 'think' }),
+});
 
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {
