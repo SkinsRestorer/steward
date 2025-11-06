@@ -75,7 +75,7 @@ export default async (client: Client): Promise<void> => {
             generating = true;
             await channel.sendTyping();
             const { text } = await generateText({
-              model: groq("openai/gpt-oss-120b"),
+              model: groq("qwen/qwen3-32b"),
               stopWhen: stepCountIs(5),
               messages: [
                 {
