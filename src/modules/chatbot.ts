@@ -100,7 +100,7 @@ export default async (client: Client): Promise<void> => {
               tools: {
                 browser_search: groq.tools.browserSearch({}),
               } as {},
-              maxOutputTokens: 1_750 / 4,
+              maxOutputTokens: Math.round(1_750 / 4),
             });
             generating = false;
 
