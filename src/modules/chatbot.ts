@@ -1,6 +1,10 @@
-import type { Client, Message, Snowflake } from "discord.js";
-import {extractReasoningMiddleware, generateText, wrapLanguageModel} from "ai";
 import { groq } from "@ai-sdk/groq";
+import {
+  extractReasoningMiddleware,
+  generateText,
+  wrapLanguageModel,
+} from "ai";
+import type { Client, Message, Snowflake } from "discord.js";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -16,7 +20,7 @@ const userContext: Record<Snowflake, Context> = {};
 
 const model = wrapLanguageModel({
   model: groq("openai/gpt-oss-120b"),
-  middleware: extractReasoningMiddleware({ tagName: 'think' }),
+  middleware: extractReasoningMiddleware({ tagName: "think" }),
 });
 
 let systemPrompt = "Loading documentation...";
@@ -74,37 +78,43 @@ export default async (client: Client): Promise<void> => {
           try {
             generating = true;
             await channel.sendTyping();
-             const { text } = await generateText({
-               model,
-               messages: [
-                 {
-                   role: "system",
-                   content: systemPrompt,
-                 },
-                 {
-                   role: "user",
-                   content:
-                     "Hi Steward! I have an issue with SkinsRestorer. Can you help me?",
-                 },
-                 {
-                   role: "assistant",
-                   content:
-                     "Hello! Can you describe your issue? I wanna help you.",
-                 },
-                 ...newContext.messages,
-               ],
-               tools: {
-                 browser_search: groq.tools.browserSearch({}),
-               } as {},
-             });
+            const { text } = await generateText({
+              model,
+              messages: [
+                {
+                  role: "system",
+                  content: systemPrompt,
+                },
+                {
+                  role: "user",
+                  content:
+                    "Hi Steward! I have an issue with SkinsRestorer. Can you help me?",
+                },
+                {
+                  role: "assistant",
+                  content:
+                    "Hello! Can you describe your issue? I wanna help you.",
+                },
+                ...newContext.messages,
+              ],
+              tools: {
+                browser_search: groq.tools.browserSearch({}),
+              } as {},
+              maxOutputTokens: 1_750 / 4,
+            });
             generating = false;
+
+            let responseText = text;
+            if (responseText.length > 2000) {
+              responseText = `${responseText.slice(0, 2000 - 3)}...`;
+            }
 
             newContext.messages.push({
               role: "assistant",
-              content: text,
+              content: responseText,
             });
 
-            await message.reply(text);
+            await message.reply(responseText);
           } catch (e) {
             generating = false;
             console.error(e);
