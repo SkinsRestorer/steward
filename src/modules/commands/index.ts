@@ -19,6 +19,7 @@ import {
 } from "discord.js";
 import type { RESTPutAPIApplicationCommandsResult } from "discord-api-types/v10";
 import data from "@/data.json" with { type: "json" };
+import { generateSupportResponse } from "@/lib/ai";
 import { type ConfigCommand, configCommands } from "./commands-config";
 import { getMetadata } from "./metadata";
 
@@ -79,6 +80,12 @@ const sendSupportContext = new ContextMenuCommandBuilder()
   .setType(ApplicationCommandType.Message)
   .toJSON();
 slashApiCommands.push(sendSupportContext);
+
+const replyWithAiContext = new ContextMenuCommandBuilder()
+  .setName("Reply with AI")
+  .setType(ApplicationCommandType.Message)
+  .toJSON();
+slashApiCommands.push(replyWithAiContext);
 
 interface CommandData {
   id: string;
@@ -194,6 +201,57 @@ export default async (client: Client): Promise<void> => {
           content: message,
           embeds: [embed],
         });
+
+        return;
+      } else if (interaction.commandName === replyWithAiContext.name) {
+        if (interaction.targetMessage.author.bot) {
+          await interaction.reply({
+            ephemeral: true,
+            content: "I cannot reply to bot messages.",
+          });
+          return;
+        }
+
+        const cleanContent = interaction.targetMessage.cleanContent.trim();
+        const fallbackContent = interaction.targetMessage.content.trim();
+        const prompt = cleanContent || fallbackContent;
+        if (prompt === "") {
+          await interaction.reply({
+            ephemeral: true,
+            content: "The selected message has no text to reply to.",
+          });
+          return;
+        }
+
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+          const response = await generateSupportResponse([
+            { role: "user", content: prompt },
+          ]);
+
+          const mention = `<@${interaction.targetMessage.author.id}>`;
+          const availableLength = 2_000 - mention.length - 1;
+          const safeResponse =
+            response.length > availableLength
+              ? `${response.slice(0, Math.max(availableLength - 3, 0))}...`
+              : response;
+
+          await interaction.targetMessage.reply({
+            content: `${mention} ${safeResponse}`,
+            allowedMentions: {
+              users: [interaction.targetMessage.author.id],
+              repliedUser: false,
+            },
+          });
+
+          await interaction.editReply("Reply sent.");
+        } catch (error) {
+          console.error(error);
+          await interaction.editReply(
+            "Failed to generate a reply. Please try again later.",
+          );
+        }
 
         return;
       } else {
