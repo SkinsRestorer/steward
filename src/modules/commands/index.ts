@@ -178,6 +178,7 @@ export default async (client: Client): Promise<void> => {
             return;
           }
 
+          await component.deferUpdate();
           trigger = component.values[0];
           await interaction.deleteReply();
         } catch (_e) {
@@ -226,22 +227,19 @@ export default async (client: Client): Promise<void> => {
         await interaction.deferReply({ ephemeral: true });
 
         try {
+          const requesterPrefix = `<@${interaction.user.id}> requested me to reply to this message>`;
           const response = await generateSupportResponse([
-            { role: "user", content: prompt },
+            {
+              role: "user",
+              content: `Begin your response with "${requesterPrefix}" exactly before offering help. Here is the message you must answer:\n${prompt}`,
+            },
           ]);
 
-          const mention = `<@${interaction.targetMessage.author.id}>`;
-          const availableLength = 2_000 - mention.length - 1;
-          const safeResponse =
-            response.length > availableLength
-              ? `${response.slice(0, Math.max(availableLength - 3, 0))}...`
-              : response;
-
           await interaction.targetMessage.reply({
-            content: `${mention} ${safeResponse}`,
+            content: response,
             allowedMentions: {
-              users: [interaction.targetMessage.author.id],
-              repliedUser: false,
+              users: [interaction.targetMessage.author.id, interaction.user.id],
+              repliedUser: true,
             },
           });
 
