@@ -127,6 +127,7 @@ export default async (client: Client): Promise<void> => {
   );
 
   client.on("interactionCreate", async (interaction) => {
+    let isSendHelpFlow = false;
     if (
       !interaction.isChatInputCommand() &&
       !interaction.isMessageContextMenuCommand()
@@ -139,6 +140,7 @@ export default async (client: Client): Promise<void> => {
       trigger = interaction.commandName;
     } else if (interaction.isMessageContextMenuCommand()) {
       if (interaction.commandName === sendHelpContext.name) {
+        isSendHelpFlow = true;
         const customId = `help-selection-${Date.now()}`;
         const select = new StringSelectMenuBuilder()
           .setCustomId(customId)
@@ -160,6 +162,7 @@ export default async (client: Client): Promise<void> => {
           ephemeral: true,
           content: "Please select a help type!",
           components: [row],
+          fetchReply: true,
         });
 
         try {
@@ -178,9 +181,11 @@ export default async (client: Client): Promise<void> => {
             return;
           }
 
-          await component.deferUpdate();
           trigger = component.values[0];
-          await interaction.deleteReply();
+          await component.update({
+            content: `Sending </${trigger}:${commandIdRegistry[trigger]?.id ?? "unknown"}>...`,
+            components: [],
+          });
         } catch (_e) {
           await interaction.editReply({ content: "Timed out", components: [] });
           return;
@@ -235,8 +240,12 @@ export default async (client: Client): Promise<void> => {
             },
           ]);
 
+          const finalResponse = response.startsWith(requesterPrefix)
+            ? response
+            : `${requesterPrefix} ${response}`;
+
           await interaction.targetMessage.reply({
-            content: response,
+            content: finalResponse,
             allowedMentions: {
               users: [interaction.targetMessage.author.id, interaction.user.id],
               repliedUser: true,
@@ -378,10 +387,38 @@ export default async (client: Client): Promise<void> => {
       await interaction.reply({ content: message, embeds: [embed] });
     } else if (interaction.isMessageContextMenuCommand()) {
       const message = `Requested by <@${interaction.user.id}>`;
-      await interaction.targetMessage.reply({
-        content: message,
-        embeds: [embed],
-      });
+      try {
+        await interaction.targetMessage.reply({
+          content: message,
+          embeds: [embed],
+        });
+
+        if (isSendHelpFlow) {
+          await interaction.editReply({
+            content: "Help message sent.",
+            components: [],
+          });
+
+          setTimeout(() => {
+            void interaction.deleteReply().catch(() => {});
+          }, 5_000);
+        }
+      } catch (error) {
+        console.error(error);
+
+        if (isSendHelpFlow) {
+          await interaction.editReply({
+            content:
+              "Failed to send the help message. Please check my permissions and try again.",
+            components: [],
+          });
+        } else {
+          await interaction.reply({
+            ephemeral: true,
+            content: "Failed to send the requested message.",
+          });
+        }
+      }
     }
   });
 };
