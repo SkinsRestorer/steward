@@ -43,10 +43,7 @@ const knowledgeTools = {
       resource: z
         .string()
         .describe("The content or resource to add to the knowledge base"),
-      title: z
-        .string()
-        .optional()
-        .describe("Optional title for the resource"),
+      title: z.string().optional().describe("Optional title for the resource"),
     }),
     execute: async ({ resource, title }) => {
       const id = generateId();
@@ -65,7 +62,9 @@ const knowledgeTools = {
     description:
       "Search the knowledge base to find relevant information for answering questions",
     inputSchema: z.object({
-      query: z.string().describe("The search query to find relevant information"),
+      query: z
+        .string()
+        .describe("The search query to find relevant information"),
       limit: z
         .number()
         .optional()
@@ -117,7 +116,7 @@ export const generateSupportResponse = async (
   options?: GenerateSupportResponseOptions,
 ): Promise<string> => {
   const { text } = await generateText({
-    model: groq("qwen/qwen3-32b"),
+    model: groq("openai/gpt-oss-120b"),
     stopWhen: stepCountIs(5),
     messages: [
       {
