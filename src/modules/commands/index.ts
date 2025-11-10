@@ -244,10 +244,15 @@ export default async (client: Client): Promise<void> => {
             ? response
             : `${requesterPrefix} ${response}`;
 
+          const allowedUserMentions =
+            interaction.targetMessage.author.id === interaction.user.id
+              ? [interaction.user.id]
+              : [interaction.targetMessage.author.id, interaction.user.id];
+
           await interaction.targetMessage.reply({
             content: finalResponse,
             allowedMentions: {
-              users: [interaction.targetMessage.author.id, interaction.user.id],
+              users: allowedUserMentions,
               repliedUser: true,
             },
           });
