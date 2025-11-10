@@ -232,7 +232,7 @@ export default async (client: Client): Promise<void> => {
         await interaction.deferReply({ ephemeral: true });
 
         try {
-          const requesterPrefix = `<@${interaction.user.id}> requested me to reply to this message>`;
+          const requesterPrefix = `<@${interaction.user.id}> requested me to reply to this message.`;
           const response = await generateSupportResponse([
             {
               role: "user",
