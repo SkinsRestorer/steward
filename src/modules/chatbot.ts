@@ -1,5 +1,5 @@
-import { generateSupportResponse, type SupportChatMessage } from "@/lib/ai";
 import type { Client, Message, Snowflake } from "discord.js";
+import { generateSupportResponse, type SupportChatMessage } from "@/lib/ai";
 
 type Context = {
   isGenerating: () => boolean;
