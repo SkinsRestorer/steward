@@ -6,11 +6,24 @@ type KnowledgeContent = {
   section: string;
   title?: string;
 };
+type KnowledgeDocument = {
+  id: string;
+  content: KnowledgeContent;
+};
+
+const searchUrl = process.env.UPSTASH_SEARCH_REST_URL;
+const searchToken = process.env.UPSTASH_SEARCH_REST_TOKEN;
+
+if (searchUrl == null || searchToken == null) {
+  throw new Error(
+    "Both UPSTASH_SEARCH_REST_URL and UPSTASH_SEARCH_REST_TOKEN must be provided",
+  );
+}
 
 // Initialize Upstash Search client
 const search = new Search({
-  url: process.env.UPSTASH_SEARCH_REST_URL!,
-  token: process.env.UPSTASH_SEARCH_REST_TOKEN!,
+  url: searchUrl,
+  token: searchToken,
 });
 
 const index = search.index<KnowledgeContent>("knowledge-base");
@@ -64,7 +77,7 @@ async function setupKnowledgeBase(dryRun: boolean) {
 
   let chunkId = 0;
   const batchSize = 100;
-  let batch: any[] = [];
+  let batch: KnowledgeDocument[] = [];
   let totalChunks = 0;
 
   for (const page of pages) {
