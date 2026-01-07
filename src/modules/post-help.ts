@@ -1,4 +1,11 @@
-import { ChannelType, type Client, EmbedBuilder } from "discord.js";
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelType,
+  type Client,
+  EmbedBuilder,
+} from "discord.js";
 
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {
@@ -18,10 +25,23 @@ export default (client: Client): void => {
         [
           "Meet the **SkinsRestorer Support GPT** — our personal AI assistant trained on SkinsRestorer knowledge and docs.",
           "A GPT is a conversational AI you can chat with like a teammate; it stays online 24/7 to guide you through setup, config tweaks, and smaller issues with detailed answers.",
-          "Start a chat any time at https://chatgpt.com/g/g-68f7a885f5688191b9a05f812f4ccf43-skinsrestorer-support-gpt. If you still need us, drop the specifics of your problem here and we'll follow up as soon as we can!",
+          "If you still need us, drop the specifics of your problem here and we'll follow up as soon as we can!",
         ].join("\n\n"),
       );
 
-    await originalMessage.reply({ embeds: [embed] });
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setLabel("🤖 Open Support GPT")
+        .setStyle(ButtonStyle.Link)
+        .setURL(
+          "https://chatgpt.com/g/g-68f7a885f5688191b9a05f812f4ccf43-skinsrestorer-support-gpt",
+        ),
+      new ButtonBuilder()
+        .setLabel("📚 Open Documentation")
+        .setStyle(ButtonStyle.Link)
+        .setURL("https://skinsrestorer.net/docs"),
+    );
+
+    await originalMessage.reply({ embeds: [embed], components: [row] });
   });
 };
