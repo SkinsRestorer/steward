@@ -12,13 +12,16 @@ async function fetchData(): Promise<LatestReleaseResponse> {
 }
 
 let metadata: LatestReleaseResponse = await fetchData();
-setInterval(() => {
-  void fetchData()
-    .then((data) => {
-      metadata = data;
-    })
-    .catch(console.error);
-}, 1_000 * 60); // 60 requests per hour
+setInterval(
+  () => {
+    void fetchData()
+      .then((data) => {
+        metadata = data;
+      })
+      .catch(console.error);
+  },
+  20 * 60 * 1_000,
+); // 3 times per hour
 
 export function getMetadata(): LatestReleaseResponse {
   return metadata;
