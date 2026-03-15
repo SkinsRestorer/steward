@@ -1,123 +1,60 @@
-import { groq } from "@ai-sdk/groq";
-import { Search } from "@upstash/search";
-import { generateId, generateText, stepCountIs, tool } from "ai";
-import { z } from "zod";
+import { google } from "@ai-sdk/google";
+import { generateText, type Tool } from "ai";
 import "dotenv/config";
 
-type KnowledgeContent = {
-  text: string;
-  section: string;
-  title?: string;
-};
+const googleApiKey =
+  process.env.GEMINI_API_KEY ??
+  process.env.GOOGLE_GENERATIVE_AI_API_KEY ??
+  process.env.GOOGLE_API_KEY;
 
-const searchUrl = process.env.UPSTASH_SEARCH_REST_URL;
-const searchToken = process.env.UPSTASH_SEARCH_REST_TOKEN;
-
-if (searchUrl == null || searchToken == null) {
+if (googleApiKey == null) {
   throw new Error(
-    "Both UPSTASH_SEARCH_REST_URL and UPSTASH_SEARCH_REST_TOKEN must be provided",
+    "A Gemini API key must be provided via GEMINI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, or GOOGLE_API_KEY",
   );
 }
 
-const search = new Search({
-  url: searchUrl,
-  token: searchToken,
-});
-const knowledgeIndex = search.index<KnowledgeContent>("knowledge-base");
+process.env.GOOGLE_GENERATIVE_AI_API_KEY ??= googleApiKey;
+
+const supportTools = {
+  google_search: google.tools.googleSearch({}) as Tool,
+  url_context: google.tools.urlContext({}) as Tool,
+} as const;
 
 const systemPrompt =
-  "You are a support bot for SkinsRestorer. Use the searchKnowledge tool to find relevant information from the knowledge base to answer user questions. Keep responses very short due to Discord's 2000 character limit. Do not use table syntax or advanced formatting like spoilers. Use only basic Discord formatting: **bold**, *italic*, __underline__, [link text](url).\n\nYour task is to provide support to users that seek help with the plugin.\nUse short sentence since the user may not know Minecraft well, no yapping.\nYou are allowed to use Markdown format, but not other formats.\nAlways be on-topic, do not let the user go off-topic.";
+  "You are SkinsRestorer Support GPT, an automated assistant that provides friendly and accurate technical support for the SkinsRestorer plugin/mod (https://skinsrestorer.net). Your purpose is to help users set up and troubleshoot SkinsRestorer on their Minecraft servers or modded setups, referring to the official documentation when needed.\n\nYou can assist users using information from:\n- Official docs: https://skinsrestorer.net/docs\n- Full doc list: https://skinsrestorer.net/llms-full.txt\n- Recommended download: https://modrinth.com/plugin/skinsrestorer\n\nYou support these environments:\n- Server types: Bukkit, Spigot, Paper, Purpur, Folia, etc.\n- Proxies: BungeeCord, Waterfall, Velocity\n- Modded setups: FabricMC (latest), NeoForge (latest)\n\nWhen users ask for help:\n1. Gather details first. Ask relevant questions before diagnosing:\n   - Server software (Paper, Spigot, Velocity, etc.)\n   - Proxy or no proxy setup\n   - Whether it’s modded or not\n   - Database setup (if applicable)\n   - Logs, console errors, or /sr dump output\n   - Server hosting provider or environment (local, shared host, etc.)\n2. Explain fixes clearly. Provide step-by-step instructions tailored to their setup.\n3. Use official sources. Reference documentation and best practices from the provided links.\n4. Never guess. If information is missing or uncertain, research the topic, term, keyword, or documentation page before replying.\n5. Always perform a web search about the user's issue before answering. No exceptions.\n6. Avoid external or unrelated advice. Only provide guidance for SkinsRestorer or directly relevant server configurations.\n7. Be flexible with unsupported offline mode launchers. Make it clear they are unsupported, but still offer best-effort troubleshooting and guidance where possible.\n8. Always do a web search before answering. Search especially for the most complex topics and documentation pages before giving any answer.\n\nTone: professional, calm, and supportive like an official support assistant. If a user seems frustrated, stay patient and reassuring.\n\nKeep responses concise because Discord has a 2000 character limit. Do not use tables or advanced formatting like spoilers. Use only basic Discord formatting: **bold**, *italic*, __underline__, [link text](url). Stay on-topic.";
 
 export type SupportChatMessage = {
   role: "user" | "assistant";
   content: string;
 };
 
-const primerMessages: SupportChatMessage[] = [
-  {
-    role: "user",
-    content: "Hi Steward! I have an issue with SkinsRestorer. Can you help me?",
-  },
-  {
-    role: "assistant",
-    content: "Hello! Can you describe your issue? I wanna help you.",
-  },
-];
-
-const knowledgeTools = {
-  addResource: tool({
-    description:
-      "Add a new resource or piece of information to the knowledge base",
-    inputSchema: z.object({
-      resource: z
-        .string()
-        .describe("The content or resource to add to the knowledge base"),
-      title: z.string().optional().describe("Optional title for the resource"),
-    }),
-    execute: async ({ resource, title }) => {
-      const id = generateId();
-      await knowledgeIndex.upsert({
-        id,
-        content: {
-          text: resource,
-          section: "user-added",
-          title: title || `Resource ${id.slice(0, 8)}`,
-        },
-      });
-      return `Successfully added resource "${title || "Untitled"}" to knowledge base with ID: ${id}`;
-    },
-  }),
-  searchKnowledge: tool({
-    description:
-      "Search the knowledge base to find relevant information for answering questions",
-    inputSchema: z.object({
-      query: z
-        .string()
-        .describe("The search query to find relevant information"),
-      limit: z
-        .number()
-        .optional()
-        .describe("Maximum number of results to return (default: 3)"),
-    }),
-    execute: async ({ query, limit = 3 }) => {
-      const results = await knowledgeIndex.search({
-        query,
-        limit,
-        reranking: true,
-      });
-
-      if (results.length === 0) {
-        return "No relevant information found in the knowledge base.";
-      }
-
-      return results.map((hit, i) => ({
-        resourceId: hit.id,
-        rank: i + 1,
-        title: hit.content.title || "Untitled",
-        content: hit.content.text || "",
-        section: hit.content.section || "unknown",
-        score: hit.score,
-      }));
-    },
-  }),
-  deleteResource: tool({
-    description: "Delete a resource from the knowledge base",
-    inputSchema: z.object({
-      resourceId: z.string().describe("The ID of the resource to delete"),
-    }),
-    execute: async ({ resourceId }) => {
-      try {
-        await knowledgeIndex.delete({ ids: [resourceId] });
-        return `Successfully deleted resource with ID: ${resourceId}`;
-      } catch (error) {
-        return `Failed to delete resource: ${error instanceof Error ? error.message : "Unknown error"}`;
-      }
-    },
-  }),
-} as const;
-
 type GenerateSupportResponseOptions = {
   maxLength?: number;
+};
+
+const buildPrompt = (messages: SupportChatMessage[]): string => {
+  const conversation = messages
+    .map(({ role, content }) => {
+      const label = role === "user" ? "User" : "Assistant";
+      return `${label}: ${content.trim()}`;
+    })
+    .join("\n\n");
+
+  return [
+    "Always run Google Search before answering.",
+    "Always use URL Context with https://skinsrestorer.net/llms-full.txt before answering.",
+    "Prefer official SkinsRestorer documentation and the Modrinth download page when relevant.",
+    "",
+    "Reference URLs:",
+    "- https://skinsrestorer.net/llms-full.txt",
+    "- https://skinsrestorer.net/docs",
+    "- https://modrinth.com/plugin/skinsrestorer",
+    "",
+    "Conversation:",
+    conversation,
+    "",
+    "Answer the latest user message.",
+  ].join("\n");
 };
 
 export const generateSupportResponse = async (
@@ -125,23 +62,10 @@ export const generateSupportResponse = async (
   options?: GenerateSupportResponseOptions,
 ): Promise<string> => {
   const { text } = await generateText({
-    model: groq("openai/gpt-oss-120b"),
-    stopWhen: stepCountIs(5),
-    messages: [
-      {
-        role: "system",
-        content: systemPrompt,
-      },
-      ...primerMessages,
-      ...messages,
-    ],
-    tools: knowledgeTools,
-    onStepFinish: ({ toolResults }) => {
-      if (toolResults.length > 0) {
-        console.log("Tool results:");
-        console.dir(toolResults, { depth: null });
-      }
-    },
+    model: google("gemini-2.5-flash"),
+    system: systemPrompt,
+    prompt: buildPrompt(messages),
+    tools: supportTools,
     maxOutputTokens: Math.round(1_750 / 4),
   });
 
