@@ -4,6 +4,7 @@ import { generateSupportResponse, type SupportChatMessage } from "@/lib/ai";
 type Context = {
   isGenerating: () => boolean;
   messages: SupportChatMessage[];
+  queueFollowUp: (message: Message) => void;
   debounce: (message: Message) => void;
 };
 const userContext: Record<Snowflake, Context> = {};
@@ -20,17 +21,13 @@ export default async (client: Client): Promise<void> => {
     const messageContent = message.content;
     let context = userContext[message.author.id];
     if (context != null) {
-      const lastMessage = context.messages.at(-1);
-      if (lastMessage?.role === "user") {
-        lastMessage.content += `\n${messageContent}`;
-      } else {
-        context.messages.push({
-          role: "user",
-          content: messageContent,
-        });
-      }
+      context.messages.push({
+        role: "user",
+        content: messageContent,
+      });
     } else {
       let generating = false;
+      let pendingMessage: Message | undefined;
       setInterval(() => {
         if (generating) {
           void channel.sendTyping();
@@ -39,6 +36,9 @@ export default async (client: Client): Promise<void> => {
 
       const newContext: Context = {
         isGenerating: () => generating,
+        queueFollowUp: (message: Message) => {
+          pendingMessage = message;
+        },
         messages: [
           {
             role: "user",
@@ -52,14 +52,20 @@ export default async (client: Client): Promise<void> => {
             const responseText = await generateSupportResponse(
               newContext.messages,
             );
-            generating = false;
-
             newContext.messages.push({
               role: "assistant",
               content: responseText,
             });
 
             await message.reply(responseText);
+
+            generating = false;
+
+            if (pendingMessage != null) {
+              const queuedMessage = pendingMessage;
+              pendingMessage = undefined;
+              newContext.debounce(queuedMessage);
+            }
           } catch (e) {
             generating = false;
             console.error(e);
@@ -71,9 +77,7 @@ export default async (client: Client): Promise<void> => {
     }
 
     if (context.isGenerating()) {
-      await message.reply(
-        "I'm still generating a response for your previous message. Please wait a moment.",
-      );
+      context.queueFollowUp(message);
     } else {
       context.debounce(message);
     }
