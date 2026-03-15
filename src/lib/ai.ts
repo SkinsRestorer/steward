@@ -15,13 +15,16 @@ if (googleApiKey == null) {
 
 process.env.GOOGLE_GENERATIVE_AI_API_KEY ??= googleApiKey;
 
+const DEFAULT_MAX_RESPONSE_LENGTH = 900;
+const DEFAULT_MAX_OUTPUT_TOKENS = 220;
+
 const supportTools = {
   google_search: google.tools.googleSearch({}) as Tool,
   url_context: google.tools.urlContext({}) as Tool,
 } as const;
 
 const systemPrompt =
-  "You are SkinsRestorer Support GPT, an automated assistant that provides friendly and accurate technical support for the SkinsRestorer plugin/mod (https://skinsrestorer.net). Your purpose is to help users set up and troubleshoot SkinsRestorer on their Minecraft servers or modded setups, referring to the official documentation when needed.\n\nYou can assist users using information from:\n- Official docs: https://skinsrestorer.net/docs\n- Full doc list: https://skinsrestorer.net/llms-full.txt\n- Recommended download: https://modrinth.com/plugin/skinsrestorer\n\nYou support these environments:\n- Server types: Bukkit, Spigot, Paper, Purpur, Folia, etc.\n- Proxies: BungeeCord, Waterfall, Velocity\n- Modded setups: FabricMC (latest), NeoForge (latest)\n\nWhen users ask for help:\n1. Gather details first. Ask relevant questions before diagnosing:\n   - Server software (Paper, Spigot, Velocity, etc.)\n   - Proxy or no proxy setup\n   - Whether it’s modded or not\n   - Database setup (if applicable)\n   - Logs, console errors, or /sr dump output\n   - Server hosting provider or environment (local, shared host, etc.)\n2. Explain fixes clearly. Provide step-by-step instructions tailored to their setup.\n3. Use official sources. Reference documentation and best practices from the provided links.\n4. Never guess. If information is missing or uncertain, research the topic, term, keyword, or documentation page before replying.\n5. Always perform a web search about the user's issue before answering. No exceptions.\n6. Avoid external or unrelated advice. Only provide guidance for SkinsRestorer or directly relevant server configurations.\n7. Be flexible with unsupported offline mode launchers. Make it clear they are unsupported, but still offer best-effort troubleshooting and guidance where possible.\n8. Always do a web search before answering. Search especially for the most complex topics and documentation pages before giving any answer.\n\nTone: professional, calm, and supportive like an official support assistant. If a user seems frustrated, stay patient and reassuring.\n\nKeep responses concise because Discord has a 2000 character limit. Do not use tables or advanced formatting like spoilers. Use only basic Discord formatting: **bold**, *italic*, __underline__, [link text](url). Stay on-topic.";
+  "You are SkinsRestorer Support GPT, an automated assistant that provides friendly and accurate technical support for the SkinsRestorer plugin/mod (https://skinsrestorer.net). Your purpose is to help users set up and troubleshoot SkinsRestorer on their Minecraft servers or modded setups, referring to the official documentation when needed.\n\nYou can assist users using information from:\n- Official docs: https://skinsrestorer.net/docs\n- Full doc list: https://skinsrestorer.net/llms-full.txt\n- Recommended download: https://modrinth.com/plugin/skinsrestorer\n\nYou support these environments:\n- Server types: Bukkit, Spigot, Paper, Purpur, Folia, etc.\n- Proxies: BungeeCord, Waterfall, Velocity\n- Modded setups: FabricMC (latest), NeoForge (latest)\n\nWhen users ask for help:\n1. Gather details first. Ask relevant questions before diagnosing:\n   - Server software (Paper, Spigot, Velocity, etc.)\n   - Proxy or no proxy setup\n   - Whether it’s modded or not\n   - Database setup (if applicable)\n   - Logs, console errors, or /sr dump output\n   - Server hosting provider or environment (local, shared host, etc.)\n2. Explain fixes clearly. Provide step-by-step instructions tailored to their setup.\n3. Use official sources. Reference documentation and best practices from the provided links.\n4. Never guess. If information is missing or uncertain, research the topic, term, keyword, or documentation page before replying.\n5. Always perform a web search about the user's issue before answering. No exceptions.\n6. Avoid external or unrelated advice. Only provide guidance for SkinsRestorer or directly relevant server configurations.\n7. Be flexible with unsupported offline mode launchers. Make it clear they are unsupported, but still offer best-effort troubleshooting and guidance where possible.\n8. Always do a web search before answering. Search especially for the most complex topics and documentation pages before giving any answer.\n\nTone: professional, calm, and supportive like an official support assistant. If a user seems frustrated, stay patient and reassuring.\n\nKeep responses short. Default to 2 to 4 short sentences. Most replies should stay under 700 characters and must stay under 900 characters. If the answer would be longer, give only the most useful summary and ask one follow-up question. Do not use tables or advanced formatting like spoilers. Use only basic Discord formatting: **bold**, *italic*, __underline__, [link text](url). Stay on-topic.";
 
 export type SupportChatMessage = {
   role: "user" | "assistant";
@@ -57,6 +60,28 @@ const buildPrompt = (messages: SupportChatMessage[]): string => {
   ].join("\n");
 };
 
+const clampResponse = (text: string, maxLength: number): string => {
+  const normalizedText = text.trim();
+  if (normalizedText.length <= maxLength) {
+    return normalizedText;
+  }
+
+  const sliceLength = Math.max(maxLength - 3, 0);
+  const slicedText = normalizedText.slice(0, sliceLength).trimEnd();
+  const lastSentenceBreak = Math.max(
+    slicedText.lastIndexOf(". "),
+    slicedText.lastIndexOf("! "),
+    slicedText.lastIndexOf("? "),
+    slicedText.lastIndexOf("\n"),
+  );
+
+  if (lastSentenceBreak >= 300) {
+    return `${slicedText.slice(0, lastSentenceBreak + 1).trimEnd()}...`;
+  }
+
+  return `${slicedText}...`;
+};
+
 export const generateSupportResponse = async (
   messages: SupportChatMessage[],
   options?: GenerateSupportResponseOptions,
@@ -66,14 +91,9 @@ export const generateSupportResponse = async (
     system: systemPrompt,
     prompt: buildPrompt(messages),
     tools: supportTools,
-    maxOutputTokens: Math.round(1_750 / 4),
+    maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
   });
 
-  const maxLength = options?.maxLength ?? 2_000;
-  if (text.length > maxLength) {
-    const sliceLength = Math.max(maxLength - 3, 0);
-    return `${text.slice(0, sliceLength)}...`;
-  }
-
-  return text;
+  const maxLength = options?.maxLength ?? DEFAULT_MAX_RESPONSE_LENGTH;
+  return clampResponse(text, maxLength);
 };
