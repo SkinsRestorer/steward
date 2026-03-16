@@ -1,6 +1,9 @@
 import type { Client, Message, Snowflake } from "discord.js";
 import { generateSupportResponse, type SupportChatMessage } from "@/lib/ai";
 
+const SUPPORT_GENERATION_ERROR_MESSAGE =
+  "I hit an internal error while generating a reply. Please try again in a moment.";
+
 type Context = {
   isGenerating: () => boolean;
   messages: SupportChatMessage[];
@@ -18,6 +21,26 @@ export default async (client: Client): Promise<void> => {
 
     if (!channel.name.startsWith("chat-experiment")) return;
 
+    const sendReply = async (
+      message: Message,
+      content: string,
+    ): Promise<boolean> => {
+      try {
+        await message.reply(content);
+        return true;
+      } catch (error) {
+        console.error(error);
+      }
+
+      try {
+        await channel.send(content);
+        return true;
+      } catch (error) {
+        console.error(error);
+        return false;
+      }
+    };
+
     const messageContent = message.content;
     let context = userContext[message.author.id];
     if (context != null) {
@@ -33,6 +56,14 @@ export default async (client: Client): Promise<void> => {
           void channel.sendTyping();
         }
       }, 8_000);
+
+      const flushPendingMessage = (): void => {
+        if (pendingMessage == null) return;
+
+        const queuedMessage = pendingMessage;
+        pendingMessage = undefined;
+        newContext.debounce(queuedMessage);
+      };
 
       const newContext: Context = {
         isGenerating: () => generating,
@@ -52,23 +83,24 @@ export default async (client: Client): Promise<void> => {
             const responseText = await generateSupportResponse(
               newContext.messages,
             );
-            newContext.messages.push({
-              role: "assistant",
-              content: responseText,
-            });
 
-            await message.reply(responseText);
-
-            generating = false;
-
-            if (pendingMessage != null) {
-              const queuedMessage = pendingMessage;
-              pendingMessage = undefined;
-              newContext.debounce(queuedMessage);
+            if (await sendReply(message, responseText)) {
+              newContext.messages.push({
+                role: "assistant",
+                content: responseText,
+              });
             }
           } catch (e) {
-            generating = false;
             console.error(e);
+            if (await sendReply(message, SUPPORT_GENERATION_ERROR_MESSAGE)) {
+              newContext.messages.push({
+                role: "assistant",
+                content: SUPPORT_GENERATION_ERROR_MESSAGE,
+              });
+            }
+          } finally {
+            generating = false;
+            flushPendingMessage();
           }
         }, 1_000),
       };

@@ -143,5 +143,10 @@ export const generateSupportResponse = async (
   });
 
   const maxLength = options?.maxLength ?? DEFAULT_MAX_RESPONSE_LENGTH;
-  return clampResponse(text, maxLength).text;
+  const responseText = clampResponse(text, maxLength).text;
+  if (responseText === "") {
+    throw new Error("The AI model returned an empty response");
+  }
+
+  return responseText;
 };
