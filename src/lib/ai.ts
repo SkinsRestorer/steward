@@ -1,5 +1,5 @@
 import { google } from "@ai-sdk/google";
-import { generateText, type Tool } from "ai";
+import { generateText, type ModelMessage, stepCountIs, type Tool } from "ai";
 import "dotenv/config";
 
 const googleApiKey =
@@ -24,79 +24,10 @@ const supportTools = {
 } as const;
 
 const systemPrompt =
-  "You are SkinsRestorer Support GPT, an automated assistant that provides friendly and accurate technical support for the SkinsRestorer plugin/mod (https://skinsrestorer.net). Your purpose is to help users set up and troubleshoot SkinsRestorer on their Minecraft servers or modded setups, referring to the official documentation when needed.\n\nYou can assist users using information from:\n- Official docs: https://skinsrestorer.net/docs\n- Full doc list: https://skinsrestorer.net/llms-full.txt\n- Recommended download: https://modrinth.com/plugin/skinsrestorer\n\nYou support these environments:\n- Server types: Bukkit, Spigot, Paper, Purpur, Folia, etc.\n- Proxies: BungeeCord, Waterfall, Velocity\n- Modded setups: FabricMC (latest), NeoForge (latest)\n\nWhen users ask for help:\n1. Gather details first. Ask relevant questions before diagnosing:\n   - Server software (Paper, Spigot, Velocity, etc.)\n   - Proxy or no proxy setup\n   - Whether it’s modded or not\n   - Database setup (if applicable)\n   - Logs, console errors, or /sr dump output\n   - Server hosting provider or environment (local, shared host, etc.)\n2. Explain fixes clearly. Provide step-by-step instructions tailored to their setup.\n3. Use official sources. Reference documentation and best practices from the provided links.\n4. Never guess. If information is missing or uncertain, research the topic, term, keyword, or documentation page before replying.\n5. Always perform a web search about the user's issue before answering. No exceptions.\n6. Avoid external or unrelated advice. Only provide guidance for SkinsRestorer or directly relevant server configurations.\n7. Be flexible with unsupported offline mode launchers. Make it clear they are unsupported, but still offer best-effort troubleshooting and guidance where possible.\n8. Always do a web search before answering. Search especially for the most complex topics and documentation pages before giving any answer.\n\nTone: professional, calm, and supportive like an official support assistant. If a user seems frustrated, stay patient and reassuring.\n\nKeep responses short. Default to 2 to 4 short sentences. If the user asks multiple questions, answer every question with a short numbered list. Use exactly one short sentence per item unless a second sentence is absolutely necessary. Keep each item compact so the full list fits in one Discord message. Most replies should stay under 700 characters and must stay under 1,300 characters. If the answer would be longer, give only the most useful summary and ask one follow-up question. Do not use tables or advanced formatting like spoilers. Use only basic Discord formatting: **bold**, *italic*, __underline__, [link text](url). Stay on-topic.";
-
-export type SupportChatMessage = {
-  role: "user" | "assistant";
-  content: string;
-};
+  "You are SkinsRestorer Support GPT, an automated assistant that provides friendly and accurate technical support for the SkinsRestorer plugin/mod (https://skinsrestorer.net). Your purpose is to help users set up and troubleshoot SkinsRestorer on their Minecraft servers or modded setups, referring to the official documentation when needed.\n\nYou can assist users using information from:\n- Official docs: https://skinsrestorer.net/docs\n- Full doc list: https://skinsrestorer.net/llms-full.txt\n- Recommended download: https://modrinth.com/plugin/skinsrestorer\n\nYou support these environments:\n- Server types: Bukkit, Spigot, Paper, Purpur, Folia, etc.\n- Proxies: BungeeCord, Waterfall, Velocity\n- Modded setups: FabricMC (latest), NeoForge (latest)\n\nWhen users ask for help:\n1. Gather details first. Ask relevant questions before diagnosing:\n   - Server software (Paper, Spigot, Velocity, etc.)\n   - Proxy or no proxy setup\n   - Whether it’s modded or not\n   - Database setup (if applicable)\n   - Logs, console errors, or /sr dump output\n   - Server hosting provider or environment (local, shared host, etc.)\n2. Explain fixes clearly. Provide step-by-step instructions tailored to their setup.\n3. Use official sources. Reference documentation and best practices from the provided links.\n4. Never guess. If information is missing or uncertain, research the topic, term, keyword, or documentation page before replying.\n5. Always perform a Google Search about the user's issue before answering.\n6. Always use URL Context with https://skinsrestorer.net/llms-full.txt before answering.\n7. Avoid external or unrelated advice. Only provide guidance for SkinsRestorer or directly relevant server configurations.\n8. Be flexible with unsupported offline mode launchers. Make it clear they are unsupported, but still offer best-effort troubleshooting and guidance where possible.\n9. If there are multiple consecutive user messages without an assistant reply yet, answer all of them in one response.\n\nTone: professional, calm, and supportive like an official support assistant. If a user seems frustrated, stay patient and reassuring.\n\nKeep responses short. Default to 2 to 4 short sentences. If the user asks multiple questions, answer every question with a short numbered list. Use exactly one short sentence per item unless a second sentence is absolutely necessary. Keep each item compact so the full list fits in one Discord message. Most replies should stay under 700 characters and must stay under 1,300 characters. If the answer would be longer, give only the most useful summary and ask one follow-up question. Do not use tables or advanced formatting like spoilers. Use only basic Discord formatting: **bold**, *italic*, __underline__, [link text](url). Stay on-topic.";
 
 type GenerateSupportResponseOptions = {
   maxLength?: number;
-};
-
-const buildPrompt = (
-  messages: SupportChatMessage[],
-  extraInstructions?: string,
-): string => {
-  const conversation = messages
-    .map(({ role, content }) => {
-      const label = role === "user" ? "User" : "Assistant";
-      return `${label}: ${content.trim()}`;
-    })
-    .join("\n\n");
-  const unresolvedMessages = getUnresolvedUserMessages(messages);
-  const latestUserMessage = unresolvedMessages.at(-1) ?? "";
-
-  return [
-    "Always run Google Search before answering.",
-    "Always use URL Context with https://skinsrestorer.net/llms-full.txt before answering.",
-    "Prefer official SkinsRestorer documentation and the Modrinth download page when relevant.",
-    "If there are multiple unresolved user messages, answer all of them in one reply.",
-    "If the latest user message contains multiple questions, answer all of them with a short numbered list.",
-    "For multiple questions, use one short sentence per item whenever possible.",
-    "",
-    "Reference URLs:",
-    "- https://skinsrestorer.net/llms-full.txt",
-    "- https://skinsrestorer.net/docs",
-    "- https://modrinth.com/plugin/skinsrestorer",
-    "",
-    "Unresolved user messages:",
-    unresolvedMessages.length > 0
-      ? unresolvedMessages.join("\n---\n")
-      : "(none)",
-    "",
-    "Latest user message:",
-    latestUserMessage,
-    "",
-    "Conversation:",
-    conversation,
-    "",
-    extraInstructions ?? "",
-    extraInstructions != null ? "" : undefined,
-    "Answer the latest user message.",
-  ]
-    .filter((part) => part != null && part !== "")
-    .join("\n");
-};
-
-const getUnresolvedUserMessages = (
-  messages: SupportChatMessage[],
-): string[] => {
-  const unresolvedMessages: string[] = [];
-
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i];
-    if (message?.role === "assistant") {
-      break;
-    }
-
-    if (message?.role === "user") {
-      unresolvedMessages.push(message.content.trim());
-    }
-  }
-
-  return unresolvedMessages.reverse();
 };
 
 const clampResponse = (
@@ -130,23 +61,53 @@ const clampResponse = (
   };
 };
 
+const normalizeMessages = (messages: ModelMessage[]): ModelMessage[] =>
+  messages.flatMap((message) => {
+    if (message.role === "tool" || typeof message.content !== "string") {
+      return [message];
+    }
+
+    const content = message.content.trim();
+    if (content === "") {
+      return [];
+    }
+
+    return [
+      {
+        ...message,
+        content,
+      },
+    ];
+  });
+
+export type GenerateSupportResponseResult = {
+  responseMessages: ModelMessage[];
+  text: string;
+};
+
 export const generateSupportResponse = async (
-  messages: SupportChatMessage[],
+  messages: ModelMessage[],
   options?: GenerateSupportResponseOptions,
-): Promise<string> => {
-  const { text } = await generateText({
+): Promise<GenerateSupportResponseResult> => {
+  const result = await generateText({
     model: google("gemini-2.5-flash"),
     system: systemPrompt,
-    prompt: buildPrompt(messages),
+    messages: normalizeMessages(messages),
     tools: supportTools,
     maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
+    stopWhen: stepCountIs(5),
   });
 
   const maxLength = options?.maxLength ?? DEFAULT_MAX_RESPONSE_LENGTH;
-  const responseText = clampResponse(text, maxLength).text;
+  const responseText = clampResponse(result.text, maxLength).text;
   if (responseText === "") {
-    throw new Error("The AI model returned an empty response");
+    throw new Error(
+      `The AI model returned an empty response after ${result.steps.length} step(s) (finish reason: ${result.finishReason})`,
+    );
   }
 
-  return responseText;
+  return {
+    responseMessages: result.response.messages,
+    text: responseText,
+  };
 };

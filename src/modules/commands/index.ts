@@ -233,7 +233,7 @@ export default async (client: Client): Promise<void> => {
 
         try {
           const requesterPrefix = `<@${interaction.user.id}> requested me to reply to this message.`;
-          const response = await generateSupportResponse([
+          const { text: response } = await generateSupportResponse([
             {
               role: "user",
               content: `Begin your response with "${requesterPrefix}" exactly before offering help. Here is the message you must answer:\n${prompt}`,

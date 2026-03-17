@@ -1,12 +1,13 @@
+import type { ModelMessage } from "ai";
 import type { Client, Message, Snowflake } from "discord.js";
-import { generateSupportResponse, type SupportChatMessage } from "@/lib/ai";
+import { generateSupportResponse } from "@/lib/ai";
 
 const SUPPORT_GENERATION_ERROR_MESSAGE =
   "I hit an internal error while generating a reply. Please try again in a moment.";
 
 type Context = {
   isGenerating: () => boolean;
-  messages: SupportChatMessage[];
+  messages: ModelMessage[];
   queueFollowUp: (message: Message) => void;
   debounce: (message: Message) => void;
 };
@@ -80,15 +81,12 @@ export default async (client: Client): Promise<void> => {
           try {
             generating = true;
             await channel.sendTyping();
-            const responseText = await generateSupportResponse(
+            const { responseMessages, text } = await generateSupportResponse(
               newContext.messages,
             );
 
-            if (await sendReply(message, responseText)) {
-              newContext.messages.push({
-                role: "assistant",
-                content: responseText,
-              });
+            if (await sendReply(message, text)) {
+              newContext.messages.push(...responseMessages);
             }
           } catch (e) {
             console.error(e);
