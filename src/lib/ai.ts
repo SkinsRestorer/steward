@@ -80,6 +80,24 @@ const normalizeMessages = (messages: ModelMessage[]): ModelMessage[] =>
     ];
   });
 
+const extractTextFromMessages = (messages: ModelMessage[]): string =>
+  messages
+    .flatMap((message) => {
+      if (message.role !== "assistant") {
+        return [];
+      }
+
+      if (typeof message.content === "string") {
+        return [message.content];
+      }
+
+      return message.content.flatMap((part) =>
+        part.type === "text" ? [part.text] : [],
+      );
+    })
+    .join("")
+    .trim();
+
 export type GenerateSupportResponseResult = {
   responseMessages: ModelMessage[];
   text: string;
@@ -99,7 +117,10 @@ export const generateSupportResponse = async (
   });
 
   const maxLength = options?.maxLength ?? DEFAULT_MAX_RESPONSE_LENGTH;
-  const responseText = clampResponse(result.text, maxLength).text;
+  const responseText = clampResponse(
+    result.text || extractTextFromMessages(result.response.messages),
+    maxLength,
+  ).text;
   if (responseText === "") {
     throw new Error(
       `The AI model returned an empty response after ${result.steps.length} step(s) (finish reason: ${result.finishReason})`,

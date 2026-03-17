@@ -26,11 +26,13 @@ export default async (client: Client): Promise<void> => {
       message: Message,
       content: string,
     ): Promise<boolean> => {
-      try {
-        await message.reply(content);
-        return true;
-      } catch (error) {
-        console.error(error);
+      if (!message.system) {
+        try {
+          await message.reply(content);
+          return true;
+        } catch (error) {
+          console.error(error);
+        }
       }
 
       try {
