@@ -1,9 +1,11 @@
 import type { ModelMessage } from "ai";
-import type { Client, Message, Snowflake } from "discord.js";
-import { generateSupportResponse } from "@/lib/ai";
+import type { Client, Message } from "discord.js";
+import { generateSupportResponse, isPromptInjectionAttempt } from "@/lib/ai";
 
 const SUPPORT_GENERATION_ERROR_MESSAGE =
   "I hit an internal error while generating a reply. Please try again in a moment.";
+const PROMPT_INJECTION_ERROR_MESSAGE =
+  "I can't follow instructions that change my role or rules. I can only help with SkinsRestorer support, so share your setup, logs, or `/sr dump` if you need help.";
 
 type Context = {
   isGenerating: () => boolean;
@@ -11,7 +13,7 @@ type Context = {
   queueFollowUp: (message: Message) => void;
   debounce: (message: Message) => void;
 };
-const userContext: Record<Snowflake, Context> = {};
+const userContext: Record<string, Context> = {};
 
 // noinspection JSUnusedGlobalSymbols
 export default async (client: Client): Promise<void> => {
@@ -44,8 +46,16 @@ export default async (client: Client): Promise<void> => {
       }
     };
 
-    const messageContent = message.content;
-    let context = userContext[message.author.id];
+    const messageContent = message.content.trim();
+    if (messageContent === "") return;
+
+    if (isPromptInjectionAttempt(messageContent)) {
+      await sendReply(message, PROMPT_INJECTION_ERROR_MESSAGE);
+      return;
+    }
+
+    const contextKey = `${channel.id}:${message.author.id}`;
+    let context = userContext[contextKey];
     if (context != null) {
       context.messages.push({
         role: "user",
@@ -83,9 +93,9 @@ export default async (client: Client): Promise<void> => {
           try {
             generating = true;
             await channel.sendTyping();
-            const { responseMessages, text } = await generateSupportResponse(
-              newContext.messages,
-            );
+            const requestMessages = [...newContext.messages];
+            const { responseMessages, text } =
+              await generateSupportResponse(requestMessages);
 
             if (await sendReply(message, text)) {
               newContext.messages.push(...responseMessages);
@@ -105,7 +115,7 @@ export default async (client: Client): Promise<void> => {
         }, 1_000),
       };
 
-      context = userContext[message.author.id] = newContext;
+      context = userContext[contextKey] = newContext;
     }
 
     if (context.isGenerating()) {
