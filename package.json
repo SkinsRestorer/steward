@@ -33,6 +33,6 @@
     "@types/js-yaml": "^4.0.5",
     "@types/mime-types": "3.0.1",
     "@types/semver": "^7.5.8",
-    "typescript": "^5.0.0"
+    "typescript": "^6.0.0"
   }
 }
