@@ -7,6 +7,11 @@ import {
   EmbedBuilder,
 } from "discord.js";
 
+const SUPPORT_GPT_BANNER_URL =
+  "https://raw.githubusercontent.com/SkinsRestorer/steward/main/assets/support-gpt.png";
+const PRIORITY_SUPPORT_BANNER_URL =
+  "https://raw.githubusercontent.com/SkinsRestorer/steward/main/assets/ko-fi-banner.png";
+
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client): void => {
   client.on("threadCreate", async (thread) => {
@@ -21,6 +26,7 @@ export default (client: Client): void => {
     const supportGptEmbed = new EmbedBuilder()
       .setColor("#F8E839")
       .setTitle("Need quick SkinsRestorer help?")
+      .setImage(SUPPORT_GPT_BANNER_URL)
       .setDescription(
         [
           "Meet the **SkinsRestorer Support GPT** — our personal AI assistant trained on SkinsRestorer knowledge and docs.",
@@ -32,6 +38,7 @@ export default (client: Client): void => {
     const prioritySupportEmbed = new EmbedBuilder()
       .setColor("#F8E839")
       .setTitle("Need private priority support?")
+      .setImage(PRIORITY_SUPPORT_BANNER_URL)
       .setDescription(
         [
           "We now offer a **Priority Support** membership for users who want private, faster help from the SkinsRestorer team.",
