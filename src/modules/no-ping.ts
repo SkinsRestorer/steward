@@ -93,27 +93,58 @@ const senderIsActiveChatParticipant = async (
   }
 };
 
-const replyIsPartOfActiveConversation = async (
+const fetchReferencedMessage = async (
   message: Message<true>,
-): Promise<boolean> => {
+): Promise<Message<true> | null> => {
   try {
-    const reference = await message.fetchReference();
-
-    return (
-      message.createdTimestamp - reference.createdTimestamp <=
-      replyConversationWindowMs
-    );
+    return await message.fetchReference();
   } catch {
+    return null;
+  }
+};
+
+const replyIsPartOfActiveConversation = (
+  message: Message<true>,
+  reference: Message<true>,
+): boolean =>
+  message.createdTimestamp - reference.createdTimestamp <=
+  replyConversationWindowMs;
+
+const replyTargetWasReplyToSender = async (
+  message: Message<true>,
+  reference: Message<true>,
+): Promise<boolean> => {
+  if (reference.reference?.messageId == null) {
     return false;
   }
+
+  const referencedReplyTarget = await fetchReferencedMessage(reference);
+
+  return referencedReplyTarget?.author.id === message.author.id;
 };
 
 const shouldSkipReplyWarning = async (
   message: Message<true>,
-): Promise<boolean> =>
-  message.reference !== null &&
-  (await replyIsPartOfActiveConversation(message)) &&
-  (await senderIsActiveChatParticipant(message));
+): Promise<boolean> => {
+  if (message.reference === null) {
+    return false;
+  }
+
+  const reference = await fetchReferencedMessage(message);
+
+  if (reference == null) {
+    return false;
+  }
+
+  if (await replyTargetWasReplyToSender(message, reference)) {
+    return true;
+  }
+
+  return (
+    replyIsPartOfActiveConversation(message, reference) &&
+    (await senderIsActiveChatParticipant(message))
+  );
+};
 
 // noinspection JSUnusedGlobalSymbols
 export default (client: Client, bot: BotConfig): void => {
