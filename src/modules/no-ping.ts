@@ -9,6 +9,7 @@ const discordEpochMsBigInt = BigInt(discordEpochMs);
 const replyConversationWindowMs = hourInMs;
 const participationWindowMs = dayInMs;
 const recentParticipationGraceMs = 5 * minuteInMs;
+const noPingExemptRoleIds = new Set(["1492530262993801457"]);
 
 const createSnowflakeAfterTimestamp = (timestampMs: number): string => {
   const timestamp = Math.max(discordEpochMs, Math.floor(timestampMs) + 1);
@@ -22,6 +23,11 @@ const memberIsStaff = (member: Message<true>["member"]): boolean =>
 
 const mentionsStaff = (message: Message<true>): boolean =>
   message.mentions.members.some((member) => memberIsStaff(member));
+
+const memberIsExemptFromNoPingRule = (
+  member: Message<true>["member"],
+): boolean =>
+  member?.roles.cache.some((role) => noPingExemptRoleIds.has(role.id)) === true;
 
 const hasParticipatedBeforeReplyPing = async (
   message: Message<true>,
@@ -111,6 +117,10 @@ export default (client: Client): void => {
     if (message.mentions.members.size === 0) return;
 
     if (memberIsStaff(message.member)) {
+      return;
+    }
+
+    if (memberIsExemptFromNoPingRule(message.member)) {
       return;
     }
 
