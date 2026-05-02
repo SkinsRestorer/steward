@@ -1,5 +1,5 @@
 import type { Client, Message } from "discord.js";
-import data from "@/data.json" with { type: "json" };
+import type { BotConfig } from "@/bot-config";
 
 const minuteInMs = 60 * 1000;
 const hourInMs = 60 * minuteInMs;
@@ -9,7 +9,6 @@ const discordEpochMsBigInt = BigInt(discordEpochMs);
 const replyConversationWindowMs = hourInMs;
 const participationWindowMs = dayInMs;
 const recentParticipationGraceMs = 5 * minuteInMs;
-const noPingExemptRoleIds = new Set(["1492530262993801457"]);
 
 const createSnowflakeAfterTimestamp = (timestampMs: number): string => {
   const timestamp = Math.max(discordEpochMs, Math.floor(timestampMs) + 1);
@@ -17,17 +16,24 @@ const createSnowflakeAfterTimestamp = (timestampMs: number): string => {
   return ((BigInt(timestamp) - discordEpochMsBigInt) << 22n).toString();
 };
 
-const memberIsStaff = (member: Message<true>["member"]): boolean =>
-  member?.roles.cache.some((role) => data.staff_roles.includes(role.name)) ===
-  true;
+const memberIsStaff = (
+  member: Message<true>["member"],
+  bot: BotConfig,
+): boolean =>
+  member?.roles.cache.some((role) =>
+    bot.noPing?.staffRoleNames.includes(role.name),
+  ) === true;
 
-const mentionsStaff = (message: Message<true>): boolean =>
-  message.mentions.members.some((member) => memberIsStaff(member));
+const mentionsStaff = (message: Message<true>, bot: BotConfig): boolean =>
+  message.mentions.members.some((member) => memberIsStaff(member, bot));
 
 const memberIsExemptFromNoPingRule = (
   member: Message<true>["member"],
+  bot: BotConfig,
 ): boolean =>
-  member?.roles.cache.some((role) => noPingExemptRoleIds.has(role.id)) === true;
+  member?.roles.cache.some((role) =>
+    bot.noPing?.exemptRoleIds.includes(role.id),
+  ) === true;
 
 const hasParticipatedBeforeReplyPing = async (
   message: Message<true>,
@@ -110,21 +116,26 @@ const shouldSkipReplyWarning = async (
   (await senderIsActiveChatParticipant(message));
 
 // noinspection JSUnusedGlobalSymbols
-export default (client: Client): void => {
+export default (client: Client, bot: BotConfig): void => {
+  const config = bot.noPing;
+  if (config == null) {
+    return;
+  }
+
   client.on("messageCreate", async (message) => {
     if (!message.inGuild() || message.author.bot) return;
 
     if (message.mentions.members.size === 0) return;
 
-    if (memberIsStaff(message.member)) {
+    if (memberIsStaff(message.member, bot)) {
       return;
     }
 
-    if (memberIsExemptFromNoPingRule(message.member)) {
+    if (memberIsExemptFromNoPingRule(message.member, bot)) {
       return;
     }
 
-    if (!mentionsStaff(message)) {
+    if (!mentionsStaff(message, bot)) {
       return;
     }
 
@@ -133,10 +144,6 @@ export default (client: Client): void => {
     }
 
     // Tell them off:
-    await message.reply(
-      `Hi ${message.member?.nickname ?? message.author.username}! Free public support is currently not very fast because we can't afford doing free support 24/7 because we have other projects to work on and other responsibilities IRL. If this matter is important to you and you want to receive priority & private support, go to <#1314315764253200394> or https://skinsrestorer.net/pricing
-
--# If your message was not about support or a feature request, ignore this message.`,
-    );
+    await message.reply(config.warningMessage(message));
   });
 };

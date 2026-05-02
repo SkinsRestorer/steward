@@ -1,51 +1,36 @@
-import fs from "node:fs";
-import { ActivityType, Client, GatewayIntentBits } from "discord.js";
-import "dotenv";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { Client, GatewayIntentBits } from "discord.js";
+import "dotenv/config";
+import type { BotConfig } from "@/bot-config";
+import { botConfigs } from "@/bots";
+import { getBotToken } from "@/lib/bot-token";
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildPresences,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildMessageReactions,
-    GatewayIntentBits.GuildMessageTyping,
-    GatewayIntentBits.MessageContent,
-  ],
-  presence: {
-    status: "online",
-    activities: [
-      {
-        name: "SR Discord",
-        type: ActivityType.Watching,
-      },
+const createClient = (bot: BotConfig): Client =>
+  new Client({
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMembers,
+      GatewayIntentBits.GuildPresences,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.GuildMessageReactions,
+      GatewayIntentBits.GuildMessageTyping,
+      GatewayIntentBits.MessageContent,
     ],
-  },
-});
-
-client.on("ready", () => {
-  console.log(`Logged in as ${client.user?.tag ?? "unknown"}!`);
-});
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-fs.readdirSync(path.resolve(__dirname, "./modules"))
-  .map((mod) => {
-    console.log(`Loading module: ${mod}`);
-    return `./modules/${mod}`;
-  })
-  .map(async (mod) => await import(mod))
-  .forEach(async (mod) => {
-    const modResolved = await mod;
-    await modResolved.default(client);
+    presence: bot.presence,
   });
 
-const discordToken = process.env.DISCORD_TOKEN;
+const startBot = async (bot: BotConfig): Promise<void> => {
+  const client = createClient(bot);
 
-if (discordToken == null || discordToken === "") {
-  throw new Error("DISCORD_TOKEN environment variable is not defined");
-}
+  client.on("ready", () => {
+    console.log(`[${bot.id}] Logged in as ${client.user?.tag ?? "unknown"}!`);
+  });
 
-await client.login(discordToken);
+  for (const module of bot.modules) {
+    console.log(`[${bot.id}] Loading module: ${module.name}`);
+    await module(client, bot);
+  }
+
+  await client.login(getBotToken(bot));
+};
+
+await Promise.all(botConfigs.map(startBot));

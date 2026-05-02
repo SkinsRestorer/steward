@@ -1,6 +1,7 @@
 import { DOMParser } from "@xmldom/xmldom";
 import type { Client } from "discord.js";
 import jsyaml from "js-yaml";
+import type { BotConfig } from "@/bot-config";
 
 const contentTypes = [
   "application/json",
@@ -12,7 +13,12 @@ const website = "https://pastes.dev";
 const api = "https://api.pastes.dev";
 
 // noinspection JSUnusedGlobalSymbols
-export default (client: Client): void => {
+export default (client: Client, bot: BotConfig): void => {
+  const config = bot.autoupload;
+  if (config == null) {
+    return;
+  }
+
   client.on("messageCreate", async (message) => {
     if (
       !message.channel.isTextBased() ||
@@ -50,18 +56,19 @@ export default (client: Client): void => {
             body: content,
             headers: {
               "Content-Type": contentType,
-              "User-Agent": "SkinsRestorerSteward",
+              "User-Agent": config.userAgent,
             },
           })
         ).json()) as { key: string };
         await message.reply(
-          `Please use <${website}> to send files in the future. I have automatically uploaded \`${attachment.name}\` for you: ${website}/${response.key}`,
+          config.futureUploadsMessage(
+            attachment.name,
+            `${website}/${response.key}`,
+          ),
         );
       } catch (e) {
         console.error(e);
-        await message.reply(
-          `Your file could not be automatically uploaded. Please use ${website} to share files.`,
-        );
+        await message.reply(config.failedUploadMessage);
       }
     }
   });

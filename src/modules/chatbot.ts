@@ -1,11 +1,7 @@
 import type { ModelMessage } from "ai";
 import type { Client, Message } from "discord.js";
+import type { BotConfig } from "@/bot-config";
 import { generateSupportResponse, isPromptInjectionAttempt } from "@/lib/ai";
-
-const SUPPORT_GENERATION_ERROR_MESSAGE =
-  "I hit an internal error while generating a reply. Please try again in a moment.";
-const PROMPT_INJECTION_ERROR_MESSAGE =
-  "I can't follow instructions that change my role or rules. I can only help with SkinsRestorer support, so share your setup, logs, or `/sr dump` if you need help.";
 
 type Context = {
   isGenerating: () => boolean;
@@ -13,16 +9,27 @@ type Context = {
   queueFollowUp: (message: Message) => void;
   debounce: (message: Message) => void;
 };
-const userContext: Record<string, Context> = {};
 
 // noinspection JSUnusedGlobalSymbols
-export default async (client: Client): Promise<void> => {
+export default async (client: Client, bot: BotConfig): Promise<void> => {
+  const config = bot.chatbot;
+  if (config == null) {
+    return;
+  }
+
+  const userContext: Record<string, Context> = {};
+
   client.on("messageCreate", async (message) => {
     const channel = message.channel;
     if (!channel.isTextBased() || channel.isDMBased() || message.author.bot)
       return;
 
-    if (!channel.name.startsWith("chat-experiment")) return;
+    if (
+      !config.channelNamePrefixes.some((prefix) =>
+        channel.name.startsWith(prefix),
+      )
+    )
+      return;
 
     const sendReply = async (
       message: Message,
@@ -51,12 +58,12 @@ export default async (client: Client): Promise<void> => {
     const messageContent = message.content.trim();
     if (messageContent === "") return;
 
-    if (isPromptInjectionAttempt(messageContent)) {
-      await sendReply(message, PROMPT_INJECTION_ERROR_MESSAGE);
+    if (isPromptInjectionAttempt(messageContent, config.ai)) {
+      await sendReply(message, config.promptInjectionErrorMessage);
       return;
     }
 
-    const contextKey = `${channel.id}:${message.author.id}`;
+    const contextKey = `${bot.id}:${channel.id}:${message.author.id}`;
     let context = userContext[contextKey];
     if (context != null) {
       context.messages.push({
@@ -96,18 +103,23 @@ export default async (client: Client): Promise<void> => {
             generating = true;
             await channel.sendTyping();
             const requestMessages = [...newContext.messages];
-            const { responseMessages, text } =
-              await generateSupportResponse(requestMessages);
+            const { responseMessages, text } = await generateSupportResponse(
+              requestMessages,
+              config.ai,
+              {
+                maxLength: config.maxResponseLength,
+              },
+            );
 
             if (await sendReply(message, text)) {
               newContext.messages.push(...responseMessages);
             }
           } catch (e) {
             console.error(e);
-            if (await sendReply(message, SUPPORT_GENERATION_ERROR_MESSAGE)) {
+            if (await sendReply(message, config.generationErrorMessage)) {
               newContext.messages.push({
                 role: "assistant",
-                content: SUPPORT_GENERATION_ERROR_MESSAGE,
+                content: config.generationErrorMessage,
               });
             }
           } finally {

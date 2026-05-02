@@ -3,7 +3,6 @@ import {
   type ActionRowData,
   ApplicationCommandType,
   type Client,
-  type ColorResolvable,
   ComponentType,
   ContextMenuCommandBuilder,
   EmbedBuilder,
@@ -18,74 +17,10 @@ import {
   StringSelectMenuOptionBuilder,
 } from "discord.js";
 import type { RESTPutAPIApplicationCommandsResult } from "discord-api-types/v10";
-import data from "@/data.json" with { type: "json" };
+import type { BotConfig, CommandsConfig, ConfigCommand } from "@/bot-config";
 import { generateSupportResponse } from "@/lib/ai";
-import { type ConfigCommand, configCommands } from "./commands-config";
-import { getMetadata } from "./metadata";
-
-const commands: ConfigCommand[] = configCommands.sort((a, b) => {
-  if (a.name < b.name) return -1;
-  if (a.name > b.name) return 1;
-  return 0;
-});
-
-const slashApiCommands: RESTPostAPIApplicationCommandsJSONBody[] = [
-  new SlashCommandBuilder()
-    .setName("help")
-    .setDescription("Show Steward help")
-    .addUserOption((option) =>
-      option
-        .setName("user")
-        .setDescription("Mention a specific user with the command"),
-    )
-    .toJSON(),
-  new SlashCommandBuilder()
-    .setName("latest")
-    .setDescription("Show latest version on GitHub")
-    .addUserOption((option) =>
-      option
-        .setName("user")
-        .setDescription("Mention a specific user with the command"),
-    )
-    .toJSON(),
-  new SlashCommandBuilder()
-    .setName("resolved")
-    .setDescription("Moderator command to mark a forum post as resolved")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageThreads)
-    .setContexts([InteractionContextType.Guild])
-    .toJSON(),
-];
-
-for (const command of commands) {
-  const slashCommand = new SlashCommandBuilder()
-    .setName(command.name)
-    .setDescription(command.cmdDescription)
-    .addUserOption((option) =>
-      option
-        .setName("user")
-        .setDescription("Mention a specific user with the command"),
-    );
-
-  slashApiCommands.push(slashCommand.toJSON());
-}
-
-const sendHelpContext = new ContextMenuCommandBuilder()
-  .setName("Send Help")
-  .setType(ApplicationCommandType.Message)
-  .toJSON();
-slashApiCommands.push(sendHelpContext);
-
-const sendSupportContext = new ContextMenuCommandBuilder()
-  .setName("Send to Support Forum")
-  .setType(ApplicationCommandType.Message)
-  .toJSON();
-slashApiCommands.push(sendSupportContext);
-
-const replyWithAiContext = new ContextMenuCommandBuilder()
-  .setName("Reply with AI")
-  .setType(ApplicationCommandType.Message)
-  .toJSON();
-slashApiCommands.push(replyWithAiContext);
+import { getBotToken } from "@/lib/bot-token";
+import { getLatestReleaseProvider } from "@/lib/github-release";
 
 interface CommandData {
   id: string;
@@ -93,24 +28,116 @@ interface CommandData {
   private: boolean;
 }
 
-export const commandIdRegistry: Record<string, CommandData> = {};
+const sortCommands = (commands: ConfigCommand[]): ConfigCommand[] =>
+  [...commands].sort((a, b) => {
+    if (a.name < b.name) return -1;
+    if (a.name > b.name) return 1;
+    return 0;
+  });
 
-// noinspection JSUnusedGlobalSymbols
-export default async (client: Client): Promise<void> => {
-  const discordToken = process.env.DISCORD_TOKEN;
-  if (discordToken == null || discordToken === "") {
-    throw new Error("DISCORD_TOKEN environment variable is not defined");
+const buildUserTargetCommand = (
+  name: string,
+  description: string,
+): RESTPostAPIApplicationCommandsJSONBody =>
+  new SlashCommandBuilder()
+    .setName(name)
+    .setDescription(description)
+    .addUserOption((option) =>
+      option
+        .setName("user")
+        .setDescription("Mention a specific user with the command"),
+    )
+    .toJSON();
+
+const buildSlashApiCommands = (
+  config: CommandsConfig,
+  commands: ConfigCommand[],
+): RESTPostAPIApplicationCommandsJSONBody[] => {
+  const slashApiCommands: RESTPostAPIApplicationCommandsJSONBody[] = [];
+
+  if (config.help != null) {
+    slashApiCommands.push(
+      buildUserTargetCommand("help", config.help.description),
+    );
   }
 
-  const rest = new REST().setToken(discordToken);
+  if (config.latest != null) {
+    slashApiCommands.push(
+      buildUserTargetCommand("latest", config.latest.description),
+    );
+  }
+
+  if (config.resolved != null) {
+    slashApiCommands.push(
+      new SlashCommandBuilder()
+        .setName("resolved")
+        .setDescription(config.resolved.description)
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageThreads)
+        .setContexts([InteractionContextType.Guild])
+        .toJSON(),
+    );
+  }
+
+  for (const command of commands) {
+    slashApiCommands.push(
+      buildUserTargetCommand(command.name, command.cmdDescription),
+    );
+  }
+
+  if (config.sendHelpContext != null) {
+    slashApiCommands.push(
+      new ContextMenuCommandBuilder()
+        .setName(config.sendHelpContext.name)
+        .setType(ApplicationCommandType.Message)
+        .toJSON(),
+    );
+  }
+
+  if (config.sendSupportContext != null) {
+    slashApiCommands.push(
+      new ContextMenuCommandBuilder()
+        .setName(config.sendSupportContext.name)
+        .setType(ApplicationCommandType.Message)
+        .toJSON(),
+    );
+  }
+
+  if (config.replyWithAiContext != null) {
+    slashApiCommands.push(
+      new ContextMenuCommandBuilder()
+        .setName(config.replyWithAiContext.name)
+        .setType(ApplicationCommandType.Message)
+        .toJSON(),
+    );
+  }
+
+  return slashApiCommands;
+};
+
+// noinspection JSUnusedGlobalSymbols
+export default async (client: Client, bot: BotConfig): Promise<void> => {
+  const config = bot.commands;
+  if (config == null) {
+    return;
+  }
+
+  const token = getBotToken(bot);
+  const commands = sortCommands(config.commandResponses);
+  const slashApiCommands = buildSlashApiCommands(config, commands);
+  const commandIdRegistry: Record<string, CommandData> = {};
+  const latestReleaseProvider =
+    config.latest == null
+      ? () => null
+      : getLatestReleaseProvider(config.latest.releaseUrl);
+
+  const rest = new REST().setToken(token);
 
   console.log(
-    `Started refreshing ${slashApiCommands.length} application (/) commands.`,
+    `[${bot.id}] Started refreshing ${slashApiCommands.length} application (/) commands.`,
   );
 
-  // The put method is used to fully refresh all commands in the guild with the current set
   const responseData = (await rest.put(
-    Routes.applicationCommands(data.clientId),
+    Routes.applicationCommands(bot.clientId),
     { body: slashApiCommands },
   )) as RESTPutAPIApplicationCommandsResult;
 
@@ -123,7 +150,7 @@ export default async (client: Client): Promise<void> => {
   }
 
   console.log(
-    `Successfully reloaded ${responseData.length} application (/) commands.`,
+    `[${bot.id}] Successfully reloaded ${responseData.length} application (/) commands.`,
   );
 
   client.on("interactionCreate", async (interaction) => {
@@ -134,14 +161,16 @@ export default async (client: Client): Promise<void> => {
     )
       return;
 
-    // Get the trigger
     let trigger: string;
     if (interaction.isChatInputCommand()) {
       trigger = interaction.commandName;
     } else if (interaction.isMessageContextMenuCommand()) {
-      if (interaction.commandName === sendHelpContext.name) {
+      if (
+        config.sendHelpContext != null &&
+        interaction.commandName === config.sendHelpContext.name
+      ) {
         isSendHelpFlow = true;
-        const customId = `help-selection-${Date.now()}`;
+        const customId = `help-selection-${bot.id}-${Date.now()}`;
         const select = new StringSelectMenuBuilder()
           .setCustomId(customId)
           .setPlaceholder("Choose a help type!")
@@ -190,16 +219,18 @@ export default async (client: Client): Promise<void> => {
           await interaction.editReply({ content: "Timed out", components: [] });
           return;
         }
-      } else if (interaction.commandName === sendSupportContext.name) {
+      } else if (
+        config.sendSupportContext != null &&
+        interaction.commandName === config.sendSupportContext.name
+      ) {
         const embed = new EmbedBuilder()
-          .setColor(data.accent_color as ColorResolvable)
-          .setTitle("This channel is not for support!")
-          .setDescription(
-            "This channel is not for support for the **SkinsRestorer Minecraft plugin**. Please use the <#1058044481246605383> channel for support, you need to create a post in that channel. You will not receive support in this specific Discord channel.",
-          )
-          .setURL(
-            "https://discord.com/channels/186794372468178944/1058044481246605383",
-          );
+          .setColor(bot.accentColor)
+          .setTitle(config.sendSupportContext.embedTitle)
+          .setDescription(config.sendSupportContext.embedDescription);
+
+        if (config.sendSupportContext.embedUrl != null) {
+          embed.setURL(config.sendSupportContext.embedUrl);
+        }
 
         const message = `<@${interaction.targetMessage.author.id}> Requested by <@${interaction.user.id}>`;
 
@@ -209,7 +240,10 @@ export default async (client: Client): Promise<void> => {
         });
 
         return;
-      } else if (interaction.commandName === replyWithAiContext.name) {
+      } else if (
+        config.replyWithAiContext != null &&
+        interaction.commandName === config.replyWithAiContext.name
+      ) {
         if (interaction.targetMessage.author.bot) {
           await interaction.reply({
             ephemeral: true,
@@ -233,12 +267,18 @@ export default async (client: Client): Promise<void> => {
 
         try {
           const requesterPrefix = `<@${interaction.user.id}> requested me to reply to this message.`;
-          const { text: response } = await generateSupportResponse([
-            {
-              role: "user",
-              content: `Begin your response with "${requesterPrefix}" exactly before offering help. Here is the message you must answer:\n${prompt}`,
-            },
-          ]);
+          const { text: response } = await generateSupportResponse(
+            [
+              {
+                role: "user",
+                content: config.replyWithAiContext.requesterPrompt(
+                  requesterPrefix,
+                  prompt,
+                ),
+              },
+            ],
+            config.replyWithAiContext.ai,
+          );
 
           const finalResponse = response.startsWith(requesterPrefix)
             ? response
@@ -274,26 +314,30 @@ export default async (client: Client): Promise<void> => {
       return;
     }
 
-    // Ignore if trigger is blank
     if (trigger === "") return;
 
     if (trigger === "resolved") {
+      if (config.resolved == null) {
+        await interaction.reply("This command is not configured.");
+        return;
+      }
+
       const channel = interaction.channel;
       if (channel == null || !channel.isThread()) {
         await interaction.reply("This command can only be used in threads.");
         return;
       }
 
-      if (channel.appliedTags.includes(data.resolvedTag)) {
-        await interaction.reply("This thread is already marked as resolved.");
+      if (channel.appliedTags.includes(config.resolved.tagId)) {
+        await interaction.reply(config.resolved.alreadyResolvedMessage);
         return;
       }
 
-      // Send a message before locking the thread, so we can still reply to it
-      await interaction.reply(
-        "This thread has been marked as resolved, locked and archived. Thank you for using SkinsRestorer! For any future issues, please create a new post.",
-      );
-      await channel.setAppliedTags([...channel.appliedTags, data.resolvedTag]);
+      await interaction.reply(config.resolved.successMessage);
+      await channel.setAppliedTags([
+        ...channel.appliedTags,
+        config.resolved.tagId,
+      ]);
       await channel.setLocked(true);
       await channel.setArchived(true, "resolved");
 
@@ -301,22 +345,23 @@ export default async (client: Client): Promise<void> => {
     }
 
     if (trigger === "help") {
+      if (config.help == null) {
+        await interaction.reply("This command is not configured.");
+        return;
+      }
+
       const embed = new EmbedBuilder()
-        .setColor(data.accent_color as ColorResolvable)
-        .setTitle("Steward help")
-        .setDescription(
-          "Hi! :wave: I am Steward. Here to help out at SkinsRestorer. The code for steward can be [found on GitHub](https://github.com/SkinsRestorer/steward)",
-        )
+        .setColor(bot.accentColor)
+        .setTitle(config.help.embedTitle)
+        .setDescription(config.help.embedDescription)
         .addFields(
           Object.entries(commandIdRegistry)
             .filter(([, data]) => !data.private)
-            .map(([name, data]) => {
-              return {
-                name: `</${name}:${data.id}>`,
-                value: data.description,
-                inline: true,
-              };
-            }),
+            .map(([name, data]) => ({
+              name: `</${name}:${data.id}>`,
+              value: data.description,
+              inline: true,
+            })),
         );
 
       await interaction.reply({ embeds: [embed], ephemeral: true });
@@ -324,33 +369,35 @@ export default async (client: Client): Promise<void> => {
     }
 
     if (trigger === "latest") {
+      if (config.latest == null) {
+        await interaction.reply("This command is not configured.");
+        return;
+      }
+
+      const latestRelease = latestReleaseProvider();
       const embed = new EmbedBuilder()
-        .setColor(data.accent_color as ColorResolvable)
-        .setTitle("Latest version")
-        .setDescription(`\`${getMetadata().tag_name}\``);
+        .setColor(bot.accentColor)
+        .setTitle(config.latest.title)
+        .setDescription(
+          latestRelease == null
+            ? "The latest version is not available yet. Try again in a moment."
+            : `\`${latestRelease.tag_name}\``,
+        );
 
       await interaction.reply({ embeds: [embed] });
       return;
     }
 
-    // Check if command name exists
-    const item = commands.find((command) => {
-      return command.name === trigger;
-    });
-
-    // If no command found, throw an error
-    if (item === null || item === undefined) {
+    const item = commands.find((command) => command.name === trigger);
+    if (item == null) {
       await interaction.reply(
         "Something went wrong! I couldn't find that command.",
       );
       return;
     }
 
-    const embed = new EmbedBuilder();
-
-    // Begin formatting the command embed
-    embed
-      .setColor(data.accent_color as ColorResolvable)
+    const embed = new EmbedBuilder()
+      .setColor(bot.accentColor)
       .setDescription(item.description);
 
     if (item.url != null) {
@@ -358,10 +405,11 @@ export default async (client: Client): Promise<void> => {
     }
 
     if (item.docs === true) {
-      embed.setTitle(`🔖 ${item.title}`).setFooter({
-        text: "SkinsRestorer documentation",
-        iconURL: "https://skinsrestorer.net/logo.png",
-      });
+      embed.setTitle(`🔖 ${item.title}`);
+
+      if (config.docsFooter != null) {
+        embed.setFooter(config.docsFooter);
+      }
 
       if (item.url != null) {
         embed.addFields([{ name: "Read more", value: item.url }]);
@@ -384,10 +432,7 @@ export default async (client: Client): Promise<void> => {
 
     if (interaction.isChatInputCommand()) {
       const targetUser = interaction.options.getUser("user");
-      let message: string | undefined;
-      if (targetUser != null) {
-        message = `<@${targetUser.id}>`;
-      }
+      const message = targetUser == null ? undefined : `<@${targetUser.id}>`;
 
       await interaction.reply({ content: message, embeds: [embed] });
     } else if (interaction.isMessageContextMenuCommand()) {

@@ -1,15 +1,19 @@
 import fs from "node:fs";
+import path from "node:path";
 import dateFormat from "dateformat";
 import type { Client } from "discord.js";
+import type { BotConfig } from "@/bot-config";
 
-const getLogFileName = (date: number): string =>
-  `logs/${dateFormat(date, "yyyy-mm-dd")}.log`;
+const getLogFileName = (logsDir: string, date: number): string =>
+  path.join(logsDir, `${dateFormat(date, "yyyy-mm-dd")}.log`);
 const getLogFileTime = (date: number): string =>
   dateFormat(date, "hh-MM-ss TT");
 
 // noinspection JSUnusedGlobalSymbols
-export default (client: Client): void => {
-  if (!fs.existsSync("logs")) fs.mkdirSync("logs");
+export default (client: Client, bot: BotConfig): void => {
+  if (!fs.existsSync(bot.logsDir)) {
+    fs.mkdirSync(bot.logsDir, { recursive: true });
+  }
 
   client.on("messageCreate", (message) => {
     if (
@@ -21,9 +25,9 @@ export default (client: Client): void => {
 
     const date = Date.now();
     const log = `${getLogFileTime(date)} [${message.channel.name}] ${message.author.tag}: ${message.content}\n`;
-    const path = getLogFileName(date);
+    const logPath = getLogFileName(bot.logsDir, date);
 
-    fs.appendFile(path, log, (err) => {
+    fs.appendFile(logPath, log, (err) => {
       if (err != null) {
         console.log(err);
       }
