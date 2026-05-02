@@ -6,8 +6,6 @@ const SUPPORT_GENERATION_ERROR_MESSAGE =
   "I hit an internal error while generating a reply. Please try again in a moment.";
 const PROMPT_INJECTION_ERROR_MESSAGE =
   "I can't follow instructions that change my role or rules. I can only help with SkinsRestorer support, so share your setup, logs, or `/sr dump` if you need help.";
-const AI_SCOPE_REFUSAL_MESSAGE =
-  "I cannot assist with that request. My purpose is to help with SkinsRestorer setup and troubleshooting. Please let me know if you have any questions about SkinsRestorer.";
 
 type Context = {
   isGenerating: () => boolean;
@@ -30,7 +28,7 @@ export default async (client: Client): Promise<void> => {
       message: Message,
       content: string,
     ): Promise<boolean> => {
-      const replyContent = prefixScopeRefusalWithMention(message, content);
+      const replyContent = prefixWithMention(message, content);
 
       if (!message.system) {
         try {
@@ -149,13 +147,11 @@ function debounce<TArgs extends unknown[]>(
   };
 }
 
-function prefixScopeRefusalWithMention(
-  message: Message,
-  content: string,
-): string {
-  if (content.trim() !== AI_SCOPE_REFUSAL_MESSAGE) {
+function prefixWithMention(message: Message, content: string): string {
+  const mention = `<@${message.author.id}>`;
+  if (content.startsWith(mention)) {
     return content;
   }
 
-  return `<@${message.author.id}> ${content}`;
+  return `${mention} ${content}`;
 }
