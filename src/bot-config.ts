@@ -19,7 +19,6 @@ export interface BotConfig {
   id: string;
   name: string;
   tokenEnv: string;
-  fallbackTokenEnv?: string;
   clientId: string;
   accentColor: ColorResolvable;
   logsDir: string;
@@ -156,7 +155,7 @@ export interface MessageRepliesConfig {
 
 export interface NoPingConfig {
   exemptRoleIds: string[];
-  staffRoleNames: string[];
+  staffRoleIds: string[];
   warningMessage: (message: Message<true>) => string;
 }
 

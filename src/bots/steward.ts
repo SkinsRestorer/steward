@@ -697,7 +697,6 @@ const stewardBotConfig: BotConfig = {
   id: "steward",
   name: "Steward",
   tokenEnv: "DISCORD_TOKEN_STEWARD",
-  fallbackTokenEnv: "DISCORD_TOKEN",
   clientId: "1097060801401081967",
   accentColor: "#FDEC04",
   logsDir: "logs/steward",
@@ -829,7 +828,12 @@ const stewardBotConfig: BotConfig = {
   },
   noPing: {
     exemptRoleIds: ["1492530262993801457"],
-    staffRoleNames: ["Contributors", "Discord Admin", "Mods", "Dev"],
+    staffRoleIds: [
+      "199818815838617601",
+      "186905693180264448",
+      "491289085198073857",
+      "308291995196063745",
+    ],
     warningMessage: (message) =>
       `Hi ${message.member?.nickname ?? message.author.username}! Free public support is currently not very fast because we can't afford doing free support 24/7 because we have other projects to work on and other responsibilities IRL. If this matter is important to you and you want to receive priority & private support, go to <#1314315764253200394> or https://skinsrestorer.net/pricing
 

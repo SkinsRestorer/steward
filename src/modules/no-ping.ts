@@ -21,7 +21,7 @@ const memberIsStaff = (
   bot: BotConfig,
 ): boolean =>
   member?.roles.cache.some((role) =>
-    bot.noPing?.staffRoleNames.includes(role.name),
+    bot.noPing?.staffRoleIds.includes(role.id),
   ) === true;
 
 const mentionsStaff = (message: Message<true>, bot: BotConfig): boolean =>
