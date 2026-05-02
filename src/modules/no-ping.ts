@@ -36,7 +36,9 @@ export default (client: Client): void => {
     if (mentionsStaff === true) {
       // Tell them off:
       await message.reply(
-        `Hey ${message.member?.nickname ?? message.author.username}! Please don't tag staff members directly.`,
+        `Hi ${message.member?.nickname ?? message.author.username}! Free public support is currently not very fast because we can't afford doing free support 24/7 because we have other projects to work on and other responsibilities IRL. If this matter is important to you and you want to receive priority & private support, go to <#1314315764253200394> or https://skinsrestorer.net/pricing
+
+-# If your message was not about support or a feature request, ignore this message.`,
       );
     }
   });
