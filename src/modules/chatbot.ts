@@ -34,6 +34,7 @@ export default async (client: Client, bot: BotConfig): Promise<void> => {
     const sendReply = async (
       message: Message,
       content: string,
+      options?: { fallbackToChannel?: boolean },
     ): Promise<boolean> => {
       const replyContent = prefixWithMention(message, content);
 
@@ -44,6 +45,10 @@ export default async (client: Client, bot: BotConfig): Promise<void> => {
         } catch (error) {
           console.error(error);
         }
+      }
+
+      if (options?.fallbackToChannel === false) {
+        return false;
       }
 
       try {
@@ -59,7 +64,9 @@ export default async (client: Client, bot: BotConfig): Promise<void> => {
     if (messageContent === "") return;
 
     if (isPromptInjectionAttempt(messageContent, config.ai)) {
-      await sendReply(message, config.promptInjectionErrorMessage);
+      await sendReply(message, config.promptInjectionErrorMessage, {
+        fallbackToChannel: false,
+      });
       return;
     }
 
