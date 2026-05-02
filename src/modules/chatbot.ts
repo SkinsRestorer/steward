@@ -28,9 +28,11 @@ export default async (client: Client): Promise<void> => {
       message: Message,
       content: string,
     ): Promise<boolean> => {
+      const replyContent = prefixWithMention(message, content);
+
       if (!message.system) {
         try {
-          await message.reply(content);
+          await message.reply(replyContent);
           return true;
         } catch (error) {
           console.error(error);
@@ -38,7 +40,7 @@ export default async (client: Client): Promise<void> => {
       }
 
       try {
-        await channel.send(content);
+        await channel.send(replyContent);
         return true;
       } catch (error) {
         console.error(error);
@@ -143,4 +145,13 @@ function debounce<TArgs extends unknown[]>(
       void fn(...args);
     }, delay);
   };
+}
+
+function prefixWithMention(message: Message, content: string): string {
+  const mention = `<@${message.author.id}>`;
+  if (content.startsWith(mention)) {
+    return content;
+  }
+
+  return `${mention} ${content}`;
 }
