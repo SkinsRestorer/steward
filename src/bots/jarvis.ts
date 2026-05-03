@@ -369,7 +369,7 @@ const jarvisBotConfig: BotConfig = {
     exemptRoleIds: ["1492607130635862047"],
     staffRoleIds: ["1021760363211014176"],
     warningMessage: (message) =>
-      `Hi <@${message.author.id}>! Please do not ping the team for public SoulFire or PistonDev support. Create a post in <#1393506815085641760>, include logs or errors, and someone will respond when available. If you need private priority support, go to <#1493238143539745009> or https://soulfiremc.com/pricing
+      `Hi <@${message.author.id}>! Free public support is currently limited & slow because I have other projects to work on such as <https://enderdash.com/> and I can't afford doing free support 24/7. For free help, create a post in <#1393506815085641760>, include logs or errors, and someone will respond when available. If this matter is important to you and you want to receive priority & private support, go to <#1493238143539745009> or https://soulfiremc.com/pricing
 
 -# If this was not about support or a feature request, ignore this message.`,
   },

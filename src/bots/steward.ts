@@ -836,7 +836,7 @@ const stewardBotConfig: BotConfig = {
       "308291995196063745",
     ],
     warningMessage: (message) =>
-      `Hi <@${message.author.id}>! Free public support is currently not very fast because we can't afford doing free support 24/7 because we have other projects to work on and other responsibilities IRL. If this matter is important to you and you want to receive priority & private support, go to <#1314315764253200394> or https://skinsrestorer.net/pricing
+      `Hi <@${message.author.id}>! Free public support is currently limited & slow because we have other projects to work on and IRL responsibilities, so we can't afford doing free support 24/7. For free help, create a post in <#1058044481246605383> and someone will respond when available. If this matter is important to you and you want to receive priority & private support, go to <#1314315764253200394> or https://skinsrestorer.net/pricing
 
 -# If your message was not about support or a feature request, ignore this message.`,
   },
