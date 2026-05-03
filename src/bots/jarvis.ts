@@ -46,6 +46,7 @@ const supportAi: SupportAiConfig = {
     /(?:stop using|no longer use|do not use).{0,40}(?:documentation|docs)/i,
     /(?:do not|don't|stop).{0,40}(?:talk about|discuss|mention).{0,40}soulfire/i,
   ],
+  responseDisclaimer: `-# The AI responses here might contain misinformation. Use the [Support GPT](${supportGptUrl}) for best results.`,
   systemPrompt: `You are Jarvis, an automated support assistant for the PistonDev and SoulFireMC Discord support server. Your main support scope is SoulFire, a Minecraft bot framework for server testing, automation, scripting, and development.
 
 Use these official sources first:
@@ -368,7 +369,7 @@ const jarvisBotConfig: BotConfig = {
     exemptRoleIds: ["1492607130635862047"],
     staffRoleIds: ["1021760363211014176"],
     warningMessage: (message) =>
-      `Hi ${message.member?.nickname ?? message.author.username}! Please do not ping the team for public SoulFire or PistonDev support. Create a post in <#1393506815085641760>, include logs or errors, and someone will respond when available. If you need private priority support, go to <#1493238143539745009> or https://soulfiremc.com/pricing
+      `Hi <@${message.author.id}>! Please do not ping the team for public SoulFire or PistonDev support. Create a post in <#1393506815085641760>, include logs or errors, and someone will respond when available. If you need private priority support, go to <#1493238143539745009> or https://soulfiremc.com/pricing
 
 -# If this was not about support or a feature request, ignore this message.`,
   },

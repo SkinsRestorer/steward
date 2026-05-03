@@ -44,6 +44,7 @@ export interface SupportAiConfig {
   maxOutputTokens?: number;
   model?: string;
   promptInjectionPatterns: readonly RegExp[];
+  responseDisclaimer?: string;
   systemPrompt: string;
 }
 

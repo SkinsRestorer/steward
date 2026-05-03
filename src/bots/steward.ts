@@ -28,6 +28,8 @@ import postHelp from "@/modules/post-help";
 const docsIndexUrl = "https://skinsrestorer.net/llms.txt";
 const docsFullUrl = "https://skinsrestorer.net/llms-full.txt";
 const pasteWebsite = "https://pastes.dev";
+const supportGptUrl =
+  "https://chatgpt.com/g/g-68f7a885f5688191b9a05f812f4ccf43-skinsrestorer-support-gpt";
 const supportGptBannerUrl =
   "https://raw.githubusercontent.com/SkinsRestorer/steward/main/assets/support-gpt.png";
 const prioritySupportBannerUrl =
@@ -360,6 +362,7 @@ const supportAi: SupportAiConfig = {
     /(?:stop using|no longer use|do not use).{0,40}(?:documentation|docs)/i,
     /(?:do not|don't|stop).{0,40}(?:talk about|discuss|mention).{0,40}skinsrestorer/i,
   ],
+  responseDisclaimer: `-# The AI responses here might contain misinformation. Use the [Support GPT](${supportGptUrl}) for best results.`,
   systemPrompt: `You are SkinsRestorer Support GPT, an automated assistant that provides friendly and accurate technical support for the SkinsRestorer plugin/mod (https://skinsrestorer.net). Your purpose is to help users set up and troubleshoot SkinsRestorer on their Minecraft servers or modded setups, referring to the official documentation when needed.
 
 You can assist users using information from:
@@ -666,9 +669,7 @@ const buildThreadStarterReply = (): MessageReplyOptions => {
     new ButtonBuilder()
       .setLabel("🤖 Open Support GPT")
       .setStyle(ButtonStyle.Link)
-      .setURL(
-        "https://chatgpt.com/g/g-68f7a885f5688191b9a05f812f4ccf43-skinsrestorer-support-gpt",
-      ),
+      .setURL(supportGptUrl),
     new ButtonBuilder()
       .setLabel("📚 Open Documentation")
       .setStyle(ButtonStyle.Link)
@@ -835,7 +836,7 @@ const stewardBotConfig: BotConfig = {
       "308291995196063745",
     ],
     warningMessage: (message) =>
-      `Hi ${message.member?.nickname ?? message.author.username}! Free public support is currently not very fast because we can't afford doing free support 24/7 because we have other projects to work on and other responsibilities IRL. If this matter is important to you and you want to receive priority & private support, go to <#1314315764253200394> or https://skinsrestorer.net/pricing
+      `Hi <@${message.author.id}>! Free public support is currently not very fast because we can't afford doing free support 24/7 because we have other projects to work on and other responsibilities IRL. If this matter is important to you and you want to receive priority & private support, go to <#1314315764253200394> or https://skinsrestorer.net/pricing
 
 -# If your message was not about support or a feature request, ignore this message.`,
   },
