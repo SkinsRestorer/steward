@@ -25,7 +25,10 @@ const memberIsStaff = (
   ) === true;
 
 const mentionsStaff = (message: Message<true>, bot: BotConfig): boolean =>
-  message.mentions.members.some((member) => memberIsStaff(member, bot));
+  message.mentions.members.some((member) => memberIsStaff(member, bot)) ||
+  message.mentions.roles.some((role) =>
+    bot.noPing?.staffRoleIds.includes(role.id),
+  );
 
 const memberIsExemptFromNoPingRule = (
   member: Message<true>["member"],
@@ -156,7 +159,11 @@ export default (client: Client, bot: BotConfig): void => {
   client.on("messageCreate", async (message) => {
     if (!message.inGuild() || message.author.bot) return;
 
-    if (message.mentions.members.size === 0) return;
+    if (
+      message.mentions.members.size === 0 &&
+      message.mentions.roles.size === 0
+    )
+      return;
 
     if (memberIsStaff(message.member, bot)) {
       return;
