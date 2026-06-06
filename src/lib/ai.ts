@@ -1,5 +1,11 @@
 import { deepseek } from "@ai-sdk/deepseek";
-import { generateText, type ModelMessage, stepCountIs, tool } from "ai";
+import {
+  generateText,
+  type LanguageModelUsage,
+  type ModelMessage,
+  stepCountIs,
+  tool,
+} from "ai";
 import "dotenv/config";
 import { z } from "zod";
 import type {
@@ -11,7 +17,7 @@ import type {
 const DEFAULT_MAX_RESPONSE_LENGTH = 1_300;
 const DEFAULT_MAX_OUTPUT_TOKENS = 1_200;
 const DEFAULT_MODEL = "deepseek-v4-pro";
-const DOCS_CACHE_TTL_MS = 60 * 60 * 1_000;
+const DOCS_CACHE_TTL_MS = 24 * 60 * 60 * 1_000;
 const BRAVE_CONTEXT_API_URL = "https://api.search.brave.com/res/v1/llm/context";
 
 interface CachedDocsContext {
@@ -72,6 +78,9 @@ const fetchText = async (url: string): Promise<string> => {
   return response.text();
 };
 
+const normalizeDocsContext = (text: string): string =>
+  text.replace(/\r\n?/g, "\n").trim();
+
 const getDocsContext = async (urls: string[]): Promise<string> => {
   const now = Date.now();
   const docs = await Promise.all(
@@ -81,7 +90,7 @@ const getDocsContext = async (urls: string[]): Promise<string> => {
         return cached.text;
       }
 
-      const text = await fetchText(url);
+      const text = normalizeDocsContext(await fetchText(url));
       docsContextCache[url] = {
         expiresAt: now + DOCS_CACHE_TTL_MS,
         text,
@@ -95,7 +104,7 @@ const getDocsContext = async (urls: string[]): Promise<string> => {
     .map((text, index) =>
       [
         `<documentation_source url="${urls[index]}">`,
-        text.trim(),
+        text,
         "</documentation_source>",
       ].join("\n"),
     )
@@ -126,6 +135,26 @@ const buildDocsContextMessages = async (
     },
   ];
 };
+
+const formatCurrentTime = (date: Date): string =>
+  new Intl.DateTimeFormat("en-US", {
+    dateStyle: "full",
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    timeZone: "Europe/Berlin",
+    timeZoneName: "short",
+  }).format(date);
+
+const buildRequestContextMessage = (): ModelMessage => ({
+  role: "user",
+  content: [
+    "Current request context follows. Use this only for date-sensitive support questions, release timing, freshness checks, and interpreting relative dates.",
+    "<request_context>",
+    `Current time: ${formatCurrentTime(new Date())}`,
+    "</request_context>",
+  ].join("\n"),
+});
 
 const createBraveSearchTool = (ai: SupportAiConfig) =>
   tool({
@@ -273,6 +302,7 @@ const buildConversationMessages = async (
     content: ai.applicationGuardrailMessage,
   },
   ...(await buildDocsContextMessages(ai)),
+  buildRequestContextMessage(),
   ...normalizeMessages(messages),
 ];
 
@@ -293,6 +323,36 @@ const extractTextFromMessages = (messages: ModelMessage[]): string =>
     })
     .join("")
     .trim();
+
+const getNumberUsageField = (
+  usage: LanguageModelUsage,
+  field: string,
+): number | undefined => {
+  const value = usage.raw?.[field];
+
+  return typeof value === "number" ? value : undefined;
+};
+
+const logTokenUsage = (usage: LanguageModelUsage): void => {
+  const cacheReadTokens =
+    usage.inputTokenDetails.cacheReadTokens ??
+    usage.cachedInputTokens ??
+    getNumberUsageField(usage, "prompt_cache_hit_tokens");
+  const cacheMissTokens =
+    usage.inputTokenDetails.noCacheTokens ??
+    getNumberUsageField(usage, "prompt_cache_miss_tokens");
+
+  console.info(
+    [
+      "DeepSeek usage:",
+      `input=${usage.inputTokens ?? "unknown"}`,
+      `cacheRead=${cacheReadTokens ?? "unknown"}`,
+      `cacheMiss=${cacheMissTokens ?? "unknown"}`,
+      `output=${usage.outputTokens ?? "unknown"}`,
+      `total=${usage.totalTokens ?? "unknown"}`,
+    ].join(" "),
+  );
+};
 
 export const isPromptInjectionAttempt = (
   content: string,
@@ -319,6 +379,7 @@ export const generateSupportResponse = async (
     system: ai.systemPrompt,
     tools: buildSupportTools(ai),
   });
+  logTokenUsage(result.totalUsage);
 
   const maxLength = options?.maxLength ?? DEFAULT_MAX_RESPONSE_LENGTH;
   const rawResponseText =
