@@ -138,12 +138,15 @@ const buildDocsContextMessages = async (
 
 const formatCurrentTime = (date: Date): string =>
   new Intl.DateTimeFormat("en-US", {
-    dateStyle: "full",
+    day: "numeric",
+    month: "long",
+    weekday: "long",
     hour: "2-digit",
     hour12: false,
     minute: "2-digit",
     timeZone: "Europe/Berlin",
     timeZoneName: "short",
+    year: "numeric",
   }).format(date);
 
 const buildRequestContextMessage = (): ModelMessage => ({
