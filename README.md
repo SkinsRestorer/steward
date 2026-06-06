@@ -12,6 +12,12 @@ Configured bots:
 - Steward: `DISCORD_TOKEN_STEWARD`
 - Jarvis: `DISCORD_TOKEN_JARVIS`
 
+AI support replies use DeepSeek for generation and Brave Search for web
+context. Set these environment variables before enabling the chatbot module:
+
+- `DEEPSEEK_API_KEY`
+- `BRAVE_SEARCH_API_KEY`
+
 Client IDs are not secret and are stored directly in each bot config. To run
 another bot in the same process, add another config file and import it in
 `src/bots/index.ts`.

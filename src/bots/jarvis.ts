@@ -37,6 +37,7 @@ const supportAi: SupportAiConfig = {
     `- Use official SoulFire documentation at ${docsUrl} and relevant soulfiremc.com pages before answering.`,
     "- Only support legitimate testing, automation, and development on servers the user owns or has permission to test.",
   ].join("\n"),
+  model: "deepseek-v4-pro",
   promptInjectionPatterns: [
     /ignore\s+(?:all\s+)?(?:previous|prior|above)\s+(?:instructions|messages)/i,
     /(?:you are now|from now on|new instructions|you will now)/i,
@@ -71,6 +72,10 @@ When users ask for help:
 5. If there are multiple consecutive user messages without an assistant reply yet, answer all of them in one response.
 
 Tone: calm, direct, and technical. Keep replies short. Default to 2 to 4 short sentences. If answering multiple questions, use a short numbered list with one compact sentence per item. Keep the full response under one Discord message and usually under 700 characters. Use only basic Discord formatting: **bold**, *italic*, __underline__, and [link text](url).`,
+  webSearch: {
+    maxContextTokens: 10_000,
+    provider: "brave",
+  },
 };
 
 const commandResponses: ConfigCommand[] = [

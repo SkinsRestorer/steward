@@ -41,11 +41,18 @@ export interface AutouploadConfig {
 
 export interface SupportAiConfig {
   applicationGuardrailMessage: string;
+  docsContextUrls?: string[];
   maxOutputTokens?: number;
   model?: string;
   promptInjectionPatterns: readonly RegExp[];
   responseDisclaimer?: string;
   systemPrompt: string;
+  webSearch?: SupportAiWebSearchConfig;
+}
+
+export interface SupportAiWebSearchConfig {
+  maxContextTokens?: number;
+  provider: "brave";
 }
 
 export interface ChatbotConfig {
