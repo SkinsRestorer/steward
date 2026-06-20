@@ -12,6 +12,34 @@ import {
 } from "@/lib/github-release";
 
 const imageTypes = ["image/png", "image/jpeg", "image/webp"];
+const confusableCharacters: Record<string, string> = {
+  $: "s",
+  "!": "i",
+  "+": "t",
+  "0": "o",
+  "1": "i",
+  "3": "e",
+  "4": "a",
+  "5": "s",
+  "7": "t",
+  "@": "a",
+  "|": "i",
+  "\u03b1": "a",
+  "\u03b5": "e",
+  "\u03b9": "i",
+  "\u03bf": "o",
+  "\u03c1": "p",
+  "\u03c4": "t",
+  "\u03c5": "y",
+  "\u0430": "a",
+  "\u0435": "e",
+  "\u0456": "i",
+  "\u043e": "o",
+  "\u0440": "p",
+  "\u0441": "c",
+  "\u0442": "t",
+  "\u0443": "y",
+};
 
 function findCheckMath(message: Message, config: ChecksConfig) {
   function matchToReturn(check: Checks, match: RegExpMatchArray) {
@@ -128,11 +156,21 @@ export default (client: Client, bot: BotConfig): void => {
       return;
     }
 
+    const recognizedTexts: string[] = [];
     for (const attachment of attachments.values()) {
       const {
         data: { text },
       } = await tesseract.recognize(attachment.proxyURL, "eng");
 
+      if (containsProhibitedOcrContent(text)) {
+        await deleteAndKickAuthorForOcrSpam(message);
+        return;
+      }
+
+      recognizedTexts.push(text);
+    }
+
+    for (const text of recognizedTexts) {
       await respondToText(
         bot,
         message,
@@ -145,6 +183,50 @@ export default (client: Client, bot: BotConfig): void => {
     await message.react("👀");
   });
 };
+
+function normalizeOcrModerationText(text: string) {
+  return Array.from(text.normalize("NFKD").toLowerCase())
+    .map((char) => confusableCharacters[char] ?? char)
+    .filter((char) => /[a-z]/.test(char))
+    .join("");
+}
+
+function containsProhibitedOcrContent(text: string) {
+  const normalizedText = normalizeOcrModerationText(text);
+
+  return normalizedText.includes("crypto") && normalizedText.includes("casino");
+}
+
+async function deleteAndKickAuthorForOcrSpam(message: Message) {
+  if (!message.inGuild()) {
+    return;
+  }
+
+  const reason = `OCR detected crypto/casino spam from ${message.author.tag} (${message.author.id})`;
+
+  try {
+    await message.delete();
+  } catch (error) {
+    console.error("Failed to delete OCR spam message", error);
+  }
+
+  try {
+    const member =
+      message.member ??
+      (await message.guild.members.fetch(message.author.id).catch(() => null));
+
+    if (member == null) {
+      console.error(
+        `Failed to kick OCR spam sender: member ${message.author.id} was not found`,
+      );
+      return;
+    }
+
+    await member.kick(reason);
+  } catch (error) {
+    console.error("Failed to kick OCR spam sender", error);
+  }
+}
 
 function checkMatch(text: string, checks: (RegExp | MessagePredicate)[]) {
   for (const check of checks) {
