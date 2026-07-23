@@ -1,28 +1,33 @@
-name: Node.js Build
+name: Rust
 
-on: [ push, pull_request ]
+on: [push, pull_request]
 
 jobs:
   build:
-    # Only run on PRs if the source branch is on someone else's repo
     if: "${{ github.event_name != 'pull_request' || github.repository != github.event.pull_request.head.repo.full_name }}"
-
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          components: clippy,rustfmt
 
-      - name: Install dependencies
-        run: bun install
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
 
-      - name: Run typecheck
-        run: |
-          bun run typecheck
+      - name: Check formatting
+        run: cargo fmt --all --check
 
-      - name: Run check
-        run: |
-          bun run biome ci
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run tests
+        run: cargo test --all-targets
+
+      - name: Build release binary
+        run: cargo build --release --locked
