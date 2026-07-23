@@ -1,21 +1,32 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    sync::{Arc, OnceLock},
+    time::Duration,
+};
 
 use anyhow::{Context as _, Result};
 use poise::serenity_prelude as serenity;
-use tokio::sync::RwLock;
+use tokio::sync::Mutex;
 
 use crate::{
-    ai::AiService, config::BotDefinition, events::chatbot::ChatbotService, ocr::OcrService,
+    ai::AiService,
+    bots,
+    config::BotDefinition,
+    events::{chatbot::ChatbotService, logging::LoggingService},
+    ocr::OcrService,
+    patterns::PatternService,
     releases::ReleaseService,
 };
 
-#[derive(Clone)]
 pub struct SharedServices {
     pub ai: AiService,
     pub chatbot: ChatbotService,
     pub http: reqwest::Client,
+    pub logging: LoggingService,
     pub ocr: OcrService,
+    pub patterns: PatternService,
     pub releases: ReleaseService,
+    pub thread_updates: Mutex<()>,
 }
 
 impl SharedServices {
@@ -26,16 +37,21 @@ impl SharedServices {
             .timeout(Duration::from_secs(30))
             .build()
             .context("failed to build HTTP client")?;
-        let ai = AiService::new(http.clone());
+        let patterns = PatternService::compile(bots::ALL)?;
+        let ai = AiService::new(http.clone())?;
         let ocr = OcrService::load().await?;
+        let logging = LoggingService::start(bots::ALL).await?;
         let releases = ReleaseService::new(http.clone());
 
         Ok(Self {
             ai,
             chatbot: ChatbotService::new(),
             http,
+            logging,
             ocr,
+            patterns,
             releases,
+            thread_updates: Mutex::new(()),
         })
     }
 }
@@ -43,7 +59,7 @@ impl SharedServices {
 #[derive(Clone)]
 pub struct AppState {
     pub bot: &'static BotDefinition,
-    pub command_ids: Arc<RwLock<HashMap<String, serenity::CommandId>>>,
+    pub command_ids: Arc<OnceLock<HashMap<String, serenity::CommandId>>>,
     pub services: Arc<SharedServices>,
 }
 
@@ -51,7 +67,7 @@ impl AppState {
     pub fn new(bot: &'static BotDefinition, services: Arc<SharedServices>) -> Self {
         Self {
             bot,
-            command_ids: Arc::new(RwLock::new(HashMap::new())),
+            command_ids: Arc::new(OnceLock::new()),
             services,
         }
     }

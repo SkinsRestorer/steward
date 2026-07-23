@@ -28,14 +28,14 @@ pub async fn start_bot(bot: &'static BotDefinition, services: Arc<SharedServices
             let state = setup_state.clone();
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                let registered = serenity::Command::get_global_commands(&ctx.http).await?;
-                let mut command_ids = state.command_ids.write().await;
-                command_ids.extend(
-                    registered
-                        .into_iter()
-                        .map(|command| (command.name, command.id)),
-                );
-                drop(command_ids);
+                let command_ids = serenity::Command::get_global_commands(&ctx.http)
+                    .await?
+                    .into_iter()
+                    .map(|command| (command.name, command.id))
+                    .collect();
+                state.command_ids.set(command_ids).map_err(|_| {
+                    anyhow::anyhow!("application command IDs were initialized more than once")
+                })?;
 
                 tracing::info!(
                     bot = bot.id,

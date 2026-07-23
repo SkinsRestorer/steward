@@ -1,7 +1,7 @@
 mod autoupload;
 pub mod chatbot;
 mod checks;
-mod logging;
+pub(crate) mod logging;
 mod message_replies;
 mod no_ping;
 mod thread_starter;
@@ -58,8 +58,8 @@ async fn handle_message(ctx: &serenity::Context, data: &AppState, message: &sere
         })
     });
 
-    let (log_result, upload_result, chatbot_result, checks_result, replies_result, no_ping_result) = tokio::join!(
-        logging::handle(data, message, channel_name.as_deref()),
+    let log_result = logging::handle(data, message, channel_name.as_deref());
+    let (upload_result, chatbot_result, checks_result, replies_result, no_ping_result) = tokio::join!(
         autoupload::handle(ctx, data, message),
         chatbot::handle(ctx, data, message, channel_name.as_deref()),
         checks::handle(ctx, data, message),

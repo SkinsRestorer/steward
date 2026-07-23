@@ -1,16 +1,18 @@
-use std::sync::LazyLock;
+use std::{borrow::Cow, io, sync::LazyLock};
 
 use anyhow::{Context as _, Result, anyhow};
 use poise::serenity_prelude as serenity;
 use regex::Regex;
 use semver::Version;
-use serde::Deserialize;
+use serde::{Deserialize, de::IgnoredAny};
 use unicode_normalization::UnicodeNormalization as _;
 
-use crate::{releases::LatestRelease, state::AppState};
+use crate::{download, releases::LatestRelease, state::AppState};
 
 const IMAGE_TYPES: &[&str] = &["image/png", "image/jpeg", "image/webp"];
 const MAX_IMAGE_BYTES: u64 = 20 * 1024 * 1024;
+const MAX_PASTE_BYTES: usize = 20 * 1024 * 1024;
+const MAX_PRETTY_DUMP_BYTES: usize = 20 * 1024 * 1024;
 
 struct PasteMatch {
     raw_url: String,
@@ -28,21 +30,25 @@ pub async fn handle(
         None
     };
 
-    if let Some(found) = find_paste(message, data)? {
+    if let Some(found) = find_paste(message, data) {
         handle_paste(ctx, data, message, found, latest_release.as_ref()).await?;
     }
     handle_images(ctx, data, message, latest_release.as_ref()).await
 }
 
-fn find_paste(message: &serenity::Message, data: &AppState) -> Result<Option<PasteMatch>> {
+fn find_paste(message: &serenity::Message, data: &AppState) -> Option<PasteMatch> {
     let embed_fields = message
         .embeds
         .iter()
         .flat_map(|embed| embed.fields.iter().map(|field| field.value.as_str()));
 
-    for check in data.bot.checks.paste_checks {
-        let regex = Regex::new(check.pattern)
-            .with_context(|| format!("invalid paste check regex {}", check.pattern))?;
+    for (check, regex) in data
+        .bot
+        .checks
+        .paste_checks
+        .iter()
+        .zip(data.services.patterns.paste_patterns(data.bot))
+    {
         for content in std::iter::once(message.content.as_str()).chain(embed_fields.clone()) {
             let Some(captures) = regex.captures(content) else {
                 continue;
@@ -53,13 +59,13 @@ fn find_paste(message: &serenity::Message, data: &AppState) -> Result<Option<Pas
             let Some(original_url) = captures.get(0) else {
                 continue;
             };
-            return Ok(Some(PasteMatch {
+            return Some(PasteMatch {
                 raw_url: check.raw_url.replace("{code}", code.as_str()),
                 original_url: original_url.as_str().to_owned(),
-            }));
+            });
         }
     }
-    Ok(None)
+    None
 }
 
 async fn handle_paste(
@@ -92,10 +98,10 @@ async fn handle_paste(
         return Ok(());
     }
 
-    let text = response
+    let response = response
         .error_for_status()
-        .context("paste request failed")?
-        .text()
+        .context("paste request failed")?;
+    let text = download::read_limited_text(response, MAX_PASTE_BYTES, "paste response")
         .await
         .context("failed to read paste")?;
     if text.is_empty() {
@@ -137,7 +143,8 @@ async fn handle_images(
             continue;
         }
 
-        let bytes = data
+        let permit = data.services.ocr.acquire().await?;
+        let response = data
             .services
             .http
             .get(&attachment.proxy_url)
@@ -145,12 +152,14 @@ async fn handle_images(
             .await
             .context("failed to download OCR attachment")?
             .error_for_status()
-            .context("OCR attachment download failed")?
-            .bytes()
-            .await
-            .context("failed to read OCR attachment")?
-            .to_vec();
-        let text = data.services.ocr.recognize(bytes).await?;
+            .context("OCR attachment download failed")?;
+        let bytes = download::read_limited_bytes(
+            response,
+            usize::try_from(MAX_IMAGE_BYTES).unwrap_or(usize::MAX),
+            "OCR attachment",
+        )
+        .await?;
+        let text = data.services.ocr.recognize(bytes, permit).await?;
 
         if contains_prohibited_ocr_content(&text) {
             delete_and_kick_ocr_spammer(ctx, message).await;
@@ -259,55 +268,63 @@ async fn respond_to_text(
 }
 
 #[derive(Deserialize)]
-struct SkinsRestorerDump {
-    #[serde(rename = "buildInfo")]
-    build: BuildInfo,
-    #[serde(rename = "environmentInfo")]
-    environment: EnvironmentInfo,
-    #[serde(rename = "javaInfo")]
-    java: JavaInfo,
-    #[serde(rename = "osInfo")]
-    os: OsInfo,
-    #[serde(rename = "platformInfo")]
-    platform: PlatformInfo,
+struct SkinsRestorerDump<'a> {
+    #[serde(borrow, rename = "buildInfo")]
+    build: BuildInfo<'a>,
+    #[serde(borrow, rename = "environmentInfo")]
+    environment: EnvironmentInfo<'a>,
+    #[serde(borrow, rename = "javaInfo")]
+    java: JavaInfo<'a>,
+    #[serde(borrow, rename = "osInfo")]
+    os: OsInfo<'a>,
+    #[serde(borrow, rename = "platformInfo")]
+    platform: PlatformInfo<'a>,
     #[serde(rename = "pluginInfo")]
     plugin: PluginInfo,
-    #[serde(rename = "userInfo")]
-    user: UserInfo,
+    #[serde(borrow, rename = "userInfo")]
+    user: UserInfo<'a>,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct BuildInfo {
-    build_time: String,
-    version: String,
+struct BuildInfo<'a> {
+    #[serde(borrow)]
+    build_time: Cow<'a, str>,
+    #[serde(borrow)]
+    version: Cow<'a, str>,
 }
 
 #[derive(Deserialize)]
-struct EnvironmentInfo {
+struct EnvironmentInfo<'a> {
     hybrid: bool,
-    platform: String,
-    #[serde(rename = "platformType")]
-    platform_type: String,
+    #[serde(borrow)]
+    platform: Cow<'a, str>,
+    #[serde(borrow, rename = "platformType")]
+    platform_type: Cow<'a, str>,
 }
 
 #[derive(Deserialize)]
-struct JavaInfo {
-    version: String,
+struct JavaInfo<'a> {
+    #[serde(borrow)]
+    version: Cow<'a, str>,
 }
 
 #[derive(Deserialize)]
-struct OsInfo {
-    arch: String,
-    name: String,
+struct OsInfo<'a> {
+    #[serde(borrow)]
+    arch: Cow<'a, str>,
+    #[serde(borrow)]
+    name: Cow<'a, str>,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct PlatformInfo {
-    platform_name: String,
-    platform_version: String,
-    plugins: Vec<serde_json::Value>,
+struct PlatformInfo<'a> {
+    #[serde(borrow)]
+    platform_name: Cow<'a, str>,
+    #[serde(borrow)]
+    platform_version: Cow<'a, str>,
+    plugins: Vec<IgnoredAny>,
 }
 
 #[derive(Deserialize)]
@@ -328,10 +345,13 @@ struct DevConfig {
 }
 
 #[derive(Deserialize)]
-struct UserInfo {
-    dir: String,
-    home: String,
-    name: String,
+struct UserInfo<'a> {
+    #[serde(borrow)]
+    dir: Cow<'a, str>,
+    #[serde(borrow)]
+    home: Cow<'a, str>,
+    #[serde(borrow)]
+    name: Cow<'a, str>,
 }
 
 async fn analyze_dump(
@@ -341,13 +361,11 @@ async fn analyze_dump(
     footer: &str,
     latest_release: Option<&LatestRelease>,
 ) -> Result<()> {
-    let Ok(dump) = serde_json::from_str::<SkinsRestorerDump>(text) else {
+    let Ok(dump) = serde_json::from_str::<SkinsRestorerDump<'_>>(text) else {
         return Ok(());
     };
-    let raw_dump = serde_json::from_str::<serde_json::Value>(text)?;
     let embeds = build_dump_embeds(&dump, latest_release);
-    let pretty_dump =
-        serde_json::to_vec_pretty(&raw_dump).context("failed to format SkinsRestorer dump")?;
+    let pretty_dump = pretty_print_json(text)?;
     reply(
         ctx,
         message,
@@ -360,14 +378,14 @@ async fn analyze_dump(
 }
 
 fn build_dump_embeds(
-    dump: &SkinsRestorerDump,
+    dump: &SkinsRestorerDump<'_>,
     latest_release: Option<&LatestRelease>,
 ) -> Vec<serenity::CreateEmbed> {
-    let version = coerce_version(&dump.build.version);
+    let version = coerce_version(dump.build.version.as_ref());
     let latest_version = latest_release.and_then(|release| coerce_version(&release.tag_name));
     let version_display = version
         .as_ref()
-        .map_or_else(|| dump.build.version.clone(), ToString::to_string);
+        .map_or_else(|| dump.build.version.to_string(), ToString::to_string);
     let mut embeds = Vec::new();
 
     if let (Some(version), Some(latest_version)) = (&version, &latest_version)
@@ -458,6 +476,57 @@ fn build_dump_embeds(
     embeds
 }
 
+fn pretty_print_json(text: &str) -> Result<Vec<u8>> {
+    let mut deserializer = serde_json::Deserializer::from_str(text);
+    let mut output =
+        LimitedWriter::new(text.len().min(MAX_PRETTY_DUMP_BYTES), MAX_PRETTY_DUMP_BYTES);
+    let formatter = serde_json::ser::PrettyFormatter::with_indent(b"  ");
+    let mut serializer = serde_json::Serializer::with_formatter(&mut output, formatter);
+    serde_transcode::transcode(&mut deserializer, &mut serializer)
+        .context("failed to format SkinsRestorer dump")?;
+    deserializer
+        .end()
+        .context("SkinsRestorer dump contains trailing data")?;
+    Ok(output.into_inner())
+}
+
+struct LimitedWriter {
+    bytes: Vec<u8>,
+    max_bytes: usize,
+}
+
+impl LimitedWriter {
+    fn new(capacity: usize, max_bytes: usize) -> Self {
+        Self {
+            bytes: Vec::with_capacity(capacity),
+            max_bytes,
+        }
+    }
+
+    fn into_inner(self) -> Vec<u8> {
+        self.bytes
+    }
+}
+
+impl io::Write for LimitedWriter {
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        if self
+            .bytes
+            .len()
+            .checked_add(buffer.len())
+            .is_none_or(|length| length > self.max_bytes)
+        {
+            return Err(io::Error::other("formatted dump exceeds attachment limit"));
+        }
+        self.bytes.extend_from_slice(buffer);
+        Ok(buffer.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
 fn coerce_version(input: &str) -> Option<Version> {
     static VERSION_PATTERN: LazyLock<Result<Regex, regex::Error>> =
         LazyLock::new(|| Regex::new(r"(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?"));
@@ -487,7 +556,10 @@ async fn reply(
 mod tests {
     use anyhow::{Result, ensure};
 
-    use super::{coerce_version, contains_prohibited_ocr_content, normalize_ocr_moderation_text};
+    use super::{
+        SkinsRestorerDump, coerce_version, contains_prohibited_ocr_content,
+        normalize_ocr_moderation_text, pretty_print_json,
+    };
 
     #[test]
     fn normalizes_common_ocr_confusables() -> Result<()> {
@@ -499,6 +571,28 @@ mod tests {
     #[test]
     fn coerces_release_versions() -> Result<()> {
         ensure!(coerce_version("v15.2.1-SNAPSHOT") == Some(semver::Version::new(15, 2, 1)));
+        Ok(())
+    }
+
+    #[test]
+    fn formats_dumps_without_rejecting_escaped_paths() -> Result<()> {
+        let input = r#"{
+            "buildInfo":{"buildTime":"today","version":"15.2.1"},
+            "environmentInfo":{"hybrid":false,"platform":"Paper","platformType":"SERVER"},
+            "javaInfo":{"version":"21"},
+            "osInfo":{"arch":"x86_64","name":"Windows"},
+            "platformInfo":{"platformName":"Paper","platformVersion":"1.21","plugins":[{"name":"A"}]},
+            "pluginInfo":{"configData":{"dev":{"debug":false}},"proxyMode":false},
+            "userInfo":{"dir":"C:\\server","home":"C:\\Users\\Alex","name":"Alex"}
+        }"#;
+
+        let dump = serde_json::from_str::<SkinsRestorerDump<'_>>(input)?;
+        ensure!(dump.user.dir == r"C:\server");
+
+        let formatted = pretty_print_json(input)?;
+        let original_value = serde_json::from_str::<serde_json::Value>(input)?;
+        let formatted_value = serde_json::from_slice::<serde_json::Value>(&formatted)?;
+        ensure!(formatted_value == original_value);
         Ok(())
     }
 }

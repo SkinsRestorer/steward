@@ -65,7 +65,11 @@ async fn static_response(
 #[poise::command(slash_command)]
 async fn help(ctx: Context<'_>) -> Result<(), Error> {
     let bot = ctx.data().bot;
-    let command_ids = ctx.data().command_ids.read().await;
+    let command_ids = ctx
+        .data()
+        .command_ids
+        .get()
+        .context("application command IDs are not initialized")?;
     let mut embed = serenity::CreateEmbed::new()
         .colour(bot.accent_color)
         .title(bot.commands.help.embed_title)
@@ -113,9 +117,12 @@ async fn latest(ctx: Context<'_>) -> Result<(), Error> {
 /// Marks the current support thread as resolved.
 #[poise::command(slash_command)]
 async fn resolved(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.defer().await?;
+    let update_guard = ctx.data().services.thread_updates.lock().await;
     let config = ctx.data().bot.commands.resolved;
     let channel = ctx.channel_id().to_channel(ctx.http()).await?;
     let serenity::Channel::Guild(thread) = channel else {
+        drop(update_guard);
         ctx.say("This command can only be used in threads.").await?;
         return Ok(());
     };
@@ -125,17 +132,18 @@ async fn resolved(ctx: Context<'_>) -> Result<(), Error> {
             | serenity::ChannelType::PrivateThread
             | serenity::ChannelType::NewsThread
     ) {
+        drop(update_guard);
         ctx.say("This command can only be used in threads.").await?;
         return Ok(());
     }
 
     let tag = serenity::ForumTagId::new(config.tag_id);
     if thread.applied_tags.contains(&tag) {
+        drop(update_guard);
         ctx.say(config.already_resolved_message).await?;
         return Ok(());
     }
 
-    ctx.say(config.success_message).await?;
     let mut tags = thread.applied_tags;
     tags.push(tag);
     thread
@@ -149,6 +157,8 @@ async fn resolved(ctx: Context<'_>) -> Result<(), Error> {
                 .audit_log_reason("resolved"),
         )
         .await?;
+    drop(update_guard);
+    ctx.say(config.success_message).await?;
     Ok(())
 }
 
@@ -321,7 +331,7 @@ async fn reply_with_ai(ctx: Context<'_>, target: serenity::Message) -> Result<()
         .services
         .ai
         .generate_response(
-            &[ChatMessage::User(request)],
+            &[ChatMessage::User(request.into())],
             ctx.data().bot.chatbot.ai,
             1_300,
         )

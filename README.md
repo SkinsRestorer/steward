@@ -29,8 +29,8 @@ deployment environment:
 | `BRAVE_SEARCH_API_KEY` | Current web context for support answers |
 | `RUST_LOG` | Optional log filter, such as `steward=debug,info` |
 
-Both Discord tokens are required because the process starts both bots
-together. The AI keys are read when an AI support reply is requested.
+Both Discord tokens and both AI keys are required at startup because the
+process initializes shared clients before starting either bot.
 
 ## Run locally
 
