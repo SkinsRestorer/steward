@@ -69,22 +69,24 @@ fn load_model(model_name: &str, embedded: &[u8]) -> Result<Model> {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::{Result, anyhow};
+
     use super::{
-        EMBEDDED_DETECTION_MODEL, EMBEDDED_RECOGNITION_MODEL, Model, OcrEngine, OcrEngineParams,
+        EMBEDDED_DETECTION_MODEL, EMBEDDED_RECOGNITION_MODEL, OcrEngine, OcrEngineParams,
+        load_model,
     };
 
     #[test]
-    fn initializes_ocr_from_embedded_models() {
-        let detection_model = Model::load(EMBEDDED_DETECTION_MODEL.to_vec())
-            .expect("embedded detection model should load");
-        let recognition_model = Model::load(EMBEDDED_RECOGNITION_MODEL.to_vec())
-            .expect("embedded recognition model should load");
+    fn initializes_ocr_from_embedded_models() -> Result<()> {
+        let detection_model = load_model("text detection", EMBEDDED_DETECTION_MODEL)?;
+        let recognition_model = load_model("text recognition", EMBEDDED_RECOGNITION_MODEL)?;
 
         OcrEngine::new(OcrEngineParams {
             detection_model: Some(detection_model),
             recognition_model: Some(recognition_model),
             ..Default::default()
         })
-        .expect("embedded OCR models should initialize the engine");
+        .map_err(|error| anyhow!("failed to initialize OCR engine: {error}"))?;
+        Ok(())
     }
 }

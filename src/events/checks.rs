@@ -244,7 +244,7 @@ async fn respond_to_text(
             .footer(serenity::CreateEmbedFooter::new(footer))
             .field("Caused By", format!("```{}```", check.needle), false);
         for (index, tip) in check.tips.iter().enumerate() {
-            embed = embed.field(format!("Tip #{}", index + 1), *tip, false);
+            embed = embed.field(format!("Tip #{}", index.saturating_add(1)), *tip, false);
         }
         if let Some(link) = check.link {
             embed = embed.field("Read More", link, false);
@@ -485,22 +485,20 @@ async fn reply(
 
 #[cfg(test)]
 mod tests {
+    use anyhow::{Result, ensure};
+
     use super::{coerce_version, contains_prohibited_ocr_content, normalize_ocr_moderation_text};
 
     #[test]
-    fn normalizes_common_ocr_confusables() {
-        assert_eq!(
-            normalize_ocr_moderation_text("CRΥPT0 C@S1N0"),
-            "cryptocasino"
-        );
-        assert!(contains_prohibited_ocr_content("CRYPTO\nCASINO"));
+    fn normalizes_common_ocr_confusables() -> Result<()> {
+        ensure!(normalize_ocr_moderation_text("CRΥPT0 C@S1N0") == "cryptocasino");
+        ensure!(contains_prohibited_ocr_content("CRYPTO\nCASINO"));
+        Ok(())
     }
 
     #[test]
-    fn coerces_release_versions() {
-        assert_eq!(
-            coerce_version("v15.2.1-SNAPSHOT"),
-            Some(semver::Version::new(15, 2, 1))
-        );
+    fn coerces_release_versions() -> Result<()> {
+        ensure!(coerce_version("v15.2.1-SNAPSHOT") == Some(semver::Version::new(15, 2, 1)));
+        Ok(())
     }
 }

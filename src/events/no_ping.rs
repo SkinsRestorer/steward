@@ -71,7 +71,10 @@ async fn should_skip_reply_warning(ctx: &serenity::Context, message: &serenity::
         return true;
     }
 
-    let age = message.timestamp.timestamp_millis() - reference.timestamp.timestamp_millis();
+    let age = message
+        .timestamp
+        .timestamp_millis()
+        .saturating_sub(reference.timestamp.timestamp_millis());
     age <= REPLY_CONVERSATION_WINDOW_MS && sender_is_active_chat_participant(ctx, message).await
 }
 
@@ -103,8 +106,8 @@ async fn sender_is_active_chat_participant(
     message: &serenity::Message,
 ) -> bool {
     let timestamp = message.timestamp.timestamp_millis();
-    let earliest_timestamp = timestamp - PARTICIPATION_WINDOW_MS;
-    let latest_timestamp = timestamp - RECENT_PARTICIPATION_GRACE_MS;
+    let earliest_timestamp = timestamp.saturating_sub(PARTICIPATION_WINDOW_MS);
+    let latest_timestamp = timestamp.saturating_sub(RECENT_PARTICIPATION_GRACE_MS);
     let mut before = create_snowflake_after_timestamp(latest_timestamp);
 
     loop {
@@ -140,27 +143,48 @@ async fn sender_is_active_chat_participant(
 }
 
 fn create_snowflake_after_timestamp(timestamp_ms: i64) -> serenity::MessageId {
-    let timestamp = timestamp_ms.max(DISCORD_EPOCH_MS) + 1;
-    let value = u64::try_from(timestamp - DISCORD_EPOCH_MS).unwrap_or_default() << 22;
+    const TIMESTAMP_MULTIPLIER: u64 = 1 << 22;
+    const MAX_TIMESTAMP: u64 = u64::MAX >> 22;
+
+    let timestamp = timestamp_ms.max(DISCORD_EPOCH_MS).saturating_add(1);
+    let elapsed = timestamp.saturating_sub(DISCORD_EPOCH_MS);
+    let value = u64::try_from(elapsed).map_or(0, |elapsed| {
+        elapsed
+            .min(MAX_TIMESTAMP)
+            .saturating_mul(TIMESTAMP_MULTIPLIER)
+    });
     serenity::MessageId::new(value)
 }
 
 #[cfg(test)]
 mod tests {
+    use anyhow::{Result, ensure};
+
     use super::{DISCORD_EPOCH_MS, create_snowflake_after_timestamp, has_configured_role};
     use poise::serenity_prelude as serenity;
 
     #[test]
-    fn creates_a_snowflake_strictly_after_the_timestamp() {
-        let timestamp = DISCORD_EPOCH_MS + 123_456;
+    fn creates_a_snowflake_strictly_after_the_timestamp() -> Result<()> {
+        let timestamp = DISCORD_EPOCH_MS.saturating_add(123_456);
         let snowflake = create_snowflake_after_timestamp(timestamp);
-        let encoded_timestamp = i64::try_from(snowflake.get() >> 22).unwrap() + DISCORD_EPOCH_MS;
+        let encoded_timestamp =
+            i64::try_from(snowflake.get() >> 22)?.saturating_add(DISCORD_EPOCH_MS);
 
-        assert_eq!(encoded_timestamp, timestamp + 1);
+        ensure!(encoded_timestamp == timestamp.saturating_add(1));
+        Ok(())
     }
 
     #[test]
-    fn detects_configured_roles() {
-        assert!(has_configured_role(&[serenity::RoleId::new(7)], &[3, 7, 9]));
+    fn clamps_snowflakes_to_the_maximum_timestamp() -> Result<()> {
+        let snowflake = create_snowflake_after_timestamp(i64::MAX);
+
+        ensure!((snowflake.get() >> 22) == (u64::MAX >> 22));
+        Ok(())
+    }
+
+    #[test]
+    fn detects_configured_roles() -> Result<()> {
+        ensure!(has_configured_role(&[serenity::RoleId::new(7)], &[3, 7, 9]));
+        Ok(())
     }
 }

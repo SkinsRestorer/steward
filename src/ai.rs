@@ -193,13 +193,15 @@ impl AiService {
             .trim()
             .to_owned();
 
-        self.docs_cache.write().await.insert(
-            url,
-            CachedDocsContext {
-                expires_at: Instant::now() + DOCS_CACHE_TTL,
-                text: text.clone(),
-            },
-        );
+        if let Some(expires_at) = Instant::now().checked_add(DOCS_CACHE_TTL) {
+            self.docs_cache.write().await.insert(
+                url,
+                CachedDocsContext {
+                    expires_at,
+                    text: text.clone(),
+                },
+            );
+        }
         Ok(text)
     }
 }
@@ -246,20 +248,20 @@ fn clamp_response(text: &str, max_length: usize) -> String {
 
     let sliced = normalized
         .chars()
-        .take(max_length - 3)
+        .take(max_length.saturating_sub(3))
         .collect::<String>()
         .trim_end()
         .to_owned();
     let sentence_break = sliced
         .char_indices()
         .filter(|(_, character)| matches!(character, '.' | '!' | '?' | '\n'))
-        .map(|(index, character)| index + character.len_utf8())
+        .filter_map(|(index, character)| index.checked_add(character.len_utf8()))
         .next_back();
 
-    if let Some(end) = sentence_break
-        && sliced[..end].chars().count() >= 300
+    if let Some(sentence) = sentence_break.and_then(|end| sliced.get(..end))
+        && sentence.chars().count() >= 300
     {
-        return sliced[..end].trim_end().to_owned();
+        return sentence.trim_end().to_owned();
     }
 
     format!("{sliced}...")
@@ -370,22 +372,26 @@ impl Tool for BraveSearch {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::{Result, ensure};
+
     use super::{append_response_disclaimer, clamp_response};
 
     #[test]
-    fn clamps_at_a_sentence_boundary_when_possible() {
+    fn clamps_at_a_sentence_boundary_when_possible() -> Result<()> {
         let text = format!("{} Done. Extra content", "a".repeat(310));
         let clamped = clamp_response(&text, 320);
 
-        assert!(clamped.ends_with("Done."));
-        assert!(clamped.chars().count() <= 320);
+        ensure!(clamped.ends_with("Done."));
+        ensure!(clamped.chars().count() <= 320);
+        Ok(())
     }
 
     #[test]
-    fn reserves_room_for_the_disclaimer() {
+    fn reserves_room_for_the_disclaimer() -> Result<()> {
         let result = append_response_disclaimer(&"a".repeat(100), "notice", 50);
 
-        assert!(result.ends_with("\n\nnotice"));
-        assert!(result.chars().count() <= 50);
+        ensure!(result.ends_with("\n\nnotice"));
+        ensure!(result.chars().count() <= 50);
+        Ok(())
     }
 }

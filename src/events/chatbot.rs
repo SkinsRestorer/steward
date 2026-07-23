@@ -56,7 +56,7 @@ impl ChatbotService {
             let mut conversation = conversation.lock().await;
             conversation.messages.push(ChatMessage::User(content));
             conversation.last_message = message;
-            conversation.revision += 1;
+            conversation.revision = conversation.revision.saturating_add(1);
             if conversation.generating {
                 conversation.pending = true;
                 return;

@@ -119,11 +119,14 @@ fn detect_text_format(text: &str) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::{Result, ensure};
+
     use super::detect_text_format;
 
     #[test]
-    fn detects_structured_attachment_formats() {
-        assert_eq!(detect_text_format(r#"{"ok":true}"#), Some("text/json"));
-        assert_eq!(detect_text_format("key: value"), Some("text/yaml"));
+    fn detects_structured_attachment_formats() -> Result<()> {
+        ensure!(detect_text_format(r#"{"ok":true}"#) == Some("text/json"));
+        ensure!(detect_text_format("key: value") == Some("text/yaml"));
+        Ok(())
     }
 }

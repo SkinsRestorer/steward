@@ -9,66 +9,80 @@ pub const ALL: &[&BotDefinition] = &[&steward::BOT, &jarvis::BOT];
 mod tests {
     use std::collections::HashSet;
 
+    use anyhow::{Context as _, Result, ensure};
     use regex::Regex;
 
     use super::ALL;
 
     #[test]
-    fn bot_command_definitions_fit_discord_limits() {
+    fn bot_command_definitions_fit_discord_limits() -> Result<()> {
         for bot in ALL {
             let mut names = HashSet::new();
 
             for command in bot.commands.responses {
-                assert!(
+                ensure!(
                     names.insert(command.name),
                     "{} defines the `{}` command more than once",
                     bot.name,
                     command.name
                 );
-                assert!(
+                ensure!(
                     command.name.len() <= 32,
                     "{} command name exceeds Discord's limit",
                     command.name
                 );
-                assert!(
+                ensure!(
                     command.description.len() <= 100,
                     "{} command description exceeds Discord's limit",
                     command.name
                 );
-                assert!(
+                ensure!(
                     command.fields.len() <= 25,
                     "{} command embed exceeds Discord's field limit",
                     command.name
                 );
             }
 
-            assert!(
+            ensure!(
                 bot.commands.responses.len() <= 25,
                 "{} help embed exceeds Discord's field limit",
                 bot.name
             );
-            assert!(!names.contains("help"));
-            assert!(!names.contains("resolved"));
+            ensure!(
+                !names.contains("help"),
+                "{} defines a reserved command",
+                bot.name
+            );
+            ensure!(
+                !names.contains("resolved"),
+                "{} defines a reserved command",
+                bot.name
+            );
             if bot.commands.latest.is_some() {
-                assert!(!names.contains("latest"));
+                ensure!(
+                    !names.contains("latest"),
+                    "{} defines a reserved command",
+                    bot.name
+                );
             }
 
             for pattern in bot.chatbot.ai.prompt_injection_patterns {
-                Regex::new(pattern).unwrap_or_else(|error| {
-                    panic!(
-                        "{} has an invalid prompt-injection pattern `{pattern}`: {error}",
+                Regex::new(pattern).with_context(|| {
+                    format!(
+                        "{} has an invalid prompt-injection pattern `{pattern}`",
                         bot.name
                     )
-                });
+                })?;
             }
             for paste_check in bot.checks.paste_checks {
-                Regex::new(paste_check.pattern).unwrap_or_else(|error| {
-                    panic!(
-                        "{} has an invalid paste pattern `{}`: {error}",
+                Regex::new(paste_check.pattern).with_context(|| {
+                    format!(
+                        "{} has an invalid paste pattern `{}`",
                         bot.name, paste_check.pattern
                     )
-                });
+                })?;
             }
         }
+        Ok(())
     }
 }
