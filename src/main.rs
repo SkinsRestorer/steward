@@ -10,7 +10,7 @@ mod state;
 
 use std::sync::Arc;
 
-use anyhow::{Context as _, Result};
+use anyhow::{Context as _, Result, anyhow};
 use futures::future::try_join_all;
 use state::SharedServices;
 use tracing_subscriber::EnvFilter;
@@ -23,7 +23,8 @@ async fn main() -> Result<()> {
             EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| EnvFilter::new("steward=info,warn")),
         )
-        .init();
+        .try_init()
+        .map_err(|error| anyhow!("failed to initialize tracing: {error}"))?;
 
     let services = Arc::new(
         SharedServices::load()

@@ -459,11 +459,9 @@ fn build_dump_embeds(
 }
 
 fn coerce_version(input: &str) -> Option<Version> {
-    static VERSION_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?")
-            .expect("version regex is valid")
-    });
-    let captures = VERSION_PATTERN.captures(input)?;
+    static VERSION_PATTERN: LazyLock<Result<Regex, regex::Error>> =
+        LazyLock::new(|| Regex::new(r"(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?"));
+    let captures = VERSION_PATTERN.as_ref().ok()?.captures(input)?;
     let major = captures.name("major")?.as_str();
     let minor = captures.name("minor")?.as_str();
     let patch = captures
