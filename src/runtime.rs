@@ -1,6 +1,6 @@
 use std::{env, sync::Arc};
 
-use anyhow::{Context as _, Result};
+use anyhow::{Context as _, Result, ensure};
 use poise::serenity_prelude as serenity;
 
 use crate::{
@@ -13,6 +13,12 @@ use crate::{
 pub async fn start_bot(bot: &'static BotDefinition, services: Arc<SharedServices>) -> Result<()> {
     let token = env::var(bot.token_env)
         .with_context(|| format!("{} must be configured for {}", bot.token_env, bot.name))?;
+    ensure!(
+        !token.trim().is_empty(),
+        "{} must be configured for {}",
+        bot.token_env,
+        bot.name
+    );
     let state = AppState::new(bot, services);
     let setup_state = state.clone();
     let framework = poise::Framework::builder()

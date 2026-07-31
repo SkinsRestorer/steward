@@ -46,7 +46,13 @@ struct Conversation {
     next_order: u64,
     pending: bool,
     reply_target: ReplyTarget,
-    scheduled: bool,
+    scheduled_order: Option<u64>,
+}
+
+struct GenerationRequest {
+    messages: Vec<ChatMessage>,
+    reply_target: ReplyTarget,
+    request_order: u64,
 }
 
 struct HistoryEntry {
@@ -75,19 +81,63 @@ impl ConversationHandle {
     fn new(reply_target: ReplyTarget) -> Self {
         Self {
             last_activity: AtomicU64::new(activity_tick()),
-            state: Mutex::new(Conversation {
-                generating: false,
-                messages: VecDeque::new(),
-                next_order: 0,
-                pending: false,
-                reply_target,
-                scheduled: false,
-            }),
+            state: Mutex::new(Conversation::new(reply_target)),
         }
     }
 
     fn touch(&self) {
         self.last_activity.store(activity_tick(), Ordering::Relaxed);
+    }
+}
+
+impl Conversation {
+    fn new(reply_target: ReplyTarget) -> Self {
+        Self {
+            generating: false,
+            messages: VecDeque::new(),
+            next_order: 0,
+            pending: false,
+            reply_target,
+            scheduled_order: None,
+        }
+    }
+
+    fn enqueue(&mut self, reply_target: ReplyTarget, content: Arc<str>) -> Option<u64> {
+        self.next_order = self.next_order.saturating_add(2);
+        let order = self.next_order;
+        self.messages.push_back(HistoryEntry {
+            message: ChatMessage::User(content),
+            order,
+        });
+        trim_history(&mut self.messages);
+        self.reply_target = reply_target;
+
+        if self.generating {
+            self.pending = true;
+            return None;
+        }
+
+        self.scheduled_order = Some(order);
+        Some(order)
+    }
+
+    fn begin_generation(&mut self, scheduled_order: u64) -> Option<GenerationRequest> {
+        if self.generating || self.scheduled_order != Some(scheduled_order) {
+            return None;
+        }
+
+        self.generating = true;
+        self.pending = false;
+        self.scheduled_order = None;
+        Some(GenerationRequest {
+            messages: self
+                .messages
+                .iter()
+                .map(|entry| entry.message.clone())
+                .collect(),
+            reply_target: self.reply_target,
+            request_order: self.messages.back().map_or(0, |entry| entry.order),
+        })
     }
 }
 
@@ -137,28 +187,12 @@ impl ChatbotService {
         };
 
         conversation.touch();
-        let should_schedule = {
+        let scheduled_order = {
             let mut state = conversation.state.lock().await;
-            state.next_order = state.next_order.saturating_add(2);
-            let order = state.next_order;
-            state.messages.push_back(HistoryEntry {
-                message: ChatMessage::User(content),
-                order,
-            });
-            trim_history(&mut state.messages);
-            state.reply_target = reply_target;
-            if state.generating {
-                state.pending = true;
-                false
-            } else if state.scheduled {
-                false
-            } else {
-                state.scheduled = true;
-                true
-            }
+            state.enqueue(reply_target, content)
         };
-        if should_schedule {
-            schedule_generation(ctx, data, conversation);
+        if let Some(scheduled_order) = scheduled_order {
+            schedule_generation(ctx, data, conversation, scheduled_order);
         }
         true
     }
@@ -224,32 +258,25 @@ fn schedule_generation(
     ctx: serenity::Context,
     data: AppState,
     conversation: Arc<ConversationHandle>,
+    scheduled_order: u64,
 ) {
     tokio::spawn(async move {
         tokio::time::sleep(GENERATION_DEBOUNCE).await;
-        let (messages, reply_target, request_order) = {
+        let Some(request) = ({
             let mut state = conversation.state.lock().await;
-            if state.generating || !state.scheduled {
-                return;
-            }
-            state.generating = true;
-            state.pending = false;
-            state.scheduled = false;
-            (
-                state
-                    .messages
-                    .iter()
-                    .map(|entry| entry.message.clone())
-                    .collect::<Vec<_>>(),
-                state.reply_target,
-                state.messages.back().map_or(0, |entry| entry.order),
-            )
+            state.begin_generation(scheduled_order)
+        }) else {
+            return;
         };
 
-        let _ = reply_target.channel.broadcast_typing(&ctx.http).await;
+        let _ = request
+            .reply_target
+            .channel
+            .broadcast_typing(&ctx.http)
+            .await;
         let ai = data.services.ai.clone();
         let generation = ai.generate_response(
-            &messages,
+            &request.messages,
             data.bot.chatbot.ai,
             data.bot.chatbot.max_response_length,
         );
@@ -260,13 +287,13 @@ fn schedule_generation(
             tokio::select! {
                 response = &mut generation => break response,
                 _ = typing_interval.tick() => {
-                    let _ = reply_target.channel.broadcast_typing(&ctx.http).await;
+                    let _ = request.reply_target.channel.broadcast_typing(&ctx.http).await;
                 }
             }
         };
 
         let assistant_message = match generated {
-            Ok(text) => match send_reply(&ctx, reply_target, &text, true).await {
+            Ok(text) => match send_reply(&ctx, request.reply_target, &text, true).await {
                 Ok(true) => Some(ChatMessage::Assistant(text.into())),
                 Ok(false) => None,
                 Err(error) => {
@@ -277,7 +304,7 @@ fn schedule_generation(
             Err(error) => {
                 tracing::error!(%error, bot = data.bot.id, "support response generation failed");
                 let fallback = data.bot.chatbot.generation_error_message;
-                match send_reply(&ctx, reply_target, fallback, true).await {
+                match send_reply(&ctx, request.reply_target, fallback, true).await {
                     Ok(true) => Some(ChatMessage::Assistant(Arc::from(fallback))),
                     Ok(false) => None,
                     Err(send_error) => {
@@ -288,23 +315,23 @@ fn schedule_generation(
             }
         };
 
-        let schedule_next = {
+        let next_scheduled_order = {
             let mut state = conversation.state.lock().await;
             if let Some(message) = assistant_message {
-                insert_reply(&mut state.messages, request_order, message);
+                insert_reply(&mut state.messages, request.request_order, message);
                 trim_history(&mut state.messages);
             }
             state.generating = false;
             if state.pending {
                 state.pending = false;
-                state.scheduled = true;
-                true
+                state.scheduled_order = Some(state.next_order);
+                Some(state.next_order)
             } else {
-                false
+                None
             }
         };
-        if schedule_next {
-            schedule_generation(ctx, data, conversation);
+        if let Some(next_scheduled_order) = next_scheduled_order {
+            schedule_generation(ctx, data, conversation, next_scheduled_order);
         }
     });
 }
@@ -429,9 +456,38 @@ mod tests {
     use anyhow::{Result, ensure};
 
     use super::{
-        HistoryEntry, MAX_HISTORY_BYTES, MAX_HISTORY_MESSAGES, insert_reply, trim_history,
+        Conversation, HistoryEntry, MAX_HISTORY_BYTES, MAX_HISTORY_MESSAGES, ReplyTarget,
+        insert_reply, trim_history,
     };
     use crate::ai::ChatMessage;
+    use poise::serenity_prelude as serenity;
+
+    fn reply_target(message: u64) -> ReplyTarget {
+        ReplyTarget {
+            author: serenity::UserId::new(1),
+            channel: serenity::ChannelId::new(2),
+            message: serenity::MessageId::new(message),
+        }
+    }
+
+    #[test]
+    fn debounces_generation_until_the_latest_message() -> Result<()> {
+        let mut conversation = Conversation::new(reply_target(1));
+        let first_order = conversation
+            .enqueue(reply_target(1), Arc::from("first"))
+            .ok_or_else(|| anyhow::anyhow!("first message was not scheduled"))?;
+        let latest_order = conversation
+            .enqueue(reply_target(2), Arc::from("second"))
+            .ok_or_else(|| anyhow::anyhow!("second message was not scheduled"))?;
+
+        ensure!(conversation.begin_generation(first_order).is_none());
+        let request = conversation
+            .begin_generation(latest_order)
+            .ok_or_else(|| anyhow::anyhow!("latest message was not scheduled"))?;
+        ensure!(request.messages.len() == 2);
+        ensure!(request.reply_target.message == serenity::MessageId::new(2));
+        Ok(())
+    }
 
     #[test]
     fn trims_complete_old_turns_to_the_history_limits() -> Result<()> {

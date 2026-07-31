@@ -30,8 +30,15 @@ pub async fn handle(
         None
     };
 
-    if let Some(found) = find_paste(message, data) {
-        handle_paste(ctx, data, message, found, latest_release.as_ref()).await?;
+    if let Some(found) = find_paste(message, data)
+        && let Err(error) = handle_paste(ctx, data, message, found, latest_release.as_ref()).await
+    {
+        tracing::error!(
+            %error,
+            bot = data.bot.id,
+            message_id = %message.id,
+            "paste analysis failed"
+        );
     }
     handle_images(ctx, data, message, latest_release.as_ref()).await
 }
@@ -131,7 +138,7 @@ async fn handle_images(
             .as_deref()
             .is_some_and(|content_type| IMAGE_TYPES.contains(&content_type))
     });
-    let mut recognized_any = false;
+    let mut recognized_texts = Vec::new();
 
     for attachment in attachments {
         if u64::from(attachment.size) > MAX_IMAGE_BYTES {
@@ -166,19 +173,22 @@ async fn handle_images(
             return Ok(());
         }
 
-        recognized_any = true;
+        recognized_texts.push(text);
+    }
+
+    for text in &recognized_texts {
         respond_to_text(
             ctx,
             data,
             message,
-            &text,
+            text,
             &format!("Sent by {}", message.author.name),
             latest_release,
         )
         .await?;
     }
 
-    if recognized_any {
+    if !recognized_texts.is_empty() {
         message
             .react(ctx, serenity::ReactionType::Unicode("👀".to_owned()))
             .await?;
