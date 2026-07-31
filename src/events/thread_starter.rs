@@ -8,6 +8,10 @@ pub async fn handle(
     data: &AppState,
     thread: &serenity::GuildChannel,
 ) -> Result<()> {
+    if thread.member.is_some() {
+        return Ok(());
+    }
+
     let Some(parent_id) = thread.parent_id else {
         return Ok(());
     };
