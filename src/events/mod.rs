@@ -4,6 +4,7 @@ mod checks;
 pub(crate) mod logging;
 mod message_replies;
 mod no_ping;
+mod paste;
 mod thread_starter;
 
 use poise::serenity_prelude as serenity;
@@ -58,9 +59,17 @@ async fn handle_message(ctx: &serenity::Context, data: &AppState, message: &sere
         })
     });
 
+    let chatbot_channel = chatbot::supports_channel(data.bot, channel_name.as_deref());
     let log_result = logging::handle(data, message, channel_name.as_deref());
+    let upload = async {
+        if chatbot_channel {
+            Ok(())
+        } else {
+            autoupload::handle(ctx, data, message).await
+        }
+    };
     let (upload_result, chatbot_result, checks_result, replies_result, no_ping_result) = tokio::join!(
-        autoupload::handle(ctx, data, message),
+        upload,
         chatbot::handle(ctx, data, message, channel_name.as_deref()),
         checks::handle(ctx, data, message),
         message_replies::handle(ctx, data, message),

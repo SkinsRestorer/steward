@@ -9,15 +9,12 @@ use unicode_normalization::UnicodeNormalization as _;
 
 use crate::{download, releases::LatestRelease, state::AppState};
 
+use super::paste::{self, PasteLink};
+
 const IMAGE_TYPES: &[&str] = &["image/png", "image/jpeg", "image/webp"];
 const MAX_IMAGE_BYTES: u64 = 20 * 1024 * 1024;
 const MAX_PASTE_BYTES: usize = 20 * 1024 * 1024;
 const MAX_PRETTY_DUMP_BYTES: usize = 20 * 1024 * 1024;
-
-struct PasteMatch {
-    raw_url: String,
-    original_url: String,
-}
 
 pub async fn handle(
     ctx: &serenity::Context,
@@ -30,7 +27,7 @@ pub async fn handle(
         None
     };
 
-    if let Some(found) = find_paste(message, data)
+    if let Some(found) = paste::find_all(message, data).into_iter().next()
         && let Err(error) = handle_paste(ctx, data, message, found, latest_release.as_ref()).await
     {
         tracing::error!(
@@ -43,43 +40,11 @@ pub async fn handle(
     handle_images(ctx, data, message, latest_release.as_ref()).await
 }
 
-fn find_paste(message: &serenity::Message, data: &AppState) -> Option<PasteMatch> {
-    let embed_fields = message
-        .embeds
-        .iter()
-        .flat_map(|embed| embed.fields.iter().map(|field| field.value.as_str()));
-
-    for (check, regex) in data
-        .bot
-        .checks
-        .paste_checks
-        .iter()
-        .zip(data.services.patterns.paste_patterns(data.bot))
-    {
-        for content in std::iter::once(message.content.as_str()).chain(embed_fields.clone()) {
-            let Some(captures) = regex.captures(content) else {
-                continue;
-            };
-            let Some(code) = captures.get(1) else {
-                continue;
-            };
-            let Some(original_url) = captures.get(0) else {
-                continue;
-            };
-            return Some(PasteMatch {
-                raw_url: check.raw_url.replace("{code}", code.as_str()),
-                original_url: original_url.as_str().to_owned(),
-            });
-        }
-    }
-    None
-}
-
 async fn handle_paste(
     ctx: &serenity::Context,
     data: &AppState,
     message: &serenity::Message,
-    found: PasteMatch,
+    found: PasteLink,
     latest_release: Option<&LatestRelease>,
 ) -> Result<()> {
     tracing::info!(url = %found.raw_url, "fetching paste");
