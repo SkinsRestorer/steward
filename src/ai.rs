@@ -11,9 +11,8 @@ use chrono::Utc;
 use chrono_tz::Europe::Berlin;
 use futures::future::try_join_all;
 use reqwest::header::{ACCEPT, ACCEPT_ENCODING, CONTENT_TYPE, HeaderMap, HeaderValue};
-use rig_core::{
-    client::CompletionClient as _, completion::Message, providers::deepseek, tool::Tool,
-};
+use rig_agent::client::AgentClientExt as _;
+use rig_core::{completion::Message, providers::deepseek, tool::PortableTool};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use thiserror::Error;
@@ -407,7 +406,7 @@ struct BraveResult {
     url: Option<String>,
 }
 
-impl Tool for BraveSearch {
+impl PortableTool for BraveSearch {
     const NAME: &'static str = "search_web";
 
     type Error = BraveSearchError;
