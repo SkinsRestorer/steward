@@ -345,7 +345,7 @@ async fn analyze_dump(
         ctx,
         message,
         serenity::CreateMessage::new()
-            .content(format!("Found the following for: `{footer}`"))
+            .content(format!("Analysis for `{footer}`:"))
             .embeds(embeds)
             .add_file(serenity::CreateAttachment::bytes(pretty_dump, "dump.json")),
     )
@@ -368,10 +368,10 @@ fn build_dump_embeds(
     {
         embeds.push(
             serenity::CreateEmbed::new()
-                .title("Important: Outdated SkinsRestorer Version!")
+                .title("Update SkinsRestorer")
                 .colour(0xED_42_45)
                 .description(format!(
-                    "The SkinsRestorer version you're using (`{version}`) is outdated! Please update to the latest version: `{latest_version}`"
+                    "SkinsRestorer `{version}` is outdated. Update to `{latest_version}`."
                 ))
                 .field(
                     " ",
@@ -385,10 +385,10 @@ fn build_dump_embeds(
 
     embeds.push(
         serenity::CreateEmbed::new()
-            .title("Info: Build")
+            .title("Build")
             .colour(0x58_65_F2)
             .description(format!(
-                "You are running version `{version_display}` of SkinsRestorer, built on `{}`.",
+                "SkinsRestorer version: `{version_display}`\nBuild date: `{}`",
                 dump.build.build_time
             )),
     );
@@ -399,29 +399,29 @@ fn build_dump_embeds(
     {
         embeds.push(
             serenity::CreateEmbed::new()
-                .title("Info: Docker detected")
+                .title("Docker environment")
                 .colour(0x58_65_F2)
                 .description(
-                    "We detected you are running SkinsRestorer in a Docker container and likely using a panel like Pterodactyl/Pelican. This is not an error, but we need to know this to better help you.",
+                    "The dump shows a Docker container, possibly managed by Pterodactyl or Pelican. Include this detail in support requests.",
                 ),
         );
     }
 
     embeds.push(
         serenity::CreateEmbed::new()
-            .title("Info: OS/Java")
+            .title("Operating system and Java")
             .colour(0x58_65_F2)
             .description(format!(
-                "We detected you are running SkinsRestorer on `{}` with arch `{}` and Java `{}`",
+                "Operating system: `{}`\nArchitecture: `{}`\nJava: `{}`",
                 dump.os.name, dump.os.arch, dump.java.version
             )),
     );
     embeds.push(
         serenity::CreateEmbed::new()
-            .title("Info: Platform/Environment")
+            .title("Server platform")
             .colour(0x58_65_F2)
             .description(format!(
-                "The dump is from the platform `{}` (`{}` & `{}`) with version `{}` and `{}` plugins.",
+                "Platform: `{}`\nEnvironment: `{}` / `{}`\nVersion: `{}`\nPlugins: `{}`",
                 dump.platform.platform_name,
                 dump.environment.platform,
                 dump.environment.platform_type,
@@ -432,19 +432,19 @@ fn build_dump_embeds(
     if dump.environment.hybrid {
         embeds.push(
             serenity::CreateEmbed::new()
-                .title("Warning: Hybrid detected!")
+                .title("Unsupported hybrid platform")
                 .colour(0xED_42_45)
                 .description(
-                    "The platform appears to be a hybrid platform, mixing mods with plugins. This is not supported and may cause issues.",
+                    "This platform mixes mods and plugins. SkinsRestorer does not support hybrid platforms because they can cause compatibility problems.",
                 ),
         );
     }
     embeds.push(
         serenity::CreateEmbed::new()
-            .title("Info: Plugin")
+            .title("Plugin configuration")
             .colour(0x58_65_F2)
             .description(format!(
-                "You are in proxy mode: `{}`, debug enabled: `{}`",
+                "Proxy mode: `{}`\nDebug mode: `{}`",
                 dump.plugin.proxy_mode, dump.plugin.config_data.dev.debug
             )),
     );

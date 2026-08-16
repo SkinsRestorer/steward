@@ -22,9 +22,9 @@ pub async fn handle(
             ctx,
             message,
             serenity::CreateEmbed::new()
-                .title("It looks like you're trying to spell SkinsRestorer!")
+                .title("The name is SkinsRestorer")
                 .description(
-                    "A useful tip to remember how to spell it is that we restore __many__ **SKINS**, not just one **SKIN**!",
+                    "Remember that SkinsRestorer restores many **skins**, so `Skins` is plural.",
                 )
                 .colour(data.bot.accent_color)
                 .thumbnail("https://skinsrestorer.net/logo.png"),
@@ -37,9 +37,9 @@ pub async fn handle(
             ctx,
             message,
             serenity::CreateEmbed::new()
-                .title("Not in Discord you fool! Run it in the server 😄")
+                .title("Run this command on the Minecraft server")
                 .description(
-                    "This is a server command, you run it in the server console or in the in-game chat, not in Discord!",
+                    "Run this command in the server console or in-game chat. Discord cannot run server commands.",
                 )
                 .colour(data.bot.accent_color),
         )

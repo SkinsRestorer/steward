@@ -180,12 +180,12 @@ async fn send_help(ctx: Context<'_>, target: serenity::Message) -> Result<(), Er
         &custom_id,
         serenity::CreateSelectMenuKind::String { options },
     )
-    .placeholder("Choose a help type!");
+    .placeholder("Select a help topic");
     let handle = ctx
         .send(
             CreateReply::default()
                 .ephemeral(true)
-                .content("Please select a help type!")
+                .content("Select a help topic.")
                 .components(vec![serenity::CreateActionRow::SelectMenu(menu)]),
         )
         .await?;
@@ -245,7 +245,7 @@ async fn send_help(ctx: Context<'_>, target: serenity::Message) -> Result<(), Er
                     ctx,
                     CreateReply::default()
                         .content(
-                            "Failed to send the help message. Please check my permissions and try again.",
+                            "The help message failed to send. Make sure that I can send messages in this channel.",
                         )
                         .components(Vec::new()),
                 )
@@ -366,8 +366,7 @@ async fn reply_with_ai(ctx: Context<'_>, target: serenity::Message) -> Result<()
         }
         Err(error) => {
             tracing::error!(%error, "failed to generate context-menu AI reply");
-            ctx.say("Failed to generate a reply. Please try again later.")
-                .await?;
+            ctx.say("Reply generation failed. Try again later.").await?;
         }
     }
 
