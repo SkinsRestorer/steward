@@ -13,14 +13,14 @@ chrono-tz = "0.10.4"
 dotenvy = "0.15.7"
 futures = "0.3.31"
 image = { version = "0.25.9", default-features = false, features = ["jpeg", "png", "webp"] }
-ocrs = "0.12.2"
+ocrs = "0.13.0"
 poise = "0.6.2"
 regex = "1.12.2"
 reqwest = { version = "0.13.4", default-features = false, features = ["brotli", "gzip", "http2", "json", "rustls", "stream"] }
-rig-agent = { version = "0.41.0", default-features = false }
-rig-core = "0.41.0"
+rig-agent = { version = "0.42.0", default-features = false }
+rig-core = "0.42.0"
 roxmltree = "0.21.1"
-rten = { version = "0.24.0", default-features = false, features = ["rten_format"] }
+rten = { version = "0.26.0", default-features = false, features = ["rten_format"] }
 semver = "1.0.28"
 serde = { version = "1.0.228", features = ["derive"] }
 serde-transcode = "1.1.1"
