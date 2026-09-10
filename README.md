@@ -67,6 +67,27 @@ not need a Railpack configuration file, Dockerfile, or Compose file.
 Configure the environment variables above in the deployment service and deploy
 the repository root.
 
+## Run the published image
+
+Pushes to `main` build a release image with Railpack and publish it to
+`ghcr.io/skinsrestorer/steward`. Each build publishes three tags:
+
+- `latest`: the latest published build from `main`
+- `main`: the latest published build from `main`
+- `sha-<12-character-commit-sha>`: the build for a specific commit
+
+The workflow uses the `blacksmith-4vcpu-ubuntu-2404` runner and authenticates
+with `GITHUB_TOKEN`, with `packages: write` permission.
+
+Put the required environment variables in a local `.env` file. Then run:
+
+```bash
+docker run -d --name steward --restart unless-stopped \
+  --env-file .env ghcr.io/skinsrestorer/steward:latest
+```
+
+The image includes the OCR models. No model volume is required.
+
 ## Add or change a bot
 
 Edit the matching file in [`src/bots`](src/bots). Add a new definition to
