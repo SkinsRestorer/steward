@@ -29,7 +29,7 @@ Run the bot in release mode when evaluating OCR performance.
 - `src/bots/` contains the static definition for each Discord bot.
 - `src/events/` contains message and gateway event behavior.
 - `src/commands.rs` builds Poise application commands.
-- `src/ai.rs` owns DeepSeek generation and Brave Search integration.
+- `src/ai.rs` owns OpenRouter generation and Brave Search integration.
 - `src/ocr.rs` owns the embedded Ocrs model runtime.
 - `src/releases.rs` owns release metadata caching.
 

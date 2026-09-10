@@ -14,7 +14,7 @@ support links.
 - Discord applications with the Message Content and Server Members privileged
   intents enabled
 - A token for each configured bot
-- DeepSeek and Brave Search API keys for AI support replies
+- OpenRouter and Brave Search API keys for AI support replies
 
 ## Configuration
 
@@ -25,12 +25,19 @@ deployment environment:
 | --- | --- |
 | `DISCORD_TOKEN_STEWARD` | Discord token for Steward |
 | `DISCORD_TOKEN_JARVIS` | Discord token for Jarvis |
-| `DEEPSEEK_API_KEY` | DeepSeek access for support answers |
+| `OPENROUTER_API_KEY` | OpenRouter access for support answers |
 | `BRAVE_SEARCH_API_KEY` | Current web context for support answers |
 | `RUST_LOG` | Optional log filter, such as `steward=debug,info` |
 
 Both Discord tokens and both AI keys are required at startup because the
 process initializes shared clients before starting either bot.
+
+Both bots use [`deepseek/deepseek-v4-pro`](https://openrouter.ai/deepseek/deepseek-v4-pro)
+through OpenRouter. To change the model, edit `AiConfig.model` in the matching
+bot definition. Choose an OpenRouter model that supports tool calling for Brave Search.
+
+When migrating from direct DeepSeek access, replace `DEEPSEEK_API_KEY` with
+`OPENROUTER_API_KEY` and use an OpenRouter API key.
 
 ## Run locally
 

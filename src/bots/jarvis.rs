@@ -25,7 +25,7 @@ const AI: AiConfig = AiConfig {
 - Use the provided SoulFire docs context and search official sources before answering.\n\
 - Only support legitimate testing, automation, and development on servers the user owns or has permission to test.",
     docs_context_urls: &["https://soulfiremc.com/llms-full.txt"],
-    model: "deepseek-v4-pro",
+    model: "deepseek/deepseek-v4-pro",
     prompt_injection_patterns: PROMPT_INJECTION_PATTERNS,
     response_disclaimer: concat!(
         "-# The AI responses here might contain misinformation. Use the [Support GPT](",

@@ -12,7 +12,7 @@ use chrono_tz::Europe::Berlin;
 use futures::future::try_join_all;
 use reqwest::header::{ACCEPT, ACCEPT_ENCODING, CONTENT_TYPE, HeaderMap, HeaderValue};
 use rig_agent::client::AgentClientExt as _;
-use rig_core::{completion::Message, providers::deepseek, tool::PortableTool};
+use rig_core::{completion::Message, providers::openrouter, tool::PortableTool};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use thiserror::Error;
@@ -55,7 +55,7 @@ type DocsRefreshLocks = Arc<Mutex<HashMap<&'static str, Arc<Mutex<()>>>>>;
 #[derive(Clone)]
 pub struct AiService {
     client: reqwest::Client,
-    deepseek: deepseek::Client,
+    openrouter: openrouter::Client,
     docs_cache: Arc<RwLock<HashMap<&'static str, CachedDocsContext>>>,
     docs_refresh_locks: DocsRefreshLocks,
     generation_permits: Arc<Semaphore>,
@@ -64,22 +64,22 @@ pub struct AiService {
 
 impl AiService {
     pub fn new(client: reqwest::Client) -> Result<Self> {
-        let deepseek_api_key =
-            env::var("DEEPSEEK_API_KEY").context("DEEPSEEK_API_KEY must be configured")?;
+        let openrouter_api_key =
+            env::var("OPENROUTER_API_KEY").context("OPENROUTER_API_KEY must be configured")?;
         let search_api_key =
             env::var("BRAVE_SEARCH_API_KEY").context("BRAVE_SEARCH_API_KEY must be configured")?;
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        let deepseek = deepseek::Client::builder()
-            .api_key(&deepseek_api_key)
+        let openrouter = openrouter::Client::builder()
+            .api_key(&openrouter_api_key)
             .http_client(client.clone())
             .http_headers(headers)
             .build()
-            .context("failed to initialize DeepSeek client")?;
+            .context("failed to initialize OpenRouter client")?;
 
         Ok(Self {
             client,
-            deepseek,
+            openrouter,
             docs_cache: Arc::new(RwLock::new(HashMap::new())),
             docs_refresh_locks: Arc::new(Mutex::new(HashMap::new())),
             generation_permits: Arc::new(Semaphore::new(MAX_CONCURRENT_GENERATIONS)),
@@ -124,7 +124,7 @@ impl AiService {
             max_context_tokens: config.web_search_max_tokens,
         };
         let agent = self
-            .deepseek
+            .openrouter
             .agent(config.model)
             .preamble(config.system_prompt)
             .max_tokens(DEFAULT_MAX_OUTPUT_TOKENS)
@@ -162,18 +162,18 @@ impl AiService {
             .max_turns(5)
             .run()
             .await
-            .context("DeepSeek agent run failed")?;
+            .context("OpenRouter agent run failed")?;
 
         info!(
             input = result.usage.input_tokens,
             cache_read = result.usage.cached_input_tokens,
             output = result.usage.output_tokens,
             total = result.usage.total_tokens,
-            "DeepSeek usage"
+            "OpenRouter usage"
         );
 
         if result.output.trim().is_empty() {
-            bail!("DeepSeek returned an empty response");
+            bail!("OpenRouter returned an empty response");
         }
 
         Ok(append_response_disclaimer(
