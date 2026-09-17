@@ -7,6 +7,7 @@ use serenity::Mentionable as _;
 use crate::{
     ai::ChatMessage,
     config::{BotDefinition, StaticCommand},
+    events::chatbot::collect_images,
     state::{Context, Error},
 };
 
@@ -307,11 +308,12 @@ async fn reply_with_ai(ctx: Context<'_>, target: serenity::Message) -> Result<()
     }
 
     let prompt = target.content.trim();
-    if prompt.is_empty() {
+    let images = collect_images(&target.attachments);
+    if prompt.is_empty() && images.is_empty() {
         ctx.send(
             CreateReply::default()
                 .ephemeral(true)
-                .content("The selected message has no text to reply to."),
+                .content("The selected message has no text or supported images to reply to."),
         )
         .await?;
         return Ok(());
@@ -331,7 +333,7 @@ async fn reply_with_ai(ctx: Context<'_>, target: serenity::Message) -> Result<()
         .services
         .ai
         .generate_response(
-            &[ChatMessage::User(request.into())],
+            &[ChatMessage::User(request.into(), images)],
             ctx.data().bot.chatbot.ai,
             1_300,
         )

@@ -25,6 +25,10 @@ const MAX_CONCURRENT_SOURCE_FETCHES: usize = 4;
 const MAX_CONTEXTS: usize = 2_048;
 const MAX_HISTORY_BYTES: usize = 16 * 1024;
 const MAX_HISTORY_MESSAGES: usize = 24;
+const MAX_HISTORY_IMAGES: usize = 10;
+const MAX_MESSAGE_IMAGES: usize = 4;
+const MAX_IMAGE_BYTES: u32 = 20 * 1024 * 1024;
+const MAX_IMAGE_URL_BYTES: usize = 2_048;
 const MAX_PASTE_SOURCES: usize = 4;
 const MAX_SOURCE_BYTES: usize = 4 * 1024 * 1024;
 const MAX_SOURCE_LABEL_BYTES: usize = 256;
@@ -156,11 +160,16 @@ impl Conversation {
         }
     }
 
-    fn enqueue(&mut self, reply_target: ReplyTarget, content: Arc<str>) -> Option<u64> {
+    fn enqueue(
+        &mut self,
+        reply_target: ReplyTarget,
+        content: Arc<str>,
+        images: Vec<Arc<str>>,
+    ) -> Option<u64> {
         self.next_order = self.next_order.saturating_add(2);
         let order = self.next_order;
         self.messages.push_back(HistoryEntry {
-            message: ChatMessage::User(content),
+            message: ChatMessage::User(content, images),
             order,
         });
         trim_history(&mut self.messages);
@@ -214,6 +223,7 @@ impl ChatbotService {
         data: AppState,
         reply_target: ReplyTarget,
         content: Arc<str>,
+        images: Vec<Arc<str>>,
     ) -> bool {
         let key = ConversationKey {
             bot: data.bot.id,
@@ -243,7 +253,7 @@ impl ChatbotService {
         conversation.touch();
         let scheduled_order = {
             let mut state = conversation.state.lock().await;
-            state.enqueue(reply_target, content)
+            state.enqueue(reply_target, content, images)
         };
         if let Some(scheduled_order) = scheduled_order {
             schedule_generation(ctx, data, conversation, scheduled_order);
@@ -279,8 +289,14 @@ pub async fn handle(
     }
 
     let sources = collect_sources(data, message).await;
-    let content = build_message_content(message, &sources);
-    if content.is_empty() {
+    let images = collect_images(&message.attachments);
+    let image_url_bytes = images.iter().map(|url| url.len()).sum::<usize>();
+    let content = build_content(
+        message.content.trim(),
+        &sources,
+        MAX_HISTORY_BYTES - image_url_bytes,
+    );
+    if content.is_empty() && images.is_empty() {
         return Ok(());
     }
     if data
@@ -301,7 +317,13 @@ pub async fn handle(
     let queued = data
         .services
         .chatbot
-        .queue(ctx.clone(), data.clone(), reply_target, Arc::from(content))
+        .queue(
+            ctx.clone(),
+            data.clone(),
+            reply_target,
+            Arc::from(content),
+            images,
+        )
         .await;
     if !queued {
         send_reply(
@@ -417,8 +439,37 @@ fn is_text_filename(filename: &str) -> bool {
     })
 }
 
-fn build_message_content(message: &serenity::Message, sources: &[SourceContent]) -> String {
-    build_content(message.content.trim(), sources, MAX_HISTORY_BYTES)
+pub(crate) fn collect_images(attachments: &[serenity::Attachment]) -> Vec<Arc<str>> {
+    attachments
+        .iter()
+        .filter(|attachment| {
+            let supported = attachment.content_type.as_deref().map_or_else(
+                || {
+                    attachment
+                        .filename
+                        .rsplit_once('.')
+                        .is_some_and(|(_, extension)| {
+                            matches!(
+                                extension.to_ascii_lowercase().as_str(),
+                                "png" | "jpg" | "jpeg" | "webp" | "gif"
+                            )
+                        })
+                },
+                |content_type| {
+                    matches!(
+                        content_type.split(';').next().unwrap_or_default().trim(),
+                        "image/png" | "image/jpeg" | "image/webp" | "image/gif"
+                    )
+                },
+            );
+            supported
+                && attachment.size <= MAX_IMAGE_BYTES
+                && !attachment.url.is_empty()
+                && attachment.url.len() <= MAX_IMAGE_URL_BYTES
+        })
+        .take(MAX_MESSAGE_IMAGES)
+        .map(|attachment| Arc::from(attachment.url.as_str()))
+        .collect()
 }
 
 fn build_content(user_message: &str, sources: &[SourceContent], max_bytes: usize) -> String {
@@ -613,11 +664,19 @@ fn trim_history(messages: &mut VecDeque<HistoryEntry>) {
         .iter()
         .map(|entry| entry.message.len())
         .sum::<usize>();
-    while messages.len() > MAX_HISTORY_MESSAGES || total_bytes > MAX_HISTORY_BYTES {
+    let mut total_images = messages
+        .iter()
+        .map(|entry| entry.message.image_count())
+        .sum::<usize>();
+    while messages.len() > MAX_HISTORY_MESSAGES
+        || total_bytes > MAX_HISTORY_BYTES
+        || total_images > MAX_HISTORY_IMAGES
+    {
         let Some(removed) = messages.pop_front() else {
             break;
         };
         total_bytes = total_bytes.saturating_sub(removed.message.len());
+        total_images = total_images.saturating_sub(removed.message.image_count());
 
         while matches!(
             messages.front(),
@@ -729,13 +788,95 @@ mod tests {
     }
 
     #[test]
+    fn filters_and_limits_image_attachments() -> Result<()> {
+        let mut attachment: serenity::Attachment = serde_json::from_value(serde_json::json!({
+            "id": "1", "filename": "screen.PNG", "size": 1024,
+            "url": "https://cdn.discordapp.com/attachments/1/2/screen.png?ex=123&hm=abc",
+            "proxy_url": "https://media.discordapp.net/attachments/1/2/screen.png"
+        }))?;
+        for content_type in [
+            None,
+            Some("image/png"),
+            Some("image/jpeg"),
+            Some("image/webp"),
+            Some("image/gif"),
+        ] {
+            attachment.content_type = content_type.map(str::to_owned);
+            ensure!(
+                super::collect_images(&[attachment.clone()])
+                    == vec![Arc::<str>::from(attachment.url.as_str())]
+            );
+        }
+        attachment.content_type = Some("application/zip".to_owned());
+        ensure!(super::collect_images(&[attachment.clone()]).is_empty());
+        attachment.content_type = Some("image/png".to_owned());
+        attachment.size = super::MAX_IMAGE_BYTES + 1;
+        ensure!(super::collect_images(&[attachment.clone()]).is_empty());
+        attachment.size = super::MAX_IMAGE_BYTES;
+        ensure!(
+            super::collect_images(&vec![attachment.clone(); super::MAX_MESSAGE_IMAGES + 1]).len()
+                == super::MAX_MESSAGE_IMAGES
+        );
+        attachment.url = "x".repeat(super::MAX_IMAGE_URL_BYTES + 1);
+        ensure!(super::collect_images(&[attachment]).is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn retains_recent_images_and_trims_old_image_turns() -> Result<()> {
+        let mut conversation = Conversation::new(reply_target(1));
+        for message in 1..=3 {
+            conversation.enqueue(
+                reply_target(message),
+                Arc::from(""),
+                vec![Arc::from("https://example.com/image.png"); super::MAX_MESSAGE_IMAGES],
+            );
+            let order = conversation.next_order;
+            insert_reply(
+                &mut conversation.messages,
+                order,
+                ChatMessage::Assistant(Arc::from("reply")),
+            );
+        }
+        ensure!(
+            conversation
+                .messages
+                .front()
+                .is_some_and(|entry| entry.order == 4)
+        );
+        ensure!(
+            conversation
+                .messages
+                .iter()
+                .map(|entry| entry.message.image_count())
+                .sum::<usize>()
+                <= super::MAX_HISTORY_IMAGES
+        );
+        let scheduled = conversation
+            .enqueue(reply_target(4), Arc::from("What should I change?"), vec![])
+            .ok_or_else(|| anyhow::anyhow!("follow-up was not scheduled"))?;
+        let request = conversation
+            .begin_generation(scheduled)
+            .ok_or_else(|| anyhow::anyhow!("follow-up was not generated"))?;
+        ensure!(
+            request
+                .messages
+                .iter()
+                .map(ChatMessage::image_count)
+                .sum::<usize>()
+                == 2 * super::MAX_MESSAGE_IMAGES
+        );
+        Ok(())
+    }
+
+    #[test]
     fn debounces_generation_until_the_latest_message() -> Result<()> {
         let mut conversation = Conversation::new(reply_target(1));
         let first_order = conversation
-            .enqueue(reply_target(1), Arc::from("first"))
+            .enqueue(reply_target(1), Arc::from("first"), vec![])
             .ok_or_else(|| anyhow::anyhow!("first message was not scheduled"))?;
         let latest_order = conversation
-            .enqueue(reply_target(2), Arc::from("second"))
+            .enqueue(reply_target(2), Arc::from("second"), vec![])
             .ok_or_else(|| anyhow::anyhow!("second message was not scheduled"))?;
 
         ensure!(conversation.begin_generation(first_order).is_none());
@@ -752,10 +893,10 @@ mod tests {
         let mut messages = VecDeque::new();
         for index in 0..40 {
             messages.push_back(HistoryEntry {
-                message: ChatMessage::User(Arc::from(format!(
-                    "question {index} {}",
-                    "x".repeat(1_000)
-                ))),
+                message: ChatMessage::User(
+                    Arc::from(format!("question {index} {}", "x".repeat(1_000))),
+                    vec![],
+                ),
                 order: index * 2,
             });
             messages.push_back(HistoryEntry {
@@ -777,7 +918,7 @@ mod tests {
         ensure!(matches!(
             messages.front(),
             Some(HistoryEntry {
-                message: ChatMessage::User(_),
+                message: ChatMessage::User(_, _),
                 ..
             })
         ));
@@ -788,11 +929,11 @@ mod tests {
     fn inserts_a_reply_before_messages_queued_during_generation() -> Result<()> {
         let mut messages = VecDeque::from([
             HistoryEntry {
-                message: ChatMessage::User(Arc::from("first")),
+                message: ChatMessage::User(Arc::from("first"), vec![]),
                 order: 2,
             },
             HistoryEntry {
-                message: ChatMessage::User(Arc::from("queued later")),
+                message: ChatMessage::User(Arc::from("queued later"), vec![]),
                 order: 4,
             },
         ]);
@@ -812,7 +953,7 @@ mod tests {
     #[test]
     fn omits_a_reply_when_its_request_was_trimmed() -> Result<()> {
         let mut messages = VecDeque::from([HistoryEntry {
-            message: ChatMessage::User(Arc::from("queued later")),
+            message: ChatMessage::User(Arc::from("queued later"), vec![]),
             order: 4,
         }]);
 
@@ -826,7 +967,7 @@ mod tests {
         ensure!(matches!(
             messages.front(),
             Some(HistoryEntry {
-                message: ChatMessage::User(_),
+                message: ChatMessage::User(_, _),
                 ..
             })
         ));
