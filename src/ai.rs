@@ -1,3 +1,7 @@
+mod compaction;
+
+pub use compaction::ConversationSummary;
+
 use std::{
     collections::HashMap,
     env,
@@ -57,7 +61,7 @@ impl ChatMessage {
         }
     }
 
-    fn to_message(&self) -> Option<Message> {
+    pub(crate) fn to_message(&self) -> Option<Message> {
         match self {
             Self::User(text, images) if !text.trim().is_empty() || !images.is_empty() => {
                 let mut content = vec![UserContent::text(wrap_user_message(text.trim()))];
@@ -122,6 +126,7 @@ impl AiService {
     pub async fn generate_response(
         &self,
         messages: &[ChatMessage],
+        summary: Option<&ConversationSummary>,
         config: &'static AiConfig,
         max_length: usize,
     ) -> Result<String> {
@@ -132,7 +137,7 @@ impl AiService {
                 .context("support response queue is closed")?;
         let result = tokio::time::timeout(
             GENERATION_TIMEOUT,
-            self.generate_response_inner(messages, config, max_length),
+            self.generate_response_inner(messages, summary, config, max_length),
         )
         .await
         .context("support response generation timed out")?;
@@ -143,6 +148,7 @@ impl AiService {
     async fn generate_response_inner(
         &self,
         messages: &[ChatMessage],
+        summary: Option<&ConversationSummary>,
         config: &'static AiConfig,
         max_length: usize,
     ) -> Result<String> {
@@ -168,6 +174,10 @@ impl AiService {
             conversation.push(Message::user(docs_context));
         }
         conversation.push(Message::user(build_request_context()));
+
+        if let Some(summary) = summary {
+            conversation.push(summary.clone().into());
+        }
 
         conversation.extend(messages.iter().filter_map(ChatMessage::to_message));
 

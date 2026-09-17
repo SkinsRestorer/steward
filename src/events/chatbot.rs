@@ -10,10 +10,16 @@ use std::{
 use anyhow::{Context as _, Result};
 use futures::{StreamExt as _, stream};
 use poise::serenity_prelude as serenity;
+use rig_core::memory::Compactor;
 use serenity::Mentionable as _;
 use tokio::sync::Mutex;
 
-use crate::{ai::ChatMessage, config::BotDefinition, download, state::AppState};
+use crate::{
+    ai::{ChatMessage, ConversationSummary},
+    config::BotDefinition,
+    download,
+    state::AppState,
+};
 
 use super::paste;
 
@@ -26,6 +32,22 @@ const MAX_CONTEXTS: usize = 2_048;
 const MAX_HISTORY_BYTES: usize = 16 * 1024;
 const MAX_HISTORY_MESSAGES: usize = 24;
 const MAX_HISTORY_IMAGES: usize = 10;
+const ACTIVE_HISTORY: HistoryLimits = HistoryLimits {
+    bytes: MAX_HISTORY_BYTES,
+    messages: MAX_HISTORY_MESSAGES,
+    images: MAX_HISTORY_IMAGES,
+};
+const RECENT_HISTORY: HistoryLimits = HistoryLimits {
+    bytes: MAX_HISTORY_BYTES / 2,
+    messages: MAX_HISTORY_MESSAGES / 2,
+    images: MAX_HISTORY_IMAGES / 2,
+};
+// Bound queued turns and retries even when the model is unavailable.
+const BUFFERED_HISTORY: HistoryLimits = HistoryLimits {
+    bytes: MAX_HISTORY_BYTES * 4,
+    messages: MAX_HISTORY_MESSAGES * 4,
+    images: MAX_HISTORY_IMAGES * 4,
+};
 const MAX_MESSAGE_IMAGES: usize = 4;
 const MAX_IMAGE_BYTES: u32 = 20 * 1024 * 1024;
 const MAX_IMAGE_URL_BYTES: usize = 2_048;
@@ -94,12 +116,27 @@ struct Conversation {
     pending: bool,
     reply_target: ReplyTarget,
     scheduled_order: Option<u64>,
+    summary: Option<ConversationSummary>,
 }
 
 struct GenerationRequest {
     messages: Vec<ChatMessage>,
     reply_target: ReplyTarget,
     request_order: u64,
+    summary: Option<ConversationSummary>,
+    compaction: Option<CompactionPlan>,
+}
+
+struct CompactionPlan {
+    messages: Vec<ChatMessage>,
+    through_order: u64,
+}
+
+#[derive(Clone, Copy)]
+struct HistoryLimits {
+    bytes: usize,
+    messages: usize,
+    images: usize,
 }
 
 struct HistoryEntry {
@@ -157,6 +194,7 @@ impl Conversation {
             pending: false,
             reply_target,
             scheduled_order: None,
+            summary: None,
         }
     }
 
@@ -192,15 +230,43 @@ impl Conversation {
         self.generating = true;
         self.pending = false;
         self.scheduled_order = None;
+        let compact_count = if history_prefix_len(&self.messages, ACTIVE_HISTORY) > 0 {
+            history_prefix_len(&self.messages, RECENT_HISTORY)
+        } else {
+            0
+        };
+        let compaction = compact_count.checked_sub(1).map(|last| CompactionPlan {
+            messages: self
+                .messages
+                .iter()
+                .take(compact_count)
+                .map(|entry| entry.message.clone())
+                .collect(),
+            through_order: self.messages[last].order,
+        });
         Some(GenerationRequest {
             messages: self
                 .messages
                 .iter()
+                .skip(compact_count)
                 .map(|entry| entry.message.clone())
                 .collect(),
             reply_target: self.reply_target,
             request_order: self.messages.back().map_or(0, |entry| entry.order),
+            summary: self.summary.clone(),
+            compaction,
         })
+    }
+
+    fn apply_compaction(&mut self, through_order: u64, summary: ConversationSummary) {
+        while self
+            .messages
+            .front()
+            .is_some_and(|entry| entry.order <= through_order)
+        {
+            self.messages.pop_front();
+        }
+        self.summary = Some(summary);
     }
 }
 
@@ -570,7 +636,7 @@ fn schedule_generation(
 ) {
     tokio::spawn(async move {
         tokio::time::sleep(GENERATION_DEBOUNCE).await;
-        let Some(request) = ({
+        let Some(mut request) = ({
             let mut state = conversation.state.lock().await;
             state.begin_generation(scheduled_order)
         }) else {
@@ -583,19 +649,37 @@ fn schedule_generation(
             .broadcast_typing(&ctx.http)
             .await;
         let ai = data.services.ai.clone();
-        let generation = ai.generate_response(
-            &request.messages,
-            data.bot.chatbot.ai,
-            data.bot.chatbot.max_response_length,
+        let conversation_id = format!(
+            "{}:{}:{}",
+            data.bot.id, request.reply_target.channel, request.reply_target.author
         );
-        tokio::pin!(generation);
-        let mut typing_interval = tokio::time::interval(Duration::from_secs(8));
-        typing_interval.tick().await;
-        let generated = loop {
-            tokio::select! {
-                response = &mut generation => break response,
-                _ = typing_interval.tick() => {
-                    let _ = request.reply_target.channel.broadcast_typing(&ctx.http).await;
+        let reply_target = request.reply_target;
+        let generated = {
+            let generation = async {
+                compact_request(
+                    &conversation.state,
+                    &mut request,
+                    &ai.compactor(data.bot.chatbot.ai),
+                    &conversation_id,
+                )
+                .await;
+                ai.generate_response(
+                    &request.messages,
+                    request.summary.as_ref(),
+                    data.bot.chatbot.ai,
+                    data.bot.chatbot.max_response_length,
+                )
+                .await
+            };
+            tokio::pin!(generation);
+            let mut typing_interval = tokio::time::interval(Duration::from_secs(8));
+            typing_interval.tick().await;
+            loop {
+                tokio::select! {
+                    response = &mut generation => break response,
+                    _ = typing_interval.tick() => {
+                        let _ = reply_target.channel.broadcast_typing(&ctx.http).await;
+                    }
                 }
             }
         };
@@ -659,37 +743,80 @@ fn insert_reply(messages: &mut VecDeque<HistoryEntry>, request_order: u64, messa
     messages.insert(index, entry);
 }
 
+async fn compact_request<C: Compactor<Artifact = ConversationSummary>>(
+    state: &Mutex<Conversation>,
+    request: &mut GenerationRequest,
+    compactor: &C,
+    conversation_id: &str,
+) {
+    let Some(plan) = request.compaction.take() else {
+        return;
+    };
+    let messages = plan
+        .messages
+        .iter()
+        .filter_map(ChatMessage::to_message)
+        .collect::<Vec<_>>();
+    match compactor
+        .compact(conversation_id, &messages, request.summary.as_ref())
+        .await
+    {
+        Ok(summary) => {
+            state
+                .lock()
+                .await
+                .apply_compaction(plan.through_order, summary.clone());
+            request.summary = Some(summary);
+        }
+        Err(error) => {
+            // Keep the original turns for the next attempt; answer from the bounded recent window.
+            tracing::warn!(%error, conversation_id, "support compaction failed; retaining history for retry");
+        }
+    }
+}
+
 fn trim_history(messages: &mut VecDeque<HistoryEntry>) {
-    let mut total_bytes = messages
+    let dropped = history_prefix_len(messages, BUFFERED_HISTORY);
+    if dropped > 0 {
+        messages.drain(..dropped);
+        tracing::warn!(
+            dropped,
+            "support history reached the hard buffer limit before compaction"
+        );
+    }
+}
+
+fn history_prefix_len(messages: &VecDeque<HistoryEntry>, limits: HistoryLimits) -> usize {
+    let Some(last_user) = messages
+        .iter()
+        .rposition(|entry| matches!(entry.message, ChatMessage::User(_, _)))
+    else {
+        return 0;
+    };
+    let mut bytes = messages
         .iter()
         .map(|entry| entry.message.len())
         .sum::<usize>();
-    let mut total_images = messages
+    let mut images = messages
         .iter()
         .map(|entry| entry.message.image_count())
         .sum::<usize>();
-    while messages.len() > MAX_HISTORY_MESSAGES
-        || total_bytes > MAX_HISTORY_BYTES
-        || total_images > MAX_HISTORY_IMAGES
+    let mut start = 0;
+    // Always keep the latest user turn, even if it alone exceeds the target window.
+    while start < last_user
+        && (messages.len() - start > limits.messages
+            || bytes > limits.bytes
+            || images > limits.images)
     {
-        let Some(removed) = messages.pop_front() else {
-            break;
-        };
-        total_bytes = total_bytes.saturating_sub(removed.message.len());
-        total_images = total_images.saturating_sub(removed.message.image_count());
-
-        while matches!(
-            messages.front(),
-            Some(HistoryEntry {
-                message: ChatMessage::Assistant(_),
-                ..
-            })
-        ) {
-            if let Some(removed) = messages.pop_front() {
-                total_bytes = total_bytes.saturating_sub(removed.message.len());
-            }
+        bytes -= messages[start].message.len();
+        images -= messages[start].message.image_count();
+        start += 1;
+        while start < last_user && matches!(messages[start].message, ChatMessage::Assistant(_)) {
+            bytes -= messages[start].message.len();
+            start += 1;
         }
     }
+    start
 }
 
 fn activity_tick() -> u64 {
@@ -772,9 +899,8 @@ mod tests {
     use anyhow::{Result, ensure};
 
     use super::{
-        Conversation, HistoryEntry, MAX_HISTORY_BYTES, MAX_HISTORY_MESSAGES, ReplyTarget,
-        SourceContent, build_content, insert_reply, is_text_content_type, is_text_filename,
-        trim_history,
+        Conversation, HistoryEntry, MAX_HISTORY_BYTES, ReplyTarget, SourceContent, build_content,
+        insert_reply, is_text_content_type, is_text_filename, trim_history,
     };
     use crate::ai::ChatMessage;
     use poise::serenity_prelude as serenity;
@@ -785,6 +911,179 @@ mod tests {
             channel: serenity::ChannelId::new(2),
             message: serenity::MessageId::new(message),
         }
+    }
+
+    struct TestCompactor {
+        previous: Option<super::ConversationSummary>,
+        result: Option<super::ConversationSummary>,
+    }
+
+    impl super::Compactor for TestCompactor {
+        type Artifact = super::ConversationSummary;
+
+        fn compact<'a>(
+            &'a self,
+            _: &'a str,
+            evicted: &'a [rig_core::completion::Message],
+            carry_over: Option<&'a Self::Artifact>,
+        ) -> rig_core::wasm_compat::WasmBoxedFuture<
+            'a,
+            Result<Self::Artifact, rig_core::memory::MemoryError>,
+        > {
+            Box::pin(async move {
+                assert!(!evicted.is_empty());
+                assert_eq!(carry_over, self.previous.as_ref());
+                self.result.clone().ok_or_else(|| {
+                    rig_core::memory::MemoryError::Internal("test failure".to_owned())
+                })
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn rolls_summaries_forward_without_removing_queued_messages() -> Result<()> {
+        let state = super::Mutex::new(Conversation::new(reply_target(1)));
+        for round in 0..2 {
+            let mut conversation = state.lock().await;
+            for id in 1..=super::MAX_HISTORY_MESSAGES + 1 {
+                conversation.enqueue(
+                    reply_target(u64::try_from(id)?),
+                    Arc::from("question"),
+                    vec![],
+                );
+            }
+            let order = conversation.next_order;
+            let mut request = conversation
+                .begin_generation(order)
+                .ok_or_else(|| anyhow::anyhow!("missing generation"))?;
+            let through_order = request
+                .compaction
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("missing compaction"))?
+                .through_order;
+            let compactor = TestCompactor {
+                previous: conversation.summary.clone(),
+                result: Some(super::ConversationSummary::new(&format!(
+                    "summary {round}"
+                ))?),
+            };
+            ensure!(
+                conversation
+                    .enqueue(
+                        reply_target(100),
+                        Arc::from("queued during compaction"),
+                        vec![]
+                    )
+                    .is_none()
+            );
+            let queued_order = conversation.next_order;
+            drop(conversation);
+
+            super::compact_request(&state, &mut request, &compactor, "test").await;
+            let mut conversation = state.lock().await;
+            ensure!(conversation.summary == compactor.result);
+            ensure!(request.summary == conversation.summary);
+            ensure!(
+                conversation
+                    .messages
+                    .iter()
+                    .all(|entry| entry.order > through_order)
+            );
+            ensure!(
+                conversation
+                    .messages
+                    .back()
+                    .is_some_and(|entry| entry.order == queued_order)
+            );
+            ensure!(conversation.pending);
+            insert_reply(
+                &mut conversation.messages,
+                request.request_order,
+                ChatMessage::Assistant(Arc::from("reply")),
+            );
+            ensure!(
+                conversation
+                    .messages
+                    .iter()
+                    .rev()
+                    .nth(1)
+                    .is_some_and(|entry| entry.order == request.request_order + 1)
+            );
+            conversation.generating = false;
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn retries_failed_compaction_without_discarding_history_or_summary() -> Result<()> {
+        let mut conversation = Conversation::new(reply_target(1));
+        conversation.summary = Some(super::ConversationSummary::new("prior context")?);
+        for id in 1..=3 {
+            conversation.enqueue(
+                reply_target(id),
+                Arc::from("x".repeat(MAX_HISTORY_BYTES / 2)),
+                vec![],
+            );
+        }
+        let order = conversation.next_order;
+        let mut request = conversation
+            .begin_generation(order)
+            .ok_or_else(|| anyhow::anyhow!("missing generation"))?;
+        let compactor = TestCompactor {
+            previous: conversation.summary.clone(),
+            result: None,
+        };
+        let original_orders = conversation
+            .messages
+            .iter()
+            .map(|entry| entry.order)
+            .collect::<Vec<_>>();
+        let state = super::Mutex::new(conversation);
+        super::compact_request(&state, &mut request, &compactor, "test").await;
+        let mut conversation = state.lock().await;
+        ensure!(
+            conversation
+                .messages
+                .iter()
+                .map(|entry| entry.order)
+                .collect::<Vec<_>>()
+                == original_orders
+        );
+        ensure!(conversation.summary == compactor.previous);
+        ensure!(request.summary == compactor.previous);
+        ensure!(request.messages.iter().map(ChatMessage::len).sum::<usize>() <= MAX_HISTORY_BYTES);
+        conversation.generating = false;
+        let scheduled = conversation
+            .enqueue(reply_target(4), Arc::from("try again"), vec![])
+            .ok_or_else(|| anyhow::anyhow!("missing retry"))?;
+        let retry = conversation
+            .begin_generation(scheduled)
+            .ok_or_else(|| anyhow::anyhow!("missing retry generation"))?;
+        ensure!(retry.compaction.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn keeps_the_latest_turn_even_when_it_exceeds_the_recent_window() -> Result<()> {
+        let mut conversation = Conversation::new(reply_target(1));
+        conversation.enqueue(reply_target(1), Arc::from("earlier"), vec![]);
+        conversation.enqueue(
+            reply_target(2),
+            Arc::from("x".repeat(MAX_HISTORY_BYTES)),
+            vec![],
+        );
+        let order = conversation.next_order;
+        let request = conversation
+            .begin_generation(order)
+            .ok_or_else(|| anyhow::anyhow!("missing generation"))?;
+        ensure!(request.messages.len() == 1);
+        ensure!(request.messages[0].len() == MAX_HISTORY_BYTES);
+        ensure!(
+            request
+                .compaction
+                .is_some_and(|plan| plan.messages.len() == 1)
+        );
+        Ok(())
     }
 
     #[test]
@@ -823,7 +1122,7 @@ mod tests {
     }
 
     #[test]
-    fn retains_recent_images_and_trims_old_image_turns() -> Result<()> {
+    fn plans_compaction_for_old_images_and_retains_recent_images() -> Result<()> {
         let mut conversation = Conversation::new(reply_target(1));
         for message in 1..=3 {
             conversation.enqueue(
@@ -838,20 +1137,6 @@ mod tests {
                 ChatMessage::Assistant(Arc::from("reply")),
             );
         }
-        ensure!(
-            conversation
-                .messages
-                .front()
-                .is_some_and(|entry| entry.order == 4)
-        );
-        ensure!(
-            conversation
-                .messages
-                .iter()
-                .map(|entry| entry.message.image_count())
-                .sum::<usize>()
-                <= super::MAX_HISTORY_IMAGES
-        );
         let scheduled = conversation
             .enqueue(reply_target(4), Arc::from("What should I change?"), vec![])
             .ok_or_else(|| anyhow::anyhow!("follow-up was not scheduled"))?;
@@ -864,8 +1149,19 @@ mod tests {
                 .iter()
                 .map(ChatMessage::image_count)
                 .sum::<usize>()
+                == super::MAX_MESSAGE_IMAGES
+        );
+        let plan = request
+            .compaction
+            .ok_or_else(|| anyhow::anyhow!("missing image compaction"))?;
+        ensure!(
+            plan.messages
+                .iter()
+                .map(ChatMessage::image_count)
+                .sum::<usize>()
                 == 2 * super::MAX_MESSAGE_IMAGES
         );
+        ensure!(conversation.messages.len() == 7);
         Ok(())
     }
 
@@ -891,7 +1187,7 @@ mod tests {
     #[test]
     fn trims_complete_old_turns_to_the_history_limits() -> Result<()> {
         let mut messages = VecDeque::new();
-        for index in 0..40 {
+        for index in 0..160 {
             messages.push_back(HistoryEntry {
                 message: ChatMessage::User(
                     Arc::from(format!("question {index} {}", "x".repeat(1_000))),
@@ -907,13 +1203,13 @@ mod tests {
 
         trim_history(&mut messages);
 
-        ensure!(messages.len() <= MAX_HISTORY_MESSAGES);
+        ensure!(messages.len() <= super::BUFFERED_HISTORY.messages);
         ensure!(
             messages
                 .iter()
                 .map(|entry| entry.message.len())
                 .sum::<usize>()
-                <= MAX_HISTORY_BYTES
+                <= super::BUFFERED_HISTORY.bytes
         );
         ensure!(matches!(
             messages.front(),

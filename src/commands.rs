@@ -334,6 +334,7 @@ async fn reply_with_ai(ctx: Context<'_>, target: serenity::Message) -> Result<()
         .ai
         .generate_response(
             &[ChatMessage::User(request.into(), images)],
+            None,
             ctx.data().bot.chatbot.ai,
             1_300,
         )
