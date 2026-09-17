@@ -12,10 +12,10 @@ use futures::{StreamExt as _, stream};
 use poise::serenity_prelude as serenity;
 use rig_core::memory::Compactor;
 use serenity::Mentionable as _;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, watch};
 
 use crate::{
-    ai::{ChatMessage, ConversationSummary},
+    ai::{ChatMessage, ConversationSummary, GenerationProgress},
     config::BotDefinition,
     download,
     state::AppState,
@@ -160,6 +160,66 @@ struct ReplyTarget {
     author: serenity::UserId,
     channel: serenity::ChannelId,
     message: serenity::MessageId,
+}
+
+#[derive(Default)]
+struct ProgressReply {
+    message: Option<serenity::Message>,
+    shown: Option<GenerationProgress>,
+    disabled: bool,
+}
+
+impl ProgressReply {
+    async fn update(
+        &mut self,
+        ctx: &serenity::Context,
+        target: ReplyTarget,
+        progress: GenerationProgress,
+    ) {
+        if self.disabled
+            || self.shown == Some(progress)
+            || (self.message.is_none() && progress == GenerationProgress::Thinking)
+        {
+            return;
+        }
+        let content = match progress {
+            GenerationProgress::Searching => "Checking documentation...",
+            GenerationProgress::Thinking => "Preparing a reply...",
+        };
+        let result = if let Some(message) = &mut self.message {
+            message
+                .edit(ctx, serenity::EditMessage::new().content(content))
+                .await
+        } else {
+            target
+                .channel
+                .send_message(
+                    ctx,
+                    serenity::CreateMessage::new()
+                        .content(content)
+                        .reference_message((target.channel, target.message))
+                        .allowed_mentions(
+                            serenity::CreateAllowedMentions::new().replied_user(false),
+                        ),
+                )
+                .await
+                .map(|message| self.message = Some(message))
+        };
+        if let Err(error) = result {
+            tracing::warn!(%error, "failed to update support progress");
+            self.disabled = true;
+        } else {
+            self.shown = Some(progress);
+        }
+    }
+
+    async fn clear(self, ctx: &serenity::Context) {
+        if let Some(message) = self.message
+            && let Err(error) = message.delete(ctx).await
+        {
+            tracing::warn!(%error, "failed to remove support progress");
+        }
+    }
 }
 
 impl ReplyTarget {
@@ -654,6 +714,8 @@ fn schedule_generation(
             data.bot.id, request.reply_target.channel, request.reply_target.author
         );
         let reply_target = request.reply_target;
+        let (progress_tx, progress_rx) = watch::channel(GenerationProgress::Thinking);
+        let mut progress_reply = ProgressReply::default();
         let generated = {
             let generation = async {
                 compact_request(
@@ -668,17 +730,24 @@ fn schedule_generation(
                     request.summary.as_ref(),
                     data.bot.chatbot.ai,
                     data.bot.chatbot.max_response_length,
+                    Some(progress_tx),
                 )
                 .await
             };
             tokio::pin!(generation);
             let mut typing_interval = tokio::time::interval(Duration::from_secs(8));
             typing_interval.tick().await;
+            let mut progress_interval = tokio::time::interval(Duration::from_secs(3));
+            progress_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
                 tokio::select! {
                     response = &mut generation => break response,
                     _ = typing_interval.tick() => {
                         let _ = reply_target.channel.broadcast_typing(&ctx.http).await;
+                    }
+                    _ = progress_interval.tick() => {
+                        let progress = *progress_rx.borrow();
+                        progress_reply.update(&ctx, reply_target, progress).await;
                     }
                 }
             }
@@ -706,6 +775,8 @@ fn schedule_generation(
                 }
             }
         };
+
+        progress_reply.clear(&ctx).await;
 
         let next_scheduled_order = {
             let mut state = conversation.state.lock().await;
@@ -913,6 +984,13 @@ mod tests {
         }
     }
 
+    fn test_summary(issue: &str) -> Result<super::ConversationSummary> {
+        super::ConversationSummary::new(crate::ai::TroubleshootingState {
+            issue: Some(issue.to_owned()),
+            ..Default::default()
+        })
+    }
+
     struct TestCompactor {
         previous: Option<super::ConversationSummary>,
         result: Option<super::ConversationSummary>,
@@ -963,9 +1041,7 @@ mod tests {
                 .through_order;
             let compactor = TestCompactor {
                 previous: conversation.summary.clone(),
-                result: Some(super::ConversationSummary::new(&format!(
-                    "summary {round}"
-                ))?),
+                result: Some(test_summary(&format!("summary {round}"))?),
             };
             ensure!(
                 conversation
@@ -1017,7 +1093,7 @@ mod tests {
     #[tokio::test]
     async fn retries_failed_compaction_without_discarding_history_or_summary() -> Result<()> {
         let mut conversation = Conversation::new(reply_target(1));
-        conversation.summary = Some(super::ConversationSummary::new("prior context")?);
+        conversation.summary = Some(test_summary("prior context")?);
         for id in 1..=3 {
             conversation.enqueue(
                 reply_target(id),

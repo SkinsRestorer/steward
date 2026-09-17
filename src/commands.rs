@@ -337,6 +337,7 @@ async fn reply_with_ai(ctx: Context<'_>, target: serenity::Message) -> Result<()
             None,
             ctx.data().bot.chatbot.ai,
             1_300,
+            None,
         )
         .await
     {

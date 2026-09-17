@@ -1,6 +1,11 @@
 mod compaction;
+mod hooks;
 
 pub use compaction::ConversationSummary;
+#[cfg(test)]
+pub(crate) use compaction::TroubleshootingState;
+pub use hooks::GenerationProgress;
+use hooks::{MAX_RESPONSE_CALLS, RetryMode, SupportHooks};
 
 use std::{
     collections::HashMap,
@@ -24,7 +29,7 @@ use rig_core::{
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use thiserror::Error;
-use tokio::sync::{Mutex, RwLock, Semaphore};
+use tokio::sync::{Mutex, RwLock, Semaphore, watch};
 use tracing::{info, warn};
 
 use crate::{config::AiConfig, download};
@@ -129,18 +134,27 @@ impl AiService {
         summary: Option<&ConversationSummary>,
         config: &'static AiConfig,
         max_length: usize,
+        progress: Option<watch::Sender<GenerationProgress>>,
     ) -> Result<String> {
         let permit =
             tokio::time::timeout(GENERATION_QUEUE_TIMEOUT, self.generation_permits.acquire())
                 .await
                 .context("support response queue is full")?
                 .context("support response queue is closed")?;
+        let started = Instant::now();
         let result = tokio::time::timeout(
             GENERATION_TIMEOUT,
-            self.generate_response_inner(messages, summary, config, max_length),
+            self.generate_response_inner(messages, summary, config, max_length, progress),
         )
         .await
-        .context("support response generation timed out")?;
+        .context("support response generation timed out")
+        .and_then(std::convert::identity);
+        info!(
+            model = config.model,
+            elapsed_ms = started.elapsed().as_millis(),
+            success = result.is_ok(),
+            "support generation finished"
+        );
         drop(permit);
         result
     }
@@ -151,6 +165,7 @@ impl AiService {
         summary: Option<&ConversationSummary>,
         config: &'static AiConfig,
         max_length: usize,
+        progress: Option<watch::Sender<GenerationProgress>>,
     ) -> Result<String> {
         if config.system_prompt.trim().is_empty() {
             bail!("the support system prompt must not be empty");
@@ -166,6 +181,11 @@ impl AiService {
             .agent(config.model)
             .preamble(config.system_prompt)
             .max_tokens(DEFAULT_MAX_OUTPUT_TOKENS)
+            .add_hook(SupportHooks::new(
+                DEFAULT_MAX_OUTPUT_TOKENS,
+                RetryMode::Response,
+                progress,
+            ))
             .tool(brave_search)
             .build();
 
@@ -191,7 +211,7 @@ impl AiService {
         let result = agent
             .runner(prompt)
             .history(conversation)
-            .max_turns(5)
+            .max_turns(MAX_RESPONSE_CALLS)
             .run()
             .await
             .context("OpenRouter agent run failed")?;

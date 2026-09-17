@@ -21,6 +21,7 @@ rig-agent = { version = "0.42.0", default-features = false }
 rig-core = "0.42.0"
 roxmltree = "0.21.1"
 rten = { version = "0.26.0", default-features = false, features = ["rten_format"] }
+schemars = "1.2.1"
 semver = "1.0.28"
 serde = { version = "1.0.228", features = ["derive"] }
 serde-transcode = "1.1.1"
@@ -31,6 +32,9 @@ tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 unicode-normalization = "0.1.25"
 yaml_serde = "0.10.4"
+
+[dev-dependencies]
+rig-agent = { version = "0.42.0", default-features = false, features = ["test-utils"] }
 
 [profile.release]
 lto = "thin"
