@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    future::{Future, ready},
     sync::atomic::{AtomicU64, Ordering},
     time::Instant,
 };
@@ -87,23 +88,25 @@ impl SupportHooks {
 }
 
 impl AgentHook for SupportHooks {
-    async fn on_completion_call(
+    fn on_completion_call(
         &self,
         ctx: &HookContext,
         event: CompletionCallEvent<'_>,
-    ) -> CompletionCallAction {
+    ) -> impl Future<Output = CompletionCallAction> {
         ctx.scratchpad()
             .update::<Timings, _>(|timings| timings.model_started = Some(Instant::now()));
         let max_tokens = self.cap.load(Ordering::Relaxed);
         tracing::info!(run_id = ?ctx.run_id(), turn = event.turn, max_tokens, "support model call started");
-        CompletionCallAction::patch(RequestPatch::new().max_tokens(max_tokens))
+        ready(CompletionCallAction::patch(
+            RequestPatch::new().max_tokens(max_tokens),
+        ))
     }
 
-    async fn on_model_turn_finished(
+    fn on_model_turn_finished(
         &self,
         ctx: &HookContext,
         event: ModelTurnFinished<'_>,
-    ) -> ModelTurnAction {
+    ) -> impl Future<Output = ModelTurnAction> {
         let elapsed = ctx.scratchpad().update::<Timings, _>(|timings| {
             timings.model_started.take().map(|start| start.elapsed())
         });
@@ -111,10 +114,14 @@ impl AgentHook for SupportHooks {
         tracing::info!(run_id = ?ctx.run_id(), turn = event.turn, elapsed_ms = elapsed.map(|elapsed| elapsed.as_millis()),
             finish_reason = ?event.finish_reason, input = event.usage.input_tokens, output = event.usage.output_tokens,
             action = ?action, "support model call finished");
-        action
+        ready(action)
     }
 
-    async fn on_tool_call(&self, ctx: &HookContext, event: ToolCall<'_>) -> ToolCallAction {
+    fn on_tool_call(
+        &self,
+        ctx: &HookContext,
+        event: ToolCall<'_>,
+    ) -> impl Future<Output = ToolCallAction> {
         ctx.scratchpad().update::<Timings, _>(|timings| {
             timings
                 .tools
@@ -124,14 +131,14 @@ impl AgentHook for SupportHooks {
             progress.send_replace(GenerationProgress::Searching);
         }
         tracing::info!(run_id = ?ctx.run_id(), tool = event.tool_name, call_id = event.internal_call_id, "support tool started");
-        ToolCallAction::Run
+        ready(ToolCallAction::Run)
     }
 
-    async fn on_tool_result(
+    fn on_tool_result(
         &self,
         ctx: &HookContext,
         event: ToolResultEvent<'_>,
-    ) -> ToolResultAction {
+    ) -> impl Future<Output = ToolResultAction> {
         let (elapsed, active) = ctx.scratchpad().update::<Timings, _>(|timings| {
             (
                 timings
@@ -147,7 +154,7 @@ impl AgentHook for SupportHooks {
         tracing::info!(run_id = ?ctx.run_id(), tool = event.tool_name, call_id = event.internal_call_id,
             elapsed_ms = elapsed.map(|elapsed| elapsed.as_millis()), status = event.raw_result.status_name(),
             error_kind = ?event.raw_result.error().map(rig_core::tool::ToolExecutionError::kind), "support tool finished");
-        ToolResultAction::Keep
+        ready(ToolResultAction::Keep)
     }
 }
 
@@ -222,19 +229,23 @@ mod tests {
     struct ObserveProgress(watch::Receiver<GenerationProgress>);
 
     impl AgentHook for ObserveProgress {
-        async fn on_tool_call(&self, _: &HookContext, _: ToolCall<'_>) -> ToolCallAction {
+        fn on_tool_call(
+            &self,
+            _: &HookContext,
+            _: ToolCall<'_>,
+        ) -> impl Future<Output = ToolCallAction> {
             assert_eq!(*self.0.borrow(), GenerationProgress::Searching);
-            ToolCallAction::Run
+            ready(ToolCallAction::Run)
         }
 
-        async fn on_tool_result(
+        fn on_tool_result(
             &self,
             _: &HookContext,
             event: ToolResultEvent<'_>,
-        ) -> ToolResultAction {
+        ) -> impl Future<Output = ToolResultAction> {
             assert!(event.raw_result.is_error());
             assert_eq!(*self.0.borrow(), GenerationProgress::Thinking);
-            ToolResultAction::Keep
+            ready(ToolResultAction::Keep)
         }
     }
 
