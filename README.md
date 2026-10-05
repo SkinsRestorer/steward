@@ -96,3 +96,8 @@ registered from these static definitions at startup.
 
 The bundled OCR model provenance and license are documented in
 [`models/README.md`](models/README.md).
+
+## Contributing and support
+
+Read [the contribution guide](CONTRIBUTING.md) for development and review.
+Use [the support guide](SUPPORT.md) for questions and issue routing.
