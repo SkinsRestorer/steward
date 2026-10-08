@@ -12,7 +12,7 @@ use crate::{
     ai::AiService,
     bots,
     config::BotDefinition,
-    events::{chatbot::ChatbotService, logging::LoggingService},
+    events::{chatbot::ChatbotService, honeypot::HoneypotService, logging::LoggingService},
     ocr::OcrService,
     patterns::PatternService,
     releases::ReleaseService,
@@ -59,6 +59,7 @@ impl SharedServices {
 #[derive(Clone)]
 pub struct AppState {
     pub bot: &'static BotDefinition,
+    pub honeypot: Arc<HoneypotService>,
     pub command_ids: Arc<OnceLock<HashMap<String, serenity::CommandId>>>,
     pub services: Arc<SharedServices>,
 }
@@ -67,6 +68,7 @@ impl AppState {
     pub fn new(bot: &'static BotDefinition, services: Arc<SharedServices>) -> Self {
         Self {
             bot,
+            honeypot: Arc::new(HoneypotService::default()),
             command_ids: Arc::new(OnceLock::new()),
             services,
         }

@@ -1,6 +1,7 @@
 mod autoupload;
 pub mod chatbot;
 mod checks;
+pub(crate) mod honeypot;
 pub(crate) mod logging;
 mod message_replies;
 mod no_ping;
@@ -41,6 +42,23 @@ pub async fn handle(
 async fn handle_message(ctx: &serenity::Context, data: &AppState, message: &serenity::Message) {
     if message.author.bot || message.guild_id.is_none() {
         return;
+    }
+
+    match honeypot::handle(ctx, data, message).await {
+        Ok(true) => return,
+        Ok(false) => {}
+        Err(error) => {
+            tracing::error!(
+                %error,
+                bot = data.bot.id,
+                guild_id = ?message.guild_id,
+                channel_id = %message.channel_id,
+                message_id = %message.id,
+                user_id = %message.author.id,
+                "honeypot handler failed"
+            );
+            return;
+        }
     }
 
     let channel_name = message.guild_id.and_then(|guild_id| {

@@ -17,6 +17,11 @@ mod tests {
     #[test]
     fn bot_command_definitions_fit_discord_limits() -> Result<()> {
         for bot in ALL {
+            ensure!(
+                bot.honeypot.delete_message_days <= 7,
+                "{} honeypot cleanup exceeds Discord's seven-day limit",
+                bot.name
+            );
             let mut names = HashSet::new();
 
             for command in bot.commands.responses {

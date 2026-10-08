@@ -39,6 +39,44 @@ bot definition. Choose an OpenRouter model that supports tool calling for Brave 
 When migrating from direct DeepSeek access, replace `DEEPSEEK_API_KEY` with
 `OPENROUTER_API_KEY` and use an OpenRouter API key.
 
+## Honeypot channels
+
+Both bots ban members who post in a text channel named exactly
+`interesting-chat`. Spam scripts on compromised accounts often post in every
+accessible channel. A honeypot catches these accounts without inspecting the
+message content. See [Honeypot's explanation](https://honeypot.riskymh.dev/docs)
+for more context.
+
+1. Create a text channel named `interesting-chat` in the server.
+2. Allow members to view the channel and send messages.
+3. Disable public and private thread creation in the channel.
+4. Add this warning to the channel topic and a pinned message:
+
+   > Do not post here. This channel catches spam accounts. Posting here causes
+   > an immediate ban, even if you post by accident.
+
+5. Give the bot the View Channel and Ban Members permissions.
+6. Place the bot role above the member roles that it must ban.
+
+Any member message triggers the ban, including replies and messages with only
+attachments. The ban removes the last 24 hours of that member's messages across
+the server. The bot records the channel and message IDs in the Discord audit
+log reason. It also logs successful bans and errors through tracing.
+
+Bots, webhooks, the server owner, and configured staff roles are exempt.
+Members with Administrator, Manage Server, Ban Members, Kick Members, or
+Timeout Members permissions are also exempt. Discord prevents bans of members
+whose highest role is equal to or above the bot's highest role.
+See [Discord's permission hierarchy](https://docs.discord.com/developers/topics/permissions#permission-hierarchy)
+and [ban API](https://docs.discord.com/developers/resources/guild#create-guild-ban).
+
+Each bot definition contains a `honeypot` configuration. Change `channel_names`
+to watch other exact names, or set it to `&[]` to disable the feature.
+The name applies to every server where that bot runs. Renaming a channel
+disables the trap unless its new name also matches.
+Use `exempt_role_ids` to protect additional roles. Set `delete_message_days`
+between `0` and `7` to change the cleanup period.
+
 ## Run locally
 
 ```bash

@@ -1,8 +1,10 @@
 use crate::config::{
     AiConfig, AutouploadConfig, BotDefinition, ChatbotConfig, ChecksConfig, CommandField,
-    CommandsConfig, DocsFooter, HelpConfig, NoPingConfig, PASTE_CHECKS, ResolvedConfig,
-    StaticCommand, SupportContextConfig, ThreadStarterConfig,
+    CommandsConfig, DocsFooter, HelpConfig, HoneypotConfig, NoPingConfig, PASTE_CHECKS,
+    ResolvedConfig, StaticCommand, SupportContextConfig, ThreadStarterConfig,
 };
+
+const STAFF_ROLE_IDS: &[u64] = &[1_021_760_363_213_864_176];
 
 const SUPPORT_GPT_URL: &str =
     "https://chatgpt.com/g/g-69ecf500fae08191a573713457a8fcf6-soulfire-support-gpt";
@@ -249,8 +251,13 @@ pub static BOT: BotDefinition = BotDefinition {
     },
     no_ping: NoPingConfig {
         exempt_role_ids: &[1_492_607_130_635_861_047],
-        staff_role_ids: &[1_021_760_363_213_864_176],
+        staff_role_ids: STAFF_ROLE_IDS,
         warning_message,
+    },
+    honeypot: HoneypotConfig {
+        channel_names: &["interesting-chat"],
+        delete_message_days: 1,
+        exempt_role_ids: STAFF_ROLE_IDS,
     },
     thread_starter: ThreadStarterConfig {
         support_title: "Need quick SoulFire help?",

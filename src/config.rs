@@ -120,6 +120,13 @@ pub struct NoPingConfig {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub struct HoneypotConfig {
+    pub channel_names: &'static [&'static str],
+    pub delete_message_days: u8,
+    pub exempt_role_ids: &'static [u64],
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct ThreadStarterConfig {
     pub support_title: &'static str,
     pub support_description: &'static str,
@@ -147,6 +154,7 @@ pub struct BotDefinition {
     pub checks: ChecksConfig,
     pub commands: CommandsConfig,
     pub no_ping: NoPingConfig,
+    pub honeypot: HoneypotConfig,
     pub thread_starter: ThreadStarterConfig,
     pub message_replies: bool,
 }

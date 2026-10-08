@@ -1,8 +1,16 @@
 use crate::config::{
     AiConfig, AutouploadConfig, BotDefinition, ChatbotConfig, ChecksConfig, CommandField,
-    CommandsConfig, DocsFooter, HelpConfig, LatestConfig, NoPingConfig, PASTE_CHECKS,
-    ResolvedConfig, StaticCommand, SupportContextConfig, TextCheck, ThreadStarterConfig,
+    CommandsConfig, DocsFooter, HelpConfig, HoneypotConfig, LatestConfig, NoPingConfig,
+    PASTE_CHECKS, ResolvedConfig, StaticCommand, SupportContextConfig, TextCheck,
+    ThreadStarterConfig,
 };
+
+const STAFF_ROLE_IDS: &[u64] = &[
+    199_818_815_838_617_601,
+    186_905_693_180_264_448,
+    491_289_085_198_073_857,
+    308_291_995_196_063_745,
+];
 
 const SUPPORT_GPT_URL: &str =
     "https://chatgpt.com/g/g-68f7a885f5688191b9a05f812f4ccf43-skinsrestorer-support-gpt";
@@ -471,13 +479,13 @@ pub static BOT: BotDefinition = BotDefinition {
     },
     no_ping: NoPingConfig {
         exempt_role_ids: &[1_492_530_262_993_801_457],
-        staff_role_ids: &[
-            199_818_815_838_617_601,
-            186_905_693_180_264_448,
-            491_289_085_198_073_857,
-            308_291_995_196_063_745,
-        ],
+        staff_role_ids: STAFF_ROLE_IDS,
         warning_message,
+    },
+    honeypot: HoneypotConfig {
+        channel_names: &["interesting-chat"],
+        delete_message_days: 1,
+        exempt_role_ids: STAFF_ROLE_IDS,
     },
     thread_starter: ThreadStarterConfig {
         support_title: "Need quick SkinsRestorer help?",
