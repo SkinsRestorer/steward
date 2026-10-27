@@ -12,9 +12,6 @@ const STAFF_ROLE_IDS: &[u64] = &[
     308_291_995_196_063_745,
 ];
 
-const SUPPORT_GPT_URL: &str =
-    "https://chatgpt.com/g/g-68f7a885f5688191b9a05f812f4ccf43-skinsrestorer-support-gpt";
-
 const PROMPT_INJECTION_PATTERNS: &[&str] = &[
     r"(?i)ignore\s+(?:all\s+)?(?:previous|prior|above)\s+(?:instructions|messages)",
     r"(?i)(?:you are now|from now on|new instructions|you will now)",
@@ -34,12 +31,8 @@ const AI: AiConfig = AiConfig {
     docs_context_urls: &["https://skinsrestorer.net/llms-full.txt"],
     model: "deepseek/deepseek-v4.1-flash",
     prompt_injection_patterns: PROMPT_INJECTION_PATTERNS,
-    response_disclaimer: concat!(
-        "-# AI responses can be incorrect. Use the [Support GPT](",
-        "https://chatgpt.com/g/g-68f7a885f5688191b9a05f812f4ccf43-skinsrestorer-support-gpt",
-        ") for best results."
-    ),
-    system_prompt: r"You are SkinsRestorer Support GPT. You help users install, configure, and troubleshoot SkinsRestorer on Minecraft servers.
+    response_disclaimer: "-# AI responses can be incorrect.",
+    system_prompt: r"You are Steward, the SkinsRestorer support bot. You help users install, configure, and troubleshoot SkinsRestorer on Minecraft servers.
 
 Use these official sources:
 - Official docs: https://skinsrestorer.net/docs
@@ -489,9 +482,7 @@ pub static BOT: BotDefinition = BotDefinition {
     },
     thread_starter: ThreadStarterConfig {
         support_title: "Need quick SkinsRestorer help?",
-        support_description: "The **SkinsRestorer Support GPT** can answer questions about installation, configuration, and common problems at any time.\n\nIf you still need help, describe the problem in this post. Include your setup, logs, and the result of `/sr dump`.",
-        support_banner_url: "https://raw.githubusercontent.com/SkinsRestorer/steward/main/assets/support-gpt.png",
-        support_gpt_url: SUPPORT_GPT_URL,
+        support_description: "Check the documentation for installation, configuration, and troubleshooting help.\n\nDescribe the problem in this post. Include your setup, logs, and the result of `/sr dump`.",
         docs_url: "https://skinsrestorer.net/docs",
         priority_title: "Need private priority support?",
         priority_description: "**Priority Support** provides private help from the SkinsRestorer team.\n\nMembership costs **5 EUR per month**. Compare the options on our website or join through Ko-fi.",

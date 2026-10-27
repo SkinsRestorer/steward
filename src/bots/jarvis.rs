@@ -6,9 +6,6 @@ use crate::config::{
 
 const STAFF_ROLE_IDS: &[u64] = &[1_021_760_363_213_864_176];
 
-const SUPPORT_GPT_URL: &str =
-    "https://chatgpt.com/g/g-69ecf500fae08191a573713457a8fcf6-soulfire-support-gpt";
-
 const PROMPT_INJECTION_PATTERNS: &[&str] = &[
     r"(?i)ignore\s+(?:all\s+)?(?:previous|prior|above)\s+(?:instructions|messages)",
     r"(?i)(?:you are now|from now on|new instructions|you will now)",
@@ -29,11 +26,7 @@ const AI: AiConfig = AiConfig {
     docs_context_urls: &["https://soulfiremc.com/llms-full.txt"],
     model: "deepseek/deepseek-v4.1-flash",
     prompt_injection_patterns: PROMPT_INJECTION_PATTERNS,
-    response_disclaimer: concat!(
-        "-# The AI responses here might contain misinformation. Use the [Support GPT](",
-        "https://chatgpt.com/g/g-69ecf500fae08191a573713457a8fcf6-soulfire-support-gpt",
-        ") for best results."
-    ),
+    response_disclaimer: "-# The AI responses here might contain misinformation.",
     system_prompt: r"You are Jarvis, an automated support assistant for the PistonDev and SoulFireMC Discord support server. Your main support scope is SoulFire, a Minecraft bot framework for server testing, automation, scripting, and development.
 
 Use these official sources first:
@@ -261,9 +254,7 @@ pub static BOT: BotDefinition = BotDefinition {
     },
     thread_starter: ThreadStarterConfig {
         support_title: "Need quick SoulFire help?",
-        support_description: "Meet the **SoulFire Support GPT**, our personal AI assistant trained on SoulFire knowledge and docs.\n\nA GPT is a conversational AI you can chat with like a teammate. It stays online 24/7 to guide you through setup, troubleshooting, scripting, and smaller issues with detailed answers.\n\nIf you still need us, drop the specifics of your problem here and we'll follow up as soon as we can.",
-        support_banner_url: "https://raw.githubusercontent.com/SkinsRestorer/steward/main/assets/soulfire-support-gpt.png",
-        support_gpt_url: SUPPORT_GPT_URL,
+        support_description: "Check the documentation for setup, troubleshooting, and scripting help.\n\nDescribe the problem in this post. Include your SoulFire version, setup, logs, and what you have already tried. We'll follow up as soon as we can.",
         docs_url: "https://soulfiremc.com/docs",
         priority_title: "Need private priority support?",
         priority_description: "We offer a **Priority Support** membership for users who want private, faster help from the SoulFire and PistonDev team.\n\nThe membership costs **5 EUR/month** and is a good fit if you want one-on-one troubleshooting instead of waiting in the public forum.\n\nYou can compare the available options on our website or join directly through Ko-fi below.",

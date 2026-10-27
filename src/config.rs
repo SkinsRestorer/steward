@@ -130,8 +130,6 @@ pub struct HoneypotConfig {
 pub struct ThreadStarterConfig {
     pub support_title: &'static str,
     pub support_description: &'static str,
-    pub support_banner_url: &'static str,
-    pub support_gpt_url: &'static str,
     pub docs_url: &'static str,
     pub priority_title: &'static str,
     pub priority_description: &'static str,

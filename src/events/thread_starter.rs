@@ -34,7 +34,6 @@ pub async fn handle(
     let support = serenity::CreateEmbed::new()
         .colour(data.bot.accent_color)
         .title(config.support_title)
-        .image(config.support_banner_url)
         .description(config.support_description);
     let priority = serenity::CreateEmbed::new()
         .colour(data.bot.accent_color)
@@ -42,7 +41,6 @@ pub async fn handle(
         .image(config.priority_banner_url)
         .description(config.priority_description);
     let support_links = serenity::CreateActionRow::Buttons(vec![
-        serenity::CreateButton::new_link(config.support_gpt_url).label("🤖 Open Support GPT"),
         serenity::CreateButton::new_link(config.docs_url).label("📚 Open Documentation"),
     ]);
     let priority_links = serenity::CreateActionRow::Buttons(vec![
