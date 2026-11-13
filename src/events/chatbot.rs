@@ -1009,7 +1009,7 @@ mod tests {
             Result<Self::Artifact, rig_core::memory::MemoryError>,
         > {
             Box::pin(async move {
-                assert!(!evicted.is_empty());
+                assert_ne!(evicted, []);
                 assert_eq!(carry_over, self.previous.as_ref());
                 self.result.clone().ok_or_else(|| {
                     rig_core::memory::MemoryError::Internal("test failure".to_owned())
