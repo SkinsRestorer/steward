@@ -24,8 +24,12 @@ pub async fn start_bot(bot: &'static BotDefinition, services: Arc<SharedServices
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: commands::all(bot),
-            event_handler: |ctx, event, _framework, data| {
-                Box::pin(events::handle(ctx, event, data))
+            event_handler: |framework, event| {
+                Box::pin(events::handle(
+                    framework.serenity_context,
+                    event,
+                    framework.user_data,
+                ))
             },
             on_error: |error| Box::pin(handle_framework_error(error)),
             ..Default::default()

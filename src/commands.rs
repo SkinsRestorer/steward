@@ -18,26 +18,26 @@ pub fn all(bot: &'static BotDefinition) -> Vec<poise::Command<crate::state::AppS
         .iter()
         .map(|spec| {
             let mut command = static_response();
-            spec.name.clone_into(&mut command.name);
-            spec.name.clone_into(&mut command.qualified_name);
-            command.identifying_name = format!("{}::{}", bot.id, spec.name);
-            command.description = Some(spec.description.to_owned());
+            command.name = spec.name.into();
+            command.qualified_name = spec.name.into();
+            command.identifying_name = format!("{}::{}", bot.id, spec.name).into();
+            command.description = Some(spec.description.into());
             command
         })
         .collect::<Vec<_>>();
 
     let mut help_command = help();
-    help_command.description = Some(bot.commands.help.description.to_owned());
+    help_command.description = Some(bot.commands.help.description.into());
     commands.push(help_command);
 
     if let Some(config) = bot.commands.latest {
         let mut latest_command = latest();
-        latest_command.description = Some(config.description.to_owned());
+        latest_command.description = Some(config.description.into());
         commands.push(latest_command);
     }
 
     let mut resolved_command = resolved();
-    resolved_command.description = Some(bot.commands.resolved.description.to_owned());
+    resolved_command.description = Some(bot.commands.resolved.description.into());
     resolved_command.default_member_permissions = serenity::Permissions::MANAGE_THREADS;
     resolved_command.guild_only = true;
     commands.push(resolved_command);
@@ -424,4 +424,50 @@ fn static_response_message(
     command: &StaticCommand,
 ) -> serenity::CreateMessage {
     serenity::CreateMessage::new().embed(static_response_embed(bot, command))
+}
+
+#[cfg(test)]
+mod registration_tests {
+    use super::all;
+    use crate::bots;
+    use poise::serenity_prelude as serenity;
+
+    #[test]
+    fn registers_bot_specific_commands_and_moderator_permissions() {
+        for bot in bots::ALL {
+            let commands = all(bot);
+            assert_eq!(
+                commands.len(),
+                bot.commands.responses.len() + 5 + usize::from(bot.commands.latest.is_some())
+            );
+            for spec in bot.commands.responses {
+                let command = commands
+                    .iter()
+                    .find(|command| command.name == spec.name)
+                    .expect("configured response command");
+                assert_eq!(command.qualified_name, spec.name);
+                assert_eq!(
+                    command.identifying_name,
+                    format!("{}::{}", bot.id, spec.name)
+                );
+                assert_eq!(command.description.as_deref(), Some(spec.description));
+                assert!(command.slash_action.is_some());
+            }
+            let resolved = commands
+                .iter()
+                .find(|command| command.name == "resolved")
+                .expect("moderator command");
+            assert!(resolved.guild_only);
+            assert_eq!(
+                resolved.default_member_permissions,
+                serenity::Permissions::MANAGE_THREADS
+            );
+            assert_eq!(
+                resolved.description.as_deref(),
+                Some(bot.commands.resolved.description)
+            );
+            let latest = commands.iter().find(|command| command.name == "latest");
+            assert_eq!(latest.is_some(), bot.commands.latest.is_some());
+        }
+    }
 }
