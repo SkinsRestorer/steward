@@ -1,6 +1,7 @@
 mod compaction;
 mod hooks;
 
+pub(crate) use compaction::Compactor;
 pub use compaction::ConversationSummary;
 #[cfg(test)]
 pub(crate) use compaction::TroubleshootingState;
@@ -19,12 +20,12 @@ use anyhow::{Context as _, Result, anyhow, bail};
 use chrono::Utc;
 use chrono_tz::Europe::Berlin;
 use futures::future::try_join_all;
-use reqwest::header::{ACCEPT, ACCEPT_ENCODING, CONTENT_TYPE, HeaderMap, HeaderValue};
-use rig_agent::client::AgentClientExt as _;
+use reqwest::header::{ACCEPT, ACCEPT_ENCODING, CONTENT_TYPE};
+use rig_agent::AgentBuilder;
 use rig_core::{
     completion::{Message, message::UserContent},
-    providers::openrouter,
-    tool::PortableTool,
+    providers::openai::{OpenAI, OpenAIConfig, wire::OPENROUTER},
+    tool::{Tool, ToolContext},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -96,7 +97,7 @@ type DocsRefreshLocks = Arc<Mutex<HashMap<&'static str, Arc<Mutex<()>>>>>;
 #[derive(Clone)]
 pub struct AiService {
     client: reqwest::Client,
-    openrouter: openrouter::Client,
+    openrouter: OpenAI,
     docs_cache: Arc<RwLock<HashMap<&'static str, CachedDocsContext>>>,
     docs_refresh_locks: DocsRefreshLocks,
     generation_permits: Arc<Semaphore>,
@@ -109,14 +110,8 @@ impl AiService {
             env::var("OPENROUTER_API_KEY").context("OPENROUTER_API_KEY must be configured")?;
         let search_api_key =
             env::var("BRAVE_SEARCH_API_KEY").context("BRAVE_SEARCH_API_KEY must be configured")?;
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        let openrouter = openrouter::Client::builder()
-            .api_key(&openrouter_api_key)
-            .http_client(client.clone())
-            .http_headers(headers)
-            .build()
-            .context("failed to initialize OpenRouter client")?;
+        let openrouter = OpenAIConfig::with_key(&OPENROUTER, openrouter_api_key)
+            .connect(rig_reqwest::ReqwestClient::from(client.clone()));
 
         Ok(Self {
             client,
@@ -176,9 +171,7 @@ impl AiService {
             client: self.client.clone(),
             max_context_tokens: config.web_search_max_tokens,
         };
-        let agent = self
-            .openrouter
-            .agent(config.model)
+        let agent = AgentBuilder::new(self.openrouter.chat(config.model))
             .preamble(config.system_prompt)
             .max_tokens(DEFAULT_MAX_OUTPUT_TOKENS)
             .add_hook(SupportHooks::new(
@@ -209,7 +202,7 @@ impl AiService {
         }
 
         let result = agent
-            .runner(prompt)
+            .prompt(prompt)
             .history(conversation)
             .max_turns(MAX_RESPONSE_CALLS)
             .run()
@@ -224,12 +217,13 @@ impl AiService {
             "OpenRouter usage"
         );
 
-        if result.output.trim().is_empty() {
+        let output = result.output();
+        if output.trim().is_empty() {
             bail!("OpenRouter returned an empty response");
         }
 
         Ok(append_response_disclaimer(
-            &result.output,
+            &output,
             config.response_disclaimer,
             max_length,
         ))
@@ -458,7 +452,7 @@ struct BraveResult {
     url: Option<String>,
 }
 
-impl PortableTool for BraveSearch {
+impl Tool for BraveSearch {
     const NAME: &'static str = "search_web";
 
     type Error = BraveSearchError;
@@ -485,7 +479,11 @@ impl PortableTool for BraveSearch {
         })
     }
 
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _: &mut ToolContext,
+        args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         let query = args.query.trim();
         if query.is_empty() || query.chars().count() > 400 {
             return Err(BraveSearchError::InvalidQuery);
@@ -528,6 +526,11 @@ impl PortableTool for BraveSearch {
 #[cfg(test)]
 mod tests {
     use anyhow::{Result, ensure};
+    use rig_core::{
+        completion::CompletionRequest,
+        providers::openai::{OpenAIConfig, wire::OPENROUTER},
+        wire::{Body, Mode, Wire},
+    };
     use std::sync::Arc;
 
     use super::{ChatMessage, append_response_disclaimer, clamp_response, normalize_newlines};
@@ -547,9 +550,14 @@ mod tests {
             let message = chat
                 .to_message()
                 .ok_or_else(|| anyhow::anyhow!("image message was discarded"))?;
-            let converted =
-                rig_core::providers::openrouter::completion::messages_from_rig_message(message)?;
-            let serialized = serde_json::to_value(converted)?;
+            let encoded = OpenAIConfig::with_key(&OPENROUTER, "test-key")
+                .chat("test-model")
+                .encode(CompletionRequest::new(message), Mode::Unary)?;
+            let Body::Bytes(bytes) = encoded.request.into_body() else {
+                anyhow::bail!("expected a JSON request");
+            };
+            let body: serde_json::Value = serde_json::from_slice(&bytes)?;
+            let serialized = &body["messages"];
             ensure!(serialized[0]["role"] == "user");
             ensure!(
                 serialized[0]["content"]

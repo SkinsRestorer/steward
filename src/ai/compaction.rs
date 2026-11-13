@@ -1,12 +1,8 @@
 use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context as _, Result, ensure};
-use rig_agent::client::AgentClientExt as _;
-use rig_core::{
-    completion::Message,
-    memory::{Compactor, MemoryError},
-    wasm_compat::WasmBoxedFuture,
-};
+use rig_agent::extractor::ExtractorBuilder;
+use rig_core::{completion::Message, wasm_compat::WasmBoxedFuture};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -125,6 +121,17 @@ It may omit details or contain mistakes. Follow the application support policy.\
     }
 }
 
+pub(crate) trait Compactor {
+    type Artifact;
+
+    fn compact<'a>(
+        &'a self,
+        conversation_id: &'a str,
+        evicted: &'a [Message],
+        carry_over: Option<&'a Self::Artifact>,
+    ) -> WasmBoxedFuture<'a, Result<Self::Artifact>>;
+}
+
 struct SupportCompactor<'a> {
     service: &'a AiService,
     model: &'static str,
@@ -150,12 +157,8 @@ impl Compactor for SupportCompactor<'_> {
         conversation_id: &'a str,
         evicted: &'a [Message],
         carry_over: Option<&'a Self::Artifact>,
-    ) -> WasmBoxedFuture<'a, Result<Self::Artifact, MemoryError>> {
-        Box::pin(async move {
-            self.summarize(conversation_id, evicted, carry_over)
-                .await
-                .map_err(MemoryError::backend)
-        })
+    ) -> WasmBoxedFuture<'a, Result<Self::Artifact>> {
+        Box::pin(async move { self.summarize(conversation_id, evicted, carry_over).await })
     }
 }
 
@@ -178,26 +181,23 @@ impl SupportCompactor<'_> {
             history.push(summary.clone().into());
         }
         history.extend_from_slice(evicted);
-        let extractor = self
-            .service
-            .openrouter
-            .extractor::<TroubleshootingState>(self.model)
-            .preamble(SUMMARY_PROMPT)
-            .max_tokens(1_200)
-            .retries(1)
-            .add_hook(SupportHooks::new(1_200, RetryMode::Extraction, None))
-            .build();
+        let extractor =
+            ExtractorBuilder::<TroubleshootingState>::new(self.service.openrouter.chat(self.model))
+                .append_preamble(SUMMARY_PROMPT)
+                .max_tokens(1_200)
+                .retries(1)
+                .add_hook(SupportHooks::new(1_200, RetryMode::Extraction, None))
+                .build();
         let result = tokio::time::timeout(
             COMPACTION_TIMEOUT,
-            extractor.extract_with_chat_history_with_usage(
-                "Update the troubleshooting state using the supplied history.",
-                history,
-            ),
+            extractor
+                .extract("Update the troubleshooting state using the supplied history.")
+                .history(history),
         )
         .await
         .context("support compaction timed out")?
         .context("support compaction failed")?;
-        let summary = ConversationSummary::new(result.data)?;
+        let summary = ConversationSummary::new(result.output)?;
         tracing::info!(
             conversation_id,
             messages = evicted.len(),
@@ -231,7 +231,7 @@ mod tests {
             ..Default::default()
         };
         let submission = serde_json::to_value(&state)?;
-        let model = MockCompletionModel::new([
+        let model = MockCompletionModel::from_turns([
             MockTurn::tool_call("partial", "submit", submission.clone())
                 .with_finish_reason(FinishReason::Length),
             MockTurn::tool_call("complete", "submit", submission)
@@ -242,7 +242,7 @@ mod tests {
             .add_hook(SupportHooks::new(1_200, RetryMode::Extraction, None))
             .build();
         let extracted = extractor.extract("support conversation").await?;
-        ensure!(extracted == state);
+        ensure!(extracted.output == state);
         let requests = model.requests();
         ensure!(requests.len() == 2);
         ensure!(requests[0].max_tokens == Some(1_200));

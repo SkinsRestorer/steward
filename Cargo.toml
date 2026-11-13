@@ -2,7 +2,7 @@
 name = "steward"
 version = "1.0.0"
 edition = "2024"
-rust-version = "1.95"
+rust-version = "1.97.1"
 description = "Support and moderation Discord bots for SkinsRestorer and SoulFire"
 license = "GPL-3.0-or-later"
 
@@ -19,6 +19,7 @@ regex = "1.12.2"
 reqwest = { version = "0.13.4", default-features = false, features = ["brotli", "gzip", "http2", "json", "rustls", "stream"] }
 rig-agent = { version = "0.46.0", default-features = false }
 rig-core = "0.46.0"
+rig-reqwest = "0.46.0"
 roxmltree = "0.21.1"
 rten = { version = "0.28.0", default-features = false, features = ["rten_format"] }
 schemars = "1.2.1"

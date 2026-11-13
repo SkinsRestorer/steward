@@ -6,8 +6,8 @@ use std::{
 };
 
 use rig_agent::agent::{
-    AgentHook, CompletionCallAction, CompletionCallEvent, HookContext, ModelTurnAction,
-    ModelTurnFinished, RequestPatch, ToolCall, ToolCallAction, ToolResultAction, ToolResultEvent,
+    AgentHook, CompletionCallAction, CompletionCallEvent, DispatchAction, DispatchEvent,
+    HookContext, ModelTurnAction, ModelTurnFinished, OutcomeAction, OutcomeEvent, RequestPatch,
 };
 use rig_core::{completion::FinishReason, message::AssistantContent};
 use tokio::sync::watch;
@@ -117,33 +117,37 @@ impl AgentHook for SupportHooks {
         ready(action)
     }
 
-    fn on_tool_call(
+    fn on_dispatch(
         &self,
         ctx: &HookContext,
-        event: ToolCall<'_>,
-    ) -> impl Future<Output = ToolCallAction> {
+        event: DispatchEvent<'_>,
+    ) -> impl Future<Output = DispatchAction> {
+        let Some(tool_name) = event.tool_name() else {
+            return ready(DispatchAction::Proceed);
+        };
         ctx.scratchpad().update::<Timings, _>(|timings| {
-            timings
-                .tools
-                .insert(event.internal_call_id.to_owned(), Instant::now());
+            timings.tools.insert(event.id.to_string(), Instant::now());
         });
         if let Some(progress) = &self.progress {
             progress.send_replace(GenerationProgress::Searching);
         }
-        tracing::info!(run_id = ?ctx.run_id(), tool = event.tool_name, call_id = event.internal_call_id, "support tool started");
-        ready(ToolCallAction::Run)
+        tracing::info!(run_id = ?ctx.run_id(), tool = tool_name, call_id = %event.id, "support tool started");
+        ready(DispatchAction::Proceed)
     }
 
-    fn on_tool_result(
+    fn on_outcome(
         &self,
         ctx: &HookContext,
-        event: ToolResultEvent<'_>,
-    ) -> impl Future<Output = ToolResultAction> {
+        event: OutcomeEvent<'_>,
+    ) -> impl Future<Output = OutcomeAction> {
+        let Some(tool_name) = event.tool_name() else {
+            return ready(OutcomeAction::Proceed);
+        };
         let (elapsed, active) = ctx.scratchpad().update::<Timings, _>(|timings| {
             (
                 timings
                     .tools
-                    .remove(event.internal_call_id)
+                    .remove(&event.id.to_string())
                     .map(|start| start.elapsed()),
                 !timings.tools.is_empty(),
             )
@@ -151,10 +155,9 @@ impl AgentHook for SupportHooks {
         if !active && let Some(progress) = &self.progress {
             progress.send_replace(GenerationProgress::Thinking);
         }
-        tracing::info!(run_id = ?ctx.run_id(), tool = event.tool_name, call_id = event.internal_call_id,
-            elapsed_ms = elapsed.map(|elapsed| elapsed.as_millis()), status = event.raw_result.status_name(),
-            error_kind = ?event.raw_result.error().map(rig_core::tool::ToolExecutionError::kind), "support tool finished");
-        ready(ToolResultAction::Keep)
+        tracing::info!(run_id = ?ctx.run_id(), tool = tool_name, call_id = %event.id,
+            elapsed_ms = elapsed.map(|elapsed| elapsed.as_millis()), status = ?event.tool_result().map(rig_core::tool::ToolResult::status_name), "support tool finished");
+        ready(OutcomeAction::Proceed)
     }
 }
 
@@ -170,14 +173,14 @@ mod tests {
 
     #[tokio::test]
     async fn retries_truncation_with_more_room_without_replaying_partial_text() -> Result<()> {
-        let model = MockCompletionModel::new([
+        let model = MockCompletionModel::from_turns([
             MockTurn::text("partial").with_finish_reason(FinishReason::Length),
             MockTurn::text("complete").with_finish_reason(FinishReason::Stop),
         ]);
         AgentBuilder::new(model.clone())
             .add_hook(SupportHooks::new(100, RetryMode::Response, None))
             .build()
-            .runner("question")
+            .prompt("question")
             .max_turns(MAX_RESPONSE_CALLS)
             .run()
             .await?;
@@ -191,14 +194,14 @@ mod tests {
 
     #[tokio::test]
     async fn stops_at_the_retry_ceiling() -> Result<()> {
-        let model = MockCompletionModel::new([
+        let model = MockCompletionModel::from_turns([
             MockTurn::text("partial").with_finish_reason(FinishReason::Length),
             MockTurn::text("partial again").with_finish_reason(FinishReason::Length),
         ]);
         let result = AgentBuilder::new(model.clone())
             .add_hook(SupportHooks::new(100, RetryMode::Response, None))
             .build()
-            .runner("question")
+            .prompt("question")
             .max_turns(MAX_RESPONSE_CALLS)
             .run()
             .await;
@@ -209,18 +212,27 @@ mod tests {
 
     #[tokio::test]
     async fn does_not_retry_filter_stops_or_missing_finish_metadata() -> Result<()> {
-        for turn in [
-            MockTurn::text("filtered").with_finish_reason(FinishReason::ContentFilter),
-            MockTurn::text("answer"),
+        for (turn, filtered) in [
+            (
+                MockTurn::text("filtered").with_finish_reason(FinishReason::ContentFilter),
+                true,
+            ),
+            (MockTurn::text("answer"), false),
         ] {
-            let model = MockCompletionModel::new([turn]);
-            AgentBuilder::new(model.clone())
+            let model = MockCompletionModel::from_turns([turn]);
+            let result = AgentBuilder::new(model.clone())
                 .add_hook(SupportHooks::new(100, RetryMode::Response, None))
                 .build()
-                .runner("question")
+                .prompt("question")
                 .max_turns(MAX_RESPONSE_CALLS)
                 .run()
-                .await?;
+                .await;
+            if filtered {
+                let error = result.expect_err("content filtering must fail the turn");
+                ensure!(error.to_string().contains("content_filter"));
+            } else {
+                result?;
+            }
             ensure!(model.request_count() == 1);
         }
         Ok(())
@@ -229,23 +241,33 @@ mod tests {
     struct ObserveProgress(watch::Receiver<GenerationProgress>);
 
     impl AgentHook for ObserveProgress {
-        fn on_tool_call(
+        fn on_dispatch(
             &self,
             _: &HookContext,
-            _: ToolCall<'_>,
-        ) -> impl Future<Output = ToolCallAction> {
+            event: DispatchEvent<'_>,
+        ) -> impl Future<Output = DispatchAction> {
+            if event.tool_name().is_none() {
+                return ready(DispatchAction::Proceed);
+            }
             assert_eq!(*self.0.borrow(), GenerationProgress::Searching);
-            ready(ToolCallAction::Run)
+            ready(DispatchAction::Proceed)
         }
 
-        fn on_tool_result(
+        fn on_outcome(
             &self,
             _: &HookContext,
-            event: ToolResultEvent<'_>,
-        ) -> impl Future<Output = ToolResultAction> {
-            assert!(event.raw_result.is_error());
+            event: OutcomeEvent<'_>,
+        ) -> impl Future<Output = OutcomeAction> {
+            if event.tool_name().is_none() {
+                return ready(OutcomeAction::Proceed);
+            }
+            assert!(
+                event
+                    .tool_result()
+                    .is_some_and(rig_core::tool::ToolResult::is_error)
+            );
             assert_eq!(*self.0.borrow(), GenerationProgress::Thinking);
-            ready(ToolResultAction::Keep)
+            ready(OutcomeAction::Proceed)
         }
     }
 
@@ -253,7 +275,7 @@ mod tests {
     async fn reports_tool_progress_and_resets_it_after_failure_without_replaying_tools()
     -> Result<()> {
         let (tx, rx) = watch::channel(GenerationProgress::Thinking);
-        let model = MockCompletionModel::new([
+        let model = MockCompletionModel::from_turns([
             MockTurn::tool_call("call", "flaky_tool", serde_json::json!({}))
                 .with_finish_reason(FinishReason::Length),
             MockTurn::text("Unable to search"),
@@ -263,7 +285,7 @@ mod tests {
             .add_hook(SupportHooks::new(100, RetryMode::Response, Some(tx)))
             .add_hook(ObserveProgress(rx.clone()))
             .build()
-            .runner("question")
+            .prompt("question")
             .max_turns(MAX_RESPONSE_CALLS)
             .run()
             .await?;
