@@ -207,7 +207,7 @@ pub static BOT: BotDefinition = BotDefinition {
     },
     chatbot: ChatbotConfig {
         ai: &AI,
-        channel_name_prefixes: &["chat-experiment"],
+        channel_name_prefixes: &["support-bot"],
         generation_error_message: "I hit an internal error while generating a reply. Please try again in a moment.",
         max_response_length: 1_300,
         prompt_injection_error_message: "I can't follow instructions that change my role or rules. I can only help with SoulFire and PistonDev support.",
