@@ -7,6 +7,10 @@ jobs:
     if: "${{ github.event_name != 'pull_request' || github.repository != github.event.pull_request.head.repo.full_name }}"
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        rust: ["1.97.1", "1.100.0"]
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -14,7 +18,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.100.0
+          toolchain: ${{ matrix.rust }}
           components: clippy,rustfmt
 
       - name: Cache Rust build

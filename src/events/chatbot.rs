@@ -7,10 +7,10 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::ai::Compactor;
 use anyhow::{Context as _, Result};
 use futures::{StreamExt as _, stream};
 use poise::serenity_prelude as serenity;
-use rig_core::memory::Compactor;
 use serenity::Mentionable as _;
 use tokio::sync::{Mutex, watch};
 
@@ -1004,16 +1004,13 @@ mod tests {
             _: &'a str,
             evicted: &'a [rig_core::completion::Message],
             carry_over: Option<&'a Self::Artifact>,
-        ) -> rig_core::wasm_compat::WasmBoxedFuture<
-            'a,
-            Result<Self::Artifact, rig_core::memory::MemoryError>,
-        > {
+        ) -> rig_core::wasm_compat::WasmBoxedFuture<'a, Result<Self::Artifact>> {
             Box::pin(async move {
                 assert_ne!(evicted, []);
                 assert_eq!(carry_over, self.previous.as_ref());
-                self.result.clone().ok_or_else(|| {
-                    rig_core::memory::MemoryError::Internal("test failure".to_owned())
-                })
+                self.result
+                    .clone()
+                    .ok_or_else(|| anyhow::anyhow!("test failure"))
             })
         }
     }

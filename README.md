@@ -10,7 +10,7 @@ support links.
 
 ## Requirements
 
-- Rust 1.95 or newer
+- Rust 1.97.1 or newer
 - Discord applications with the Message Content and Server Members privileged
   intents enabled
 - A token for each configured bot
