@@ -192,7 +192,17 @@ impl AiService {
             conversation.push(summary.clone().into());
         }
 
-        conversation.extend(messages.iter().filter_map(ChatMessage::to_message));
+        // Sent replies end with the disclaimer. Remove it from the history so
+        // the model does not learn to write it and the reply does not get it twice.
+        conversation.extend(messages.iter().filter_map(|message| {
+            match message {
+                ChatMessage::Assistant(text) => ChatMessage::Assistant(Arc::from(
+                    strip_response_disclaimer(text, config.response_disclaimer),
+                ))
+                .to_message(),
+                ChatMessage::User(_, _) => message.to_message(),
+            }
+        }));
 
         let prompt = conversation
             .pop()
@@ -367,12 +377,30 @@ fn append_response_disclaimer(text: &str, disclaimer: &str, max_length: usize) -
         return clamp_response(text, max_length);
     }
 
+    let text = strip_response_disclaimer(text, disclaimer);
     let suffix = format!("\n\n{disclaimer}");
     let suffix_length = suffix.chars().count();
     let content_max_length = max_length.saturating_sub(suffix_length);
     format!("{}{}", clamp_response(text, content_max_length), suffix)
         .trim()
         .to_owned()
+}
+
+/// Removes trailing copies of the disclaimer, with or without its `-#`
+/// subtext marker.
+fn strip_response_disclaimer<'a>(text: &'a str, disclaimer: &str) -> &'a str {
+    let disclaimer = disclaimer.trim();
+    let plain = disclaimer.trim_start_matches("-#").trim_start();
+    if plain.is_empty() {
+        return text.trim();
+    }
+
+    let mut text = text.trim();
+    while let Some(rest) = text.strip_suffix(plain) {
+        let rest = rest.trim_end();
+        text = rest.strip_suffix("-#").unwrap_or(rest).trim_end();
+    }
+    text
 }
 
 fn clamp_response(text: &str, max_length: usize) -> String {
@@ -533,7 +561,10 @@ mod tests {
     };
     use std::sync::Arc;
 
-    use super::{ChatMessage, append_response_disclaimer, clamp_response, normalize_newlines};
+    use super::{
+        ChatMessage, append_response_disclaimer, clamp_response, normalize_newlines,
+        strip_response_disclaimer,
+    };
 
     #[test]
     fn sends_images_as_openrouter_image_inputs() -> Result<()> {
@@ -599,6 +630,29 @@ mod tests {
 
         ensure!(result.ends_with("\n\nnotice"));
         ensure!(result.chars().count() <= 50);
+        Ok(())
+    }
+
+    #[test]
+    fn replaces_disclaimers_the_model_already_wrote() -> Result<()> {
+        let disclaimer = "-# AI responses can be incorrect.";
+        for output in [
+            "Glad to help.\n\n-# AI responses can be incorrect.",
+            "Glad to help.\n\nAI responses can be incorrect.",
+            "Glad to help.\n\nAI responses can be incorrect.\n\n-# AI responses can be incorrect.",
+        ] {
+            ensure!(
+                append_response_disclaimer(output, disclaimer, 2000)
+                    == "Glad to help.\n\n-# AI responses can be incorrect."
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn keeps_disclaimer_text_that_is_not_at_the_end() -> Result<()> {
+        let text = "AI responses can be incorrect. Check the docs too.";
+        ensure!(strip_response_disclaimer(text, "-# AI responses can be incorrect.") == text);
         Ok(())
     }
 
