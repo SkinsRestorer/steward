@@ -1,3 +1,5 @@
+#![warn(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+
 mod compaction;
 mod hooks;
 
@@ -53,9 +55,9 @@ pub enum ChatMessage {
 impl ChatMessage {
     pub fn len(&self) -> usize {
         match self {
-            Self::User(content, images) => {
-                content.len() + images.iter().map(|url| url.len()).sum::<usize>()
-            }
+            Self::User(content, images) => images.iter().fold(content.len(), |length, url| {
+                length.saturating_add(url.len())
+            }),
             Self::Assistant(content) => content.len(),
         }
     }
@@ -508,7 +510,6 @@ impl Tool for BraveSearch {
         })
     }
 
-    #[warn(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
     async fn call(
         &self,
         _: &mut ToolContext,
@@ -555,7 +556,7 @@ impl Tool for BraveSearch {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::{Result, ensure};
+    use anyhow::{Context as _, Result, ensure};
     use rig_core::{
         completion::CompletionRequest,
         providers::openai::{OpenAIConfig, wire::OPENROUTER},
@@ -590,22 +591,22 @@ mod tests {
                 anyhow::bail!("expected a JSON request");
             };
             let body: serde_json::Value = serde_json::from_slice(&bytes)?;
-            let serialized = &body["messages"];
-            ensure!(serialized[0]["role"] == "user");
-            ensure!(
-                serialized[0]["content"]
-                    .as_array()
-                    .is_some_and(|parts| parts.len() == urls.len() + 1)
-            );
-            for (part, url) in serialized[0]["content"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .skip(1)
-                .zip(urls)
-            {
-                ensure!(part["type"] == "image_url");
-                ensure!(part["image_url"]["url"] == url);
+            let message = body
+                .pointer("/messages/0")
+                .context("missing user message")?;
+            ensure!(message.get("role").and_then(serde_json::Value::as_str) == Some("user"));
+            let parts = message
+                .get("content")
+                .and_then(serde_json::Value::as_array)
+                .context("missing content array")?;
+            ensure!(parts.len() == urls.len() + 1);
+            for (part, url) in parts.iter().skip(1).zip(urls) {
+                ensure!(part.get("type").and_then(serde_json::Value::as_str) == Some("image_url"));
+                ensure!(
+                    part.pointer("/image_url/url")
+                        .and_then(serde_json::Value::as_str)
+                        == Some(url)
+                );
             }
         }
         ensure!(

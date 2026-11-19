@@ -31,6 +31,10 @@ pub struct SharedServices {
 
 impl SharedServices {
     pub async fn load() -> Result<Self> {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "This is the shared HTTP client constructor and sets both timeouts."
+        )]
         let http = reqwest::Client::builder()
             .user_agent(concat!("steward/", env!("CARGO_PKG_VERSION")))
             .connect_timeout(Duration::from_secs(10))

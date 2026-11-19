@@ -186,9 +186,12 @@ mod tests {
             .await?;
         let requests = model.requests();
         ensure!(requests.len() == 2);
-        ensure!(requests[0].max_tokens == Some(100));
-        ensure!(requests[1].max_tokens == Some(200));
-        ensure!(requests[0].chat_history == requests[1].chat_history);
+        let [first, second] = requests.as_slice() else {
+            anyhow::bail!("expected two requests");
+        };
+        ensure!(first.max_tokens == Some(100));
+        ensure!(second.max_tokens == Some(200));
+        ensure!(first.chat_history == second.chat_history);
         Ok(())
     }
 

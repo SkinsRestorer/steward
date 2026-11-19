@@ -176,7 +176,7 @@ impl SupportCompactor<'_> {
         .await
         .context("compaction queue is full")?
         .context("compaction queue is closed")?;
-        let mut history = Vec::with_capacity(evicted.len() + 1);
+        let mut history = Vec::with_capacity(evicted.len().saturating_add(1));
         if let Some(summary) = carry_over {
             history.push(summary.clone().into());
         }
@@ -245,9 +245,12 @@ mod tests {
         ensure!(extracted.output == state);
         let requests = model.requests();
         ensure!(requests.len() == 2);
-        ensure!(requests[0].max_tokens == Some(1_200));
-        ensure!(requests[1].max_tokens == Some(2_400));
-        ensure!(requests[0].chat_history == requests[1].chat_history);
+        let [first, second] = requests.as_slice() else {
+            anyhow::bail!("expected two requests");
+        };
+        ensure!(first.max_tokens == Some(1_200));
+        ensure!(second.max_tokens == Some(2_400));
+        ensure!(first.chat_history == second.chat_history);
         Ok(())
     }
 
@@ -268,7 +271,10 @@ mod tests {
             outcome: None,
         });
         ensure!(ConversationSummary::new(state.clone()).is_err());
-        state.attempted_fixes[0].status = FixStatus::Suggested;
+        let Some(fix) = state.attempted_fixes.first_mut() else {
+            anyhow::bail!("expected an attempted fix");
+        };
+        fix.status = FixStatus::Suggested;
         let summary = ConversationSummary::new(state.clone())?;
         ensure!(matches!(Message::from(summary), Message::User { .. }));
         ensure!(
