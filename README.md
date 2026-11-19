@@ -11,6 +11,9 @@ support links.
 ## Requirements
 
 - Rust 1.97.1 or newer
+- On Linux, OpenSSL development headers and `pkg-config` to build Steward
+  (`libssl-dev` and `pkg-config` on Debian and Ubuntu)
+- On Linux, the OpenSSL shared libraries and CA certificates to run Steward
 - Discord applications with the Message Content and Server Members privileged
   intents enabled
 - A token for each configured bot
@@ -104,19 +107,20 @@ Railpack detects the root `Cargo.toml` as a Rust application, builds the
 not need a Railpack configuration file, Dockerfile, or Compose file.
 
 Configure the environment variables above in the deployment service and deploy
-the repository root.
+the repository root. Railpack supplies OpenSSL headers and `pkg-config` in its
+build image. Its runtime image supplies the OpenSSL libraries and CA certificates.
 
 ## Run the published image
 
 Pushes to `main` build a release image with Railpack and publish it to
-`ghcr.io/skinsrestorer/steward`. Each build publishes three tags:
+`ghcr.io/skinsrestorer/steward`. The workflow publishes three tags for both architectures:
 
 - `latest`: the latest published build from `main`
 - `main`: the latest published build from `main`
 - `sha-<12-character-commit-sha>`: the build for a specific commit
 
-The workflow uses the `ubuntu-24.04` runner and authenticates
-with `GITHUB_TOKEN`, with `packages: write` permission.
+The workflow builds amd64 on `ubuntu-26.04` and arm64 on `ubuntu-26.04-arm`.
+It authenticates to GHCR with `GITHUB_TOKEN` and `packages: write` permission.
 
 Put the required environment variables in a local `.env` file. Then run:
 

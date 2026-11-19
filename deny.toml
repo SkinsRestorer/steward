@@ -6,13 +6,6 @@ unmaintained = "workspace"
 unsound = "all"
 yanked = "deny"
 ignore = [
-    { id = "RUSTSEC-2026-0049", reason = "Serenity's Discord gateway uses rustls-webpki 0.102 through rustls 0.22. The fix requires 0.103.10 or later." },
-    { id = "RUSTSEC-2026-0098", reason = "Serenity's Discord gateway uses rustls-webpki 0.102 through rustls 0.22. The fix requires 0.103.12 or later." },
-    { id = "RUSTSEC-2026-0099", reason = "Serenity's Discord gateway uses rustls-webpki 0.102 through rustls 0.22. The fix requires 0.103.12 or later." },
-    { id = "RUSTSEC-2026-0104", reason = "Serenity's Discord gateway uses rustls-webpki 0.102 through rustls 0.22. The fix requires 0.103.13 or later." },
-    { id = "RUSTSEC-2026-0346", reason = "Serenity's Discord gateway uses rustls 0.22 through tokio-tungstenite 0.21. The fix requires rustls 0.23.46 or later." },
-    { id = "RUSTSEC-2026-0349", reason = "Serenity's Discord gateway uses rustls 0.22 through tokio-tungstenite 0.21. The fix requires rustls 0.23.46 or later." },
-    { id = "RUSTSEC-2026-0382", reason = "Serenity's Discord gateway uses rustls-webpki 0.102 through rustls 0.22. The fix requires 0.103.16 or later." },
     { id = "RUSTSEC-2026-0543", reason = "All chrono releases are unmaintained. Steward uses chrono for date and time handling, and replacement requires a code migration." },
     { id = "RUSTSEC-2026-0555", reason = "All chrono-tz releases are unmaintained. Steward uses chrono-tz for time zone handling, and replacement requires a code migration." },
 ]
