@@ -1,3 +1,5 @@
+#![warn(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+
 use std::{io::Cursor, sync::Arc};
 
 use anyhow::{Context as _, Result, anyhow, ensure};
@@ -82,7 +84,9 @@ fn decode_image(bytes: &[u8]) -> Result<image::RgbImage> {
         .into_decoder()
         .context("failed to create OCR image decoder")?;
     let (width, height) = decoder.dimensions();
-    let pixels = u64::from(width).saturating_mul(u64::from(height));
+    let pixels = u64::from(width)
+        .checked_mul(u64::from(height))
+        .context("OCR image pixel count overflowed u64")?;
     ensure!(
         pixels <= MAX_IMAGE_PIXELS,
         "OCR image contains {pixels} pixels, exceeding the {MAX_IMAGE_PIXELS} pixel limit"
@@ -120,6 +124,12 @@ mod tests {
             ..Default::default()
         })
         .map_err(|error| anyhow!("failed to initialize OCR engine: {error}"))?;
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_truncated_png() -> Result<()> {
+        ensure!(decode_image(b"\x89PNG\r\n\x1a\n").is_err());
         Ok(())
     }
 

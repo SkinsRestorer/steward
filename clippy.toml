@@ -1,3 +1,14 @@
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true
 allow-panic-in-tests = true
+
+disallowed-methods = [
+    { path = "std::env::set_var", reason = "Pass configuration explicitly instead of mutating the process environment." },
+    { path = "std::env::remove_var", reason = "Pass configuration explicitly instead of mutating the process environment." },
+    { path = "std::thread::sleep", reason = "Use tokio::time::sleep to keep the executor thread available." },
+    { path = "std::process::Command::output", reason = "Use tokio::process::Command with Tokio's process feature." },
+    { path = "std::process::Command::status", reason = "Use tokio::process::Command with Tokio's process feature." },
+    { path = "std::process::Command::spawn", reason = "Use tokio::process::Command with Tokio's process feature." },
+    { path = "reqwest::Client::new", reason = "Reuse the shared HTTP client, which sets connect and request timeouts." },
+    { path = "reqwest::get", reason = "Use the shared HTTP client's get method to apply connect and request timeouts." },
+]

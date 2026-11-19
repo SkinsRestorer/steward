@@ -14,4 +14,4 @@ pre-push:
     clippy:
       run: cargo clippy --all-targets --all-features --locked -- -D warnings
       files: git diff --name-only @{upstream} HEAD
-      glob: "{*.rs,Cargo.toml,Cargo.lock,rust-toolchain.toml}"
+      glob: "{*.rs,Cargo.toml,Cargo.lock,clippy.toml,rust-toolchain.toml}"

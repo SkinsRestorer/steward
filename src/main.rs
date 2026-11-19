@@ -17,8 +17,8 @@ use futures::future::try_join_all;
 use state::SharedServices;
 use tracing_subscriber::EnvFilter;
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
+    // Load the process environment before Tokio starts its worker threads.
     let dotenv_result = dotenvy::dotenv();
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -40,6 +40,11 @@ async fn main() -> Result<()> {
         Err(_) => tracing::warn!("failed to load .env"),
     }
 
+    run()
+}
+
+#[tokio::main]
+async fn run() -> Result<()> {
     let services = Arc::new(
         SharedServices::load()
             .await

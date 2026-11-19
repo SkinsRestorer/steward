@@ -508,6 +508,7 @@ impl Tool for BraveSearch {
         })
     }
 
+    #[warn(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
     async fn call(
         &self,
         _: &mut ToolContext,

@@ -1,3 +1,5 @@
+#![warn(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+
 use anyhow::{Context as _, Result, bail};
 use futures::StreamExt as _;
 

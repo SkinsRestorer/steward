@@ -1,3 +1,5 @@
+#![warn(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+
 use std::collections::HashSet;
 
 use poise::serenity_prelude as serenity;
@@ -94,8 +96,16 @@ mod tests {
         );
 
         ensure!(links.len() == 2);
-        ensure!(links[0].raw_url == "https://raw.example/alpha");
-        ensure!(links[1].raw_url == "https://snippets.example/beta/raw");
+        ensure!(
+            links
+                .first()
+                .is_some_and(|link| link.raw_url == "https://raw.example/alpha")
+        );
+        ensure!(
+            links
+                .get(1)
+                .is_some_and(|link| link.raw_url == "https://snippets.example/beta/raw")
+        );
         Ok(())
     }
 }

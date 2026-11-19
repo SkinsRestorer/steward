@@ -104,3 +104,5 @@ empty_enum_variants_with_brackets = "warn"
 # Better test failures
 assertions_on_result_states = "warn"
 missing_assert_message = "warn"
+
+disallowed_methods = "warn"

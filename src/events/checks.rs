@@ -1,3 +1,5 @@
+#![warn(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+
 use std::{borrow::Cow, io, sync::LazyLock};
 
 use anyhow::{Context as _, Result, anyhow};
