@@ -17,6 +17,7 @@ Install Rust through Rustup. Use `rust-toolchain.toml` when present, otherwise t
 
 Install [Lefthook](https://lefthook.dev/install/) 1.13.6 or newer, then run `lefthook install` once per checkout.
 The pre-commit hook checks staged whitespace and Rust formatting. Before pushing Rust or dependency changes, Clippy checks all targets and features.
+The commit-msg hook checks the first line for a Conventional Commit subject and accepts standard Git-generated subjects.
 The pre-push hook compares `HEAD` with the branch's upstream. Keep the upstream set to the branch that you push.
 
 Run the commands below from the repository root unless a command names another directory.
@@ -32,9 +33,9 @@ On Windows, use `gradlew.bat` in place of `./gradlew` for Gradle commands.
 ## Verify your change
 
 ```bash
-cargo fmt --all -- --check
-cargo clippy --all-targets --all-features --locked -- -D warnings
-cargo test --all-targets --locked
+cargo fmt --all --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all-targets
 ```
 
 Read [AGENTS.md](AGENTS.md) for runtime and Rust conventions. Keep bot-specific text in its bot definition. Add focused tests for parsing, configuration limits, and state transitions. Use a separate Discord bot and test guild for runtime checks. Evaluate OCR performance in release mode. Keep private messages, tokens, and API keys out of logs.

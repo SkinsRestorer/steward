@@ -6,12 +6,21 @@ pre-commit:
       run: git diff --cached --check
     rustfmt:
       glob: "*.rs"
-      run: cargo fmt --all -- --check
+      run: cargo fmt --all --check
       files: git diff --cached --name-only --diff-filter=ACMR
+
+commit-msg:
+  commands:
+    conventional-commit:
+      run: |
+        if ! sed -n '1p' "{1}" | grep -Eq '^(Merge |Revert "|fixup! |squash! |amend! )|^(feat|fix|docs|refactor|test|chore|ci|build|perf|style|revert)(\([^()[:space:]]+\))?!?: [[:space:]]*[^[:space:]]'; then
+          printf '%s\n' 'Use a Conventional Commit subject, for example: fix(ocr): handle empty input.' >&2
+          exit 1
+        fi
 
 pre-push:
   commands:
     clippy:
-      run: cargo clippy --all-targets --all-features --locked -- -D warnings
+      run: cargo clippy --all-targets --all-features -- -D warnings
       files: git diff --name-only @{upstream} HEAD
       glob: "{*.rs,Cargo.toml,Cargo.lock,clippy.toml,rust-toolchain.toml}"
