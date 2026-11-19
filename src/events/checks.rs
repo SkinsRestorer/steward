@@ -115,23 +115,25 @@ async fn handle_images(
             continue;
         }
 
-        let permit = data.services.ocr.acquire().await?;
-        let response = data
-            .services
-            .http
-            .get(&attachment.proxy_url)
-            .send()
-            .await
-            .context("failed to download OCR attachment")?
-            .error_for_status()
-            .context("OCR attachment download failed")?;
-        let bytes = download::read_limited_bytes(
-            response,
-            usize::try_from(MAX_IMAGE_BYTES).unwrap_or(usize::MAX),
-            "OCR attachment",
-        )
-        .await?;
-        let text = data.services.ocr.recognize(bytes, permit).await?;
+        let text = {
+            let permit = data.services.ocr.acquire().await?;
+            let response = data
+                .services
+                .http
+                .get(&attachment.proxy_url)
+                .send()
+                .await
+                .context("failed to download OCR attachment")?
+                .error_for_status()
+                .context("OCR attachment download failed")?;
+            let bytes = download::read_limited_bytes(
+                response,
+                usize::try_from(MAX_IMAGE_BYTES).unwrap_or(usize::MAX),
+                "OCR attachment",
+            )
+            .await?;
+            data.services.ocr.recognize(bytes, permit).await?
+        };
 
         if contains_prohibited_ocr_content(&text) {
             delete_and_kick_ocr_spammer(ctx, message).await;

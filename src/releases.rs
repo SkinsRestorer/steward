@@ -37,6 +37,10 @@ impl Drop for ReleaseTasks {
             .handles
             .get_mut()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        #[expect(
+            clippy::iter_over_hash_type,
+            reason = "Release refresh tasks are independent and can be aborted in any order"
+        )]
         for handle in handles.values() {
             handle.abort();
         }

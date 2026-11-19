@@ -637,7 +637,11 @@ fn build_content(user_message: &str, sources: &[SourceContent], max_bytes: usize
         content.push_str(SUPPORT_DATA_SOURCE_END);
     }
     content.push_str(SUPPORT_DATA_OUTRO);
-    debug_assert!(content.len() <= max_bytes);
+    debug_assert!(
+        content.len() <= max_bytes,
+        "support content has {} bytes and exceeds the {max_bytes}-byte budget",
+        content.len()
+    );
     content
 }
 
@@ -673,19 +677,21 @@ fn excerpt_text(text: &str, max_bytes: usize) -> String {
 }
 
 fn prefix_bytes(text: &str, max_bytes: usize) -> &str {
-    let mut end = text.len().min(max_bytes);
-    while !text.is_char_boundary(end) {
-        end = end.saturating_sub(1);
-    }
-    &text[..end]
+    let end = text.floor_char_boundary(max_bytes);
+    text.get(..end).unwrap_or_default()
 }
 
 fn suffix_bytes(text: &str, max_bytes: usize) -> &str {
-    let mut start = text.len().saturating_sub(max_bytes);
-    while !text.is_char_boundary(start) {
-        start = start.saturating_add(1);
-    }
-    &text[start..]
+    let start = text.ceil_char_boundary(text.len().saturating_sub(max_bytes));
+    text.get(start..).unwrap_or_default()
+}
+
+async fn broadcast_typing(ctx: &serenity::Context, channel: serenity::ChannelId) {
+    #[expect(
+        clippy::let_underscore_must_use,
+        reason = "A failed typing indicator must not interrupt response generation"
+    )]
+    let _ = channel.broadcast_typing(&ctx.http).await;
 }
 
 fn schedule_generation(
@@ -703,11 +709,7 @@ fn schedule_generation(
             return;
         };
 
-        let _ = request
-            .reply_target
-            .channel
-            .broadcast_typing(&ctx.http)
-            .await;
+        broadcast_typing(&ctx, request.reply_target.channel).await;
         let ai = data.services.ai.clone();
         let conversation_id = format!(
             "{}:{}:{}",
@@ -743,7 +745,7 @@ fn schedule_generation(
                 tokio::select! {
                     response = &mut generation => break response,
                     _ = typing_interval.tick() => {
-                        let _ = reply_target.channel.broadcast_typing(&ctx.http).await;
+                        broadcast_typing(&ctx, reply_target.channel).await;
                     }
                     _ = progress_interval.tick() => {
                         let progress = *progress_rx.borrow();
@@ -976,6 +978,15 @@ mod tests {
     use crate::ai::ChatMessage;
     use poise::serenity_prelude as serenity;
 
+    #[test]
+    fn slices_text_within_a_byte_budget_at_utf8_boundaries() {
+        let text = "aé🦀z";
+        assert_eq!(super::prefix_bytes(text, 2), "a");
+        assert_eq!(super::suffix_bytes(text, 4), "z");
+        assert_eq!(super::prefix_bytes(text, text.len() + 1), text);
+        assert_eq!(super::suffix_bytes(text, text.len() + 1), text);
+    }
+
     fn reply_target(message: u64) -> ReplyTarget {
         ReplyTarget {
             author: serenity::UserId::new(1),
@@ -1132,6 +1143,7 @@ mod tests {
         let retry = conversation
             .begin_generation(scheduled)
             .ok_or_else(|| anyhow::anyhow!("missing retry generation"))?;
+        drop(conversation);
         ensure!(retry.compaction.is_some());
         Ok(())
     }
