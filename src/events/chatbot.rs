@@ -687,11 +687,8 @@ fn suffix_bytes(text: &str, max_bytes: usize) -> &str {
 }
 
 async fn broadcast_typing(ctx: &serenity::Context, channel: serenity::ChannelId) {
-    #[expect(
-        clippy::let_underscore_must_use,
-        reason = "A failed typing indicator must not interrupt response generation"
-    )]
-    let _ = channel.broadcast_typing(&ctx.http).await;
+    // A failed typing indicator must not interrupt response generation.
+    drop(channel.broadcast_typing(&ctx.http).await);
 }
 
 fn schedule_generation(

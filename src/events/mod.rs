@@ -17,6 +17,10 @@ pub async fn handle(
     event: &serenity::FullEvent,
     data: &AppState,
 ) -> Result<(), Error> {
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "The bot only handles selected Discord gateway events"
+    )]
     match event {
         serenity::FullEvent::Ready { data_about_bot } => {
             tracing::info!(

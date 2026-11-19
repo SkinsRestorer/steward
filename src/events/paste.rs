@@ -40,6 +40,10 @@ fn find_in_contents(
                 let (Some(code), Some(original_url)) = (captures.get(1), captures.get(0)) else {
                     continue;
                 };
+                #[expect(
+                    clippy::literal_string_with_formatting_args,
+                    reason = "The placeholder is part of a configured URL template"
+                )]
                 let raw_url = check.raw_url.replace("{code}", code.as_str());
                 if raw_urls.insert(raw_url.clone()) {
                     matches.push(PasteLink {

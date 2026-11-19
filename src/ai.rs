@@ -274,7 +274,8 @@ impl AiService {
     }
 
     async fn get_docs_context(&self, url: &'static str) -> Result<Arc<str>> {
-        if let Some(cached) = self.docs_cache.read().await.get(url).cloned() {
+        let cached = self.docs_cache.read().await.get(url).cloned();
+        if let Some(cached) = cached {
             if cached.expires_at > Instant::now() {
                 return Ok(cached.text);
             }
@@ -294,7 +295,8 @@ impl AiService {
 
         let refresh_lock = self.docs_refresh_lock(url).await;
         let _guard = refresh_lock.lock().await;
-        if let Some(cached) = self.docs_cache.read().await.get(url).cloned() {
+        let cached = self.docs_cache.read().await.get(url).cloned();
+        if let Some(cached) = cached {
             return Ok(cached.text);
         }
         self.refresh_docs_context(url).await
