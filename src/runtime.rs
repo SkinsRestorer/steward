@@ -43,8 +43,11 @@ pub async fn start_bot(bot: &'static BotDefinition, services: Arc<SharedServices
                     .into_iter()
                     .map(|command| (command.name, command.id))
                     .collect();
-                state.command_ids.set(command_ids).map_err(|_| {
-                    anyhow::anyhow!("application command IDs were initialized more than once")
+                state.command_ids.set(command_ids).map_err(|error| {
+                    anyhow::anyhow!(
+                        "application command IDs were initialized more than once ({} IDs returned)",
+                        error.len()
+                    )
                 })?;
 
                 tracing::info!(

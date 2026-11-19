@@ -23,7 +23,7 @@ impl HoneypotService {
         let inserted = self
             .pending_bans
             .lock()
-            .map_err(|_| anyhow!("honeypot pending bans lock was poisoned"))?
+            .map_err(|error| anyhow!("honeypot pending bans lock was poisoned: {error}"))?
             .insert(key);
         Ok(inserted.then(|| PendingBan { service: self, key }))
     }

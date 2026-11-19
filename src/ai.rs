@@ -267,8 +267,7 @@ impl AiService {
             write!(
                 content,
                 "<documentation_source url=\"{url}\">\n{text}\n</documentation_source>"
-            )
-            .expect("writing to a String cannot fail");
+            )?;
         }
         content.push_str("\n</reference_documentation>");
         Ok(Some(content))
