@@ -17,6 +17,7 @@ Install Rust through Rustup. Use `rust-toolchain.toml` when present, otherwise t
 
 Install [Lefthook](https://lefthook.dev/install/) 1.13.6 or newer, then run `lefthook install` once per checkout.
 The pre-commit hook checks staged whitespace and Rust formatting. Before pushing Rust or dependency changes, Clippy checks all targets and features.
+Install cargo-deny 0.20.2 to check dependencies before pushing changes to `Cargo.toml`, `Cargo.lock`, or `deny.toml`.
 The commit-msg hook checks the first line for a Conventional Commit subject and accepts standard Git-generated subjects.
 The pre-push hook compares `HEAD` with the branch's upstream. Keep the upstream set to the branch that you push.
 
@@ -35,6 +36,7 @@ On Windows, use `gradlew.bat` in place of `./gradlew` for Gradle commands.
 ```bash
 cargo fmt --all --check
 cargo clippy --all-targets --all-features -- -D warnings
+cargo deny --locked check
 cargo test --all-targets
 ```
 

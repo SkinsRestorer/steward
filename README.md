@@ -92,6 +92,7 @@ model directory is needed.
 ```bash
 cargo fmt --all --check
 cargo clippy --all-targets --all-features -- -D warnings
+cargo deny --locked check # Requires cargo-deny 0.20.2
 cargo test --all-targets
 cargo build --release --locked
 ```

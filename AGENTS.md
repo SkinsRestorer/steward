@@ -18,6 +18,7 @@
 - Format: `cargo fmt --all`
 - Check formatting: `cargo fmt --all --check`
 - Lint: `cargo clippy --all-targets --all-features -- -D warnings`
+- Check dependencies with cargo-deny 0.20.2: `cargo deny --locked check`
 - Test: `cargo test --all-targets`
 - Release build: `cargo build --release --locked`
 
