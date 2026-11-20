@@ -17,9 +17,9 @@ ocrs = "0.14.0"
 poise = { version = "0.7.0", default-features = false, features = ["cache", "chrono", "handle_panics"] }
 regex = "1.12.2"
 reqwest = { version = "0.13.4", default-features = false, features = ["brotli", "gzip", "http2", "json", "rustls", "stream"] }
-rig-agent = { version = "0.46.0", default-features = false }
-rig-core = "0.46.0"
-rig-reqwest = "0.46.0"
+rig-agent = { version = "0.47.0", default-features = false }
+rig-core = "0.47.0"
+rig-reqwest = "0.47.0"
 roxmltree = "0.21.1"
 rten = { version = "0.28.0", default-features = false, features = ["rten_format"] }
 schemars = "1.2.1"
@@ -36,7 +36,7 @@ unicode-normalization = "0.1.25"
 yaml_serde = "0.10.4"
 
 [dev-dependencies]
-rig-agent = { version = "0.46.0", default-features = false, features = ["test-utils"] }
+rig-agent = { version = "0.47.0", default-features = false, features = ["test-utils"] }
 
 [profile.release]
 lto = "thin"
