@@ -534,7 +534,8 @@ pub const PASTE_CHECKS: &[PasteCheck] = &[
     },
     PasteCheck {
         pattern: r"https?://pastes\.dev/(\w+)",
-        raw_url: "https://bytebin.lucko.me/{code}",
+        // pastes.dev serves its pastes from its own bytebin instance.
+        raw_url: "https://api.pastes.dev/{code}",
     },
     PasteCheck {
         pattern: r"https?://paste\.lucko\.me/(?:raw/)?(\w+)(?:\.\w+)?",

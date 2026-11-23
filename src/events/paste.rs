@@ -143,6 +143,7 @@ mod tests {
                 "https://gist.github.com/0123abcd/raw/",
             ),
             ("https://mclo.gs/AbC123", "https://api.mclo.gs/1/raw/AbC123"),
+            ("https://pastes.dev/AbC123", "https://api.pastes.dev/AbC123"),
         ] {
             let links = find_in_contents(&[input], PASTE_CHECKS, &patterns);
             ensure!(
