@@ -123,10 +123,8 @@ pub struct AiService {
 
 impl AiService {
     pub fn new(client: reqwest::Client, model_client: reqwest::Client) -> Result<Self> {
-        let openrouter_api_key =
-            env::var("OPENROUTER_API_KEY").context("OPENROUTER_API_KEY must be configured")?;
-        let search_api_key =
-            env::var("BRAVE_SEARCH_API_KEY").context("BRAVE_SEARCH_API_KEY must be configured")?;
+        let openrouter_api_key = required_env("OPENROUTER_API_KEY")?;
+        let search_api_key = required_env("BRAVE_SEARCH_API_KEY")?;
         let openrouter = OpenAIConfig::with_key(&OPENROUTER, openrouter_api_key)
             .connect(rig_reqwest::ReqwestClient::from(model_client));
 
@@ -534,6 +532,16 @@ fn is_allowed_link(url: &str, allowed: &[&str]) -> bool {
                 .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'));
         host_matches && path_matches
     })
+}
+
+/// Reads a required key and rejects an empty value, which would otherwise only
+/// fail on the first AI reply.
+fn required_env(name: &str) -> Result<String> {
+    let value = env::var(name).with_context(|| format!("{name} must be configured"))?;
+    if value.trim().is_empty() {
+        bail!("{name} must be configured");
+    }
+    Ok(value)
 }
 
 /// Tags that mark trusted structure around untrusted text in prompts.
