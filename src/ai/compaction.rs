@@ -34,14 +34,30 @@ pub(crate) struct TroubleshootingState {
     pub platform: Option<String>,
     pub version: Option<String>,
     /// Relevant configuration and environment details reported by the user.
+    #[serde(deserialize_with = "null_as_empty")]
     pub environment: Vec<String>,
     /// Exact relevant errors, excluding secrets.
+    #[serde(deserialize_with = "null_as_empty")]
     pub errors: Vec<String>,
+    #[serde(deserialize_with = "null_as_empty")]
     pub attempted_fixes: Vec<AttemptedFix>,
+    #[serde(deserialize_with = "null_as_empty")]
     pub decisions: Vec<String>,
+    #[serde(deserialize_with = "null_as_empty")]
     pub unresolved_questions: Vec<String>,
     /// Observations from screenshots, without guessing unseen details.
+    #[serde(deserialize_with = "null_as_empty")]
     pub image_findings: Vec<String>,
+}
+
+/// Reads `null` as an empty list. The prompt allows null for unknown details,
+/// and models sometimes send it for lists too.
+fn null_as_empty<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Ok(Option::<Vec<T>>::deserialize(deserializer)?.unwrap_or_default())
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Eq, PartialEq)]
@@ -212,6 +228,20 @@ impl SupportCompactor<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_null_lists_as_empty() -> Result<()> {
+        let state = serde_json::from_str::<TroubleshootingState>(
+            r#"{"issue":"Skins do not load","platform":null,"version":null,
+                "environment":null,"errors":["E1"],"attempted_fixes":null,
+                "decisions":null,"unresolved_questions":null,"image_findings":null}"#,
+        )?;
+        ensure!(state.environment.is_empty() && state.attempted_fixes.is_empty());
+        ensure!(state.errors == ["E1"]);
+        // A missing list is still an error, because the schema requires every field.
+        ensure!(serde_json::from_str::<TroubleshootingState>(r#"{"issue":null}"#).is_err());
+        Ok(())
+    }
 
     #[tokio::test]
     async fn extraction_retries_truncated_submissions_with_a_larger_cap() -> Result<()> {
