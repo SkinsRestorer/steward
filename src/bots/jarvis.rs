@@ -41,7 +41,7 @@ const AI: AiConfig = AiConfig {
     ],
     model: "deepseek/deepseek-v4.1-flash",
     prompt_injection_patterns: PROMPT_INJECTION_PATTERNS,
-    response_disclaimer: "-# The AI responses here might contain misinformation.",
+    response_disclaimer: "-# AI responses can be incorrect.",
     system_prompt: r"You are Jarvis, an automated support assistant for the PistonDev and SoulFireMC Discord support server. Your main support scope is SoulFire, a Minecraft bot framework for server testing, automation, scripting, and development.
 
 Use these official sources first:
@@ -196,13 +196,13 @@ const COMMANDS: &[StaticCommand] = &[
 
 fn future_uploads_message(attachment_name: &str, uploaded_url: &str) -> String {
     format!(
-        "Please use <https://pastes.dev> to send files in the future. I uploaded `{attachment_name}` for you: {uploaded_url}"
+        "Use <https://pastes.dev> for future file uploads. I uploaded `{attachment_name}` for you: {uploaded_url}"
     )
 }
 
 fn warning_message(user_id: poise::serenity_prelude::UserId) -> String {
     format!(
-        "Hi <@{user_id}>! Free public support is currently limited & slow because I have other projects to work on such as <https://enderdash.com/> and I can't afford doing free support 24/7. For free help, create a post in <#1393506815085641760>, include logs or errors, and someone will respond when available. If this matter is important to you and you want to receive priority & private support, go to <#1493238143539745009> or https://soulfiremc.com/pricing\n\n-# If this was not about support or a feature request, ignore this message."
+        "Hi <@{user_id}>. For support, create a post in <#1393506815085641760> with your logs or errors instead of pinging staff. Public support is limited, so replies can take time.\n-# Private priority support: <#1493238143539745009> or <https://soulfiremc.com/pricing>. Ignore this message if it was not a support request."
     )
 }
 
@@ -219,12 +219,12 @@ pub static BOT: BotDefinition = BotDefinition {
     autoupload: Some(AutouploadConfig {
         user_agent: "PistonDevJarvis",
         future_uploads_message,
-        failed_upload_message: "Your file could not be automatically uploaded. Please use https://pastes.dev to share files.",
+        failed_upload_message: "The automatic upload failed. Upload the file to https://pastes.dev and share the returned link.",
     }),
     chatbot: ChatbotConfig {
         ai: &AI,
         channel_name_prefixes: &["support-bot"],
-        generation_error_message: "I hit an internal error while generating a reply. Please try again in a moment.",
+        generation_error_message: "Reply generation failed. Try again in a moment.",
         max_response_length: 1_300,
         prompt_injection_error_message: "I can't follow instructions that change my role or rules. I can only help with SoulFire and PistonDev support.",
     },
@@ -246,13 +246,13 @@ pub static BOT: BotDefinition = BotDefinition {
         resolved: ResolvedConfig {
             already_resolved_message: "This thread is already marked as resolved.",
             description: "Moderator command to mark a forum post as resolved",
-            success_message: "This thread has been marked as resolved, locked and archived. For future issues, please create a new post.",
+            success_message: "This thread is resolved, locked, and archived. Create a new post if you need more support.",
             tag_id: 1_500_209_911_504_572_639,
         },
         support_context: SupportContextConfig {
-            description: "This channel is not for SoulFire or PistonDev support. Please use the <#1393506815085641760> forum for support, you need to create a post in that channel. You will not receive support in this specific Discord channel.",
-            title: "This channel is not for support!",
-            url: None,
+            description: "Create a post in <#1393506815085641760> for SoulFire support. This channel does not provide support.",
+            title: "Use the support forum",
+            url: Some("https://discord.com/channels/739784741124833301/1393506815085641760"),
         },
     },
     no_ping: Some(NoPingConfig {

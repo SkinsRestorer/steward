@@ -428,7 +428,7 @@ fn future_uploads_message(attachment_name: &str, uploaded_url: &str) -> String {
 
 fn warning_message(user_id: poise::serenity_prelude::UserId) -> String {
     format!(
-        "Hi <@{user_id}>. Public support is limited, so replies can take time. For free support, create a post in <#1058044481246605383>. For private priority support, visit <#1314315764253200394> or https://skinsrestorer.net/pricing\n\n-# Ignore this message if your post was not a support request or feature request."
+        "Hi <@{user_id}>. For support, create a post in <#1058044481246605383> with your logs or `/sr dump` instead of pinging staff. Public support is limited, so replies can take time.\n-# Private priority support: <#1314315764253200394> or <https://skinsrestorer.net/pricing>. Ignore this message if it was not a support request."
     )
 }
 
