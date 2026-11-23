@@ -32,6 +32,7 @@ use super::paste;
 
 const CLEANUP_INTERVAL: Duration = Duration::from_mins(5);
 const CONVERSATION_IDLE_TTL: Duration = Duration::from_mins(30);
+const COMPACTION_RETRY_DELAY: Duration = Duration::from_mins(10);
 const GENERATION_DEBOUNCE: Duration = Duration::from_secs(1);
 const MAX_ATTACHMENT_SOURCES: usize = 10;
 const MAX_CONCURRENT_SOURCE_FETCHES: usize = 4;
@@ -117,6 +118,9 @@ struct ConversationHandle {
 }
 
 struct Conversation {
+    /// After a failed compaction, answer from the recent window until this time
+    /// instead of paying for a compaction that will likely fail again.
+    compaction_retry_at: Option<Instant>,
     generating: bool,
     messages: VecDeque<HistoryEntry>,
     next_order: u64,
@@ -255,6 +259,7 @@ impl ConversationHandle {
 impl Conversation {
     fn new(reply_target: ReplyTarget) -> Self {
         Self {
+            compaction_retry_at: None,
             generating: false,
             messages: VecDeque::new(),
             next_order: 0,
@@ -302,11 +307,15 @@ impl Conversation {
         } else {
             0
         };
-        let compaction = compact_count.checked_sub(1).map(|last| CompactionPlan {
+        let compaction_allowed = self
+            .compaction_retry_at
+            .is_none_or(|retry_at| retry_at <= Instant::now());
+        let compaction_count = if compaction_allowed { compact_count } else { 0 };
+        let compaction = compaction_count.checked_sub(1).map(|last| CompactionPlan {
             messages: self
                 .messages
                 .iter()
-                .take(compact_count)
+                .take(compaction_count)
                 .map(|entry| entry.message.clone())
                 .collect(),
             through_order: self.messages[last].order,
@@ -712,15 +721,23 @@ async fn compact_request<C: Compactor<Artifact = ConversationSummary>>(
         .await
     {
         Ok(summary) => {
-            state
-                .lock()
-                .await
-                .apply_compaction(plan.through_order, summary.clone());
+            let mut state = state.lock().await;
+            state.apply_compaction(plan.through_order, summary.clone());
+            state.compaction_retry_at = None;
+            drop(state);
             request.summary = Some(summary);
         }
         Err(error) => {
-            // Keep the original turns for the next attempt; answer from the bounded recent window.
-            tracing::warn!(%error, conversation_id, "support compaction failed; retaining history for retry");
+            // Keep the original turns for a later attempt and answer from the bounded
+            // recent window. Wait before retrying so each message does not pay for
+            // another compaction call that is likely to fail the same way.
+            tracing::warn!(
+                error = %format_args!("{error:#}"),
+                conversation_id,
+                "support compaction failed; retaining history for retry"
+            );
+            state.lock().await.compaction_retry_at =
+                Instant::now().checked_add(COMPACTION_RETRY_DELAY);
         }
     }
 }
@@ -1020,8 +1037,22 @@ mod tests {
         let retry = conversation
             .begin_generation(scheduled)
             .ok_or_else(|| anyhow::anyhow!("missing retry generation"))?;
+        ensure!(
+            retry.compaction.is_none(),
+            "a failed compaction must not be retried right away"
+        );
+        ensure!(retry.messages.iter().map(ChatMessage::len).sum::<usize>() <= MAX_HISTORY_BYTES);
+
+        conversation.generating = false;
+        conversation.compaction_retry_at = Some(std::time::Instant::now());
+        let scheduled = conversation
+            .enqueue(reply_target(5), Arc::from("and again"), vec![])
+            .ok_or_else(|| anyhow::anyhow!("missing later retry"))?;
+        let later = conversation
+            .begin_generation(scheduled)
+            .ok_or_else(|| anyhow::anyhow!("missing later retry generation"))?;
         drop(conversation);
-        ensure!(retry.compaction.is_some());
+        ensure!(later.compaction.is_some());
         Ok(())
     }
 
