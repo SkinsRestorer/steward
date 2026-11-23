@@ -66,7 +66,7 @@ mod tests {
     use regex::Regex;
 
     use super::find_in_contents;
-    use crate::config::PasteCheck;
+    use crate::config::{PASTE_CHECKS, PasteCheck};
 
     #[test]
     fn finds_all_unique_allowed_paste_links() -> Result<()> {
@@ -105,6 +105,55 @@ mod tests {
             links
                 .get(1)
                 .is_some_and(|link| link.raw_url == "https://snippets.example/beta/raw")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn resolves_raw_urls_for_configured_paste_sites() -> Result<()> {
+        let patterns = PASTE_CHECKS
+            .iter()
+            .map(|check| Regex::new(check.pattern))
+            .collect::<Result<Vec<_>, _>>()
+            .context("configured paste patterns should compile")?;
+
+        for (input, expected) in [
+            (
+                "https://pastebin.com/raw/AbCd1234",
+                "https://pastebin.com/raw/AbCd1234",
+            ),
+            (
+                "https://pastebin.com/AbCd1234",
+                "https://pastebin.com/raw/AbCd1234",
+            ),
+            (
+                "https://hastebin.com/raw/abcdef.log",
+                "https://hastebin.com/raw/abcdef",
+            ),
+            (
+                "https://paste.helpch.at/raw/abcdef",
+                "https://paste.helpch.at/raw/abcdef",
+            ),
+            (
+                "https://gist.github.com/some-user/0123abcd",
+                "https://gist.github.com/some-user/0123abcd/raw/",
+            ),
+            (
+                "https://gist.github.com/0123abcd",
+                "https://gist.github.com/0123abcd/raw/",
+            ),
+            ("https://mclo.gs/AbC123", "https://api.mclo.gs/1/raw/AbC123"),
+        ] {
+            let links = find_in_contents(&[input], PASTE_CHECKS, &patterns);
+            ensure!(
+                links.len() == 1 && links.first().is_some_and(|link| link.raw_url == expected),
+                "{input} should resolve to {expected}"
+            );
+        }
+
+        ensure!(
+            find_in_contents(&["https://pastebin.com/u/someone"], PASTE_CHECKS, &patterns)
+                .is_empty()
         );
         Ok(())
     }

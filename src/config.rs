@@ -159,15 +159,15 @@ pub struct BotDefinition {
 
 pub const PASTE_CHECKS: &[PasteCheck] = &[
     PasteCheck {
-        pattern: r"https?://hastebin\.com/(\w+)(?:\.\w+)?",
+        pattern: r"https?://hastebin\.com/(?:raw/)?(\w+)(?:\.\w+)?",
         raw_url: "https://hastebin.com/raw/{code}",
     },
     PasteCheck {
-        pattern: r"https?://hasteb\.in/(\w+)(?:\.\w+)?",
+        pattern: r"https?://hasteb\.in/(?:raw/)?(\w+)(?:\.\w+)?",
         raw_url: "https://hasteb.in/raw/{code}",
     },
     PasteCheck {
-        pattern: r"https?://paste\.helpch\.at/(\w+)(?:\.\w+)?",
+        pattern: r"https?://paste\.helpch\.at/(?:raw/)?(\w+)(?:\.\w+)?",
         raw_url: "https://paste.helpch.at/raw/{code}",
     },
     PasteCheck {
@@ -179,16 +179,20 @@ pub const PASTE_CHECKS: &[PasteCheck] = &[
         raw_url: "https://bytebin.lucko.me/{code}",
     },
     PasteCheck {
-        pattern: r"https?://paste\.lucko\.me/(\w+)(?:\.\w+)?",
+        pattern: r"https?://paste\.lucko\.me/(?:raw/)?(\w+)(?:\.\w+)?",
         raw_url: "https://paste.lucko.me/raw/{code}",
     },
     PasteCheck {
-        pattern: r"https?://pastebin\.com/(\w+)(?:\.\w+)?",
+        pattern: r"https?://pastebin\.com/(?:raw/)?(\w{2,})(?:\.\w+)?",
         raw_url: "https://pastebin.com/raw/{code}",
     },
     PasteCheck {
-        pattern: r"https?://gist\.github\.com/(\w+/\w+)(?:\.\w+/\w+)?",
+        pattern: r"https?://gist\.github\.com/([\w-]+/\w+|\w+)",
         raw_url: "https://gist.github.com/{code}/raw/",
+    },
+    PasteCheck {
+        pattern: r"https?://mclo\.gs/(\w+)",
+        raw_url: "https://api.mclo.gs/1/raw/{code}",
     },
     PasteCheck {
         pattern: r"https?://gitlab\.com/snippets/(\w+)(?:\.\w+)?",
