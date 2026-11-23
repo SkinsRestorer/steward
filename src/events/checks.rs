@@ -62,7 +62,8 @@ async fn handle_paste(
         .send()
         .await
         .context("failed to fetch paste")?;
-    if response.status() == reqwest::StatusCode::NOT_FOUND {
+    // Private, deleted, and expired pastes return 401, 403, 404, or 410.
+    if response.status().is_client_error() {
         let embed = serenity::CreateEmbed::new()
             .title("Invalid Paste!")
             .colour(0xFF_00_00)
