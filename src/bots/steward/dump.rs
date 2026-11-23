@@ -132,9 +132,11 @@ fn build_dump_embed(
             "**Outdated:** `{version}` is installed. [Update to {latest_version}](https://modrinth.com/plugin/skinsrestorer/version/{latest_version})."
         ));
     }
+    // SkinsRestorer sets `hybrid` only when a BungeeCord proxy also has
+    // Velocity classes, or the reverse.
     if dump.environment.hybrid {
         problems.push(
-            "**Unsupported platform:** this server mixes mods and plugins. SkinsRestorer does not support hybrid platforms."
+            "**Unsupported platform:** this proxy mixes BungeeCord and Velocity code. SkinsRestorer does not support hybrid proxies."
                 .to_owned(),
         );
     }
