@@ -104,11 +104,19 @@ async fn handle_message(ctx: &serenity::Context, data: &AppState, message: &sere
             autoupload::handle(ctx, data, message).await
         }
     };
+    // The chatbot already answers in its channels, so canned replies would duplicate it.
+    let replies = async {
+        if chatbot_channel {
+            Ok(())
+        } else {
+            message_replies::handle(ctx, data, message).await
+        }
+    };
     let (upload_result, chatbot_result, checks_result, replies_result, no_ping_result) = tokio::join!(
         upload,
         chatbot::handle(ctx, data, message, chatbot_channel_name),
         checks::handle(ctx, data, message),
-        message_replies::handle(ctx, data, message),
+        replies,
         no_ping::handle(ctx, data, message),
     );
 
