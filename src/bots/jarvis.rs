@@ -29,6 +29,16 @@ const AI: AiConfig = AiConfig {
     // model call. Send the small index and let the model read the pages it needs.
     docs_context_urls: &["https://soulfiremc.com/llms.txt"],
     docs_page_prefix: Some("https://soulfiremc.com/docs"),
+    allowed_links: &[
+        "soulfiremc.com",
+        "github.com/soulfiremc-com",
+        "github.com/AlexProgrammerDE",
+        "adoptium.net",
+        "minecraft.wiki",
+        "pastes.dev",
+        "mclo.gs",
+        "discord.com",
+    ],
     model: "deepseek/deepseek-v4.1-flash",
     prompt_injection_patterns: PROMPT_INJECTION_PATTERNS,
     response_disclaimer: "-# The AI responses here might contain misinformation.",

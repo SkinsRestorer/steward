@@ -15,7 +15,7 @@ use std::{
     collections::HashMap,
     env,
     fmt::Write as _,
-    sync::Arc,
+    sync::{Arc, LazyLock},
     time::{Duration, Instant},
 };
 
@@ -23,6 +23,7 @@ use anyhow::{Context as _, Result, anyhow, bail};
 use chrono::Utc;
 use chrono_tz::Europe::Berlin;
 use futures::future::join_all;
+use regex::Regex;
 use reqwest::header::{ACCEPT, ACCEPT_ENCODING, CONTENT_TYPE};
 use rig_agent::AgentBuilder;
 use rig_core::{
@@ -199,7 +200,7 @@ impl AiService {
         if let Some(docs_context) = self.build_docs_context(config).await? {
             conversation.push(Message::user(docs_context));
         }
-        conversation.push(Message::user(build_request_context()));
+        conversation.push(Message::user(build_request_context(config.allowed_links)));
 
         if let Some(summary) = summary {
             conversation.push(summary.clone().into());
@@ -245,6 +246,9 @@ impl AiService {
             bail!("OpenRouter returned an empty response");
         }
 
+        // A request phrased past the injection check, or a poisoned search result,
+        // can steer the model into posting a harmful link under the bot's name.
+        let output = remove_unlisted_links(&output, config.allowed_links)?;
         Ok(append_response_disclaimer(
             &output,
             config.response_disclaimer,
@@ -385,14 +389,93 @@ fn normalize_newlines(text: &str) -> String {
     normalized
 }
 
-fn build_request_context() -> String {
+fn build_request_context(allowed_links: &[&str]) -> String {
     let current_time = Utc::now()
         .with_timezone(&Berlin)
         .format("%A, %-d %B %Y at %H:%M %Z");
+    // Tell the model up front so replies do not end up with removed links.
+    let link_rule = if allowed_links.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "Only post links to these sites. Other links are removed from your reply: {}\n\n",
+            allowed_links.join(", ")
+        )
+    };
 
     format!(
-        "Current request context follows. Use this only for date-sensitive support questions, release timing, freshness checks, and interpreting relative dates.\n<request_context>\nCurrent time: {current_time}\n</request_context>"
+        "{link_rule}Current request context follows. Use this only for date-sensitive support questions, release timing, freshness checks, and interpreting relative dates.\n<request_context>\nCurrent time: {current_time}\n</request_context>"
     )
+}
+
+const REMOVED_LINK: &str = "(link removed)";
+
+/// Removes links whose host and path are not on the bot's allowlist. A masked
+/// link `[text](url)` keeps its text. A bare URL becomes "(link removed)".
+fn remove_unlisted_links(text: &str, allowed: &[&str]) -> Result<String> {
+    static MASKED_LINK: LazyLock<Result<Regex, regex::Error>> =
+        LazyLock::new(|| Regex::new(r"\[([^\]]*)\]\(\s*<?(https?://[^\s)>]+)>?(?:\s+[^)]*)?\)"));
+    static BARE_URL: LazyLock<Result<Regex, regex::Error>> =
+        LazyLock::new(|| Regex::new(r"<?https?://[^\s<>]+>?"));
+    let masked_link = MASKED_LINK
+        .as_ref()
+        .map_err(|error| anyhow!("invalid masked link pattern: {error}"))?;
+    let bare_url = BARE_URL
+        .as_ref()
+        .map_err(|error| anyhow!("invalid URL pattern: {error}"))?;
+
+    let text = masked_link.replace_all(text, |captures: &regex::Captures<'_>| {
+        let whole = captures.get(0).map_or("", |capture| capture.as_str());
+        let label = captures.get(1).map_or("", |capture| capture.as_str());
+        let url = captures.get(2).map_or("", |capture| capture.as_str());
+        if is_allowed_link(url, allowed) {
+            whole.to_owned()
+        } else {
+            label.to_owned()
+        }
+    });
+    let text = bare_url.replace_all(&text, |captures: &regex::Captures<'_>| {
+        let whole = captures.get(0).map_or("", |capture| capture.as_str());
+        let inner = whole.trim_start_matches('<');
+        let inner = inner.strip_suffix('>').unwrap_or(inner);
+        // Keep sentence punctuation and closing brackets outside the URL.
+        let url =
+            inner.trim_end_matches(['.', ',', ';', ':', '!', '?', ')', ']', '*', '_', '\'', '"']);
+        if is_allowed_link(url, allowed) {
+            whole.to_owned()
+        } else {
+            format!(
+                "{REMOVED_LINK}{}",
+                inner.get(url.len()..).unwrap_or_default()
+            )
+        }
+    });
+    Ok(text.into_owned())
+}
+
+fn is_allowed_link(url: &str, allowed: &[&str]) -> bool {
+    let Ok(url) = reqwest::Url::parse(url) else {
+        return false;
+    };
+    let Some(host) = url.host_str() else {
+        return false;
+    };
+    if !url.username().is_empty() || url.password().is_some() {
+        return false;
+    }
+    let host = host.to_ascii_lowercase();
+    let path = url.path().trim_start_matches('/').to_ascii_lowercase();
+    allowed.iter().any(|entry| {
+        let entry = entry.to_ascii_lowercase();
+        let (allowed_host, allowed_path) = entry.split_once('/').unwrap_or((&entry, ""));
+        let host_matches = host == allowed_host || host.ends_with(&format!(".{allowed_host}"));
+        // Match whole path segments, so github.com/Org does not cover github.com/OrgEvil.
+        let path_matches = allowed_path.is_empty()
+            || path
+                .strip_prefix(allowed_path)
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'));
+        host_matches && path_matches
+    })
 }
 
 /// Tags that mark trusted structure around untrusted text in prompts.
@@ -731,8 +814,55 @@ mod tests {
 
     use super::{
         ChatMessage, append_response_disclaimer, clamp_response, docs_page_url,
-        neutralize_prompt_tags, normalize_newlines, strip_response_disclaimer,
+        neutralize_prompt_tags, normalize_newlines, remove_unlisted_links,
+        strip_response_disclaimer,
     };
+
+    const ALLOWED: &[&str] = &["skinsrestorer.net", "github.com/SkinsRestorer"];
+
+    #[test]
+    fn keeps_allowed_links_and_subdomains() -> Result<()> {
+        for text in [
+            "See https://skinsrestorer.net/docs/installation.",
+            "Read [the docs](https://docs.skinsrestorer.net/setup).",
+            "Report it at <https://github.com/skinsrestorer/SkinsRestorer/issues>",
+        ] {
+            ensure!(
+                remove_unlisted_links(text, ALLOWED)? == text,
+                "{text} changed"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn removes_unlisted_links() -> Result<()> {
+        ensure!(
+            remove_unlisted_links(
+                "[Official download](https://evil.example/sr.jar) now",
+                ALLOWED
+            )? == "Official download now"
+        );
+        ensure!(
+            remove_unlisted_links("Get it from https://evil.example/sr.jar.", ALLOWED)?
+                == "Get it from (link removed)."
+        );
+        ensure!(
+            remove_unlisted_links("Try (https://github.com/SkinsRestorerEvil/x)", ALLOWED)?
+                == "Try ((link removed))"
+        );
+        for spoof in [
+            "https://skinsrestorer.net.evil.example/x",
+            "https://skinsrestorer.net@evil.example/x",
+            "https://evil-skinsrestorer.net/x",
+        ] {
+            ensure!(
+                remove_unlisted_links(spoof, ALLOWED)? == "(link removed)",
+                "{spoof} was kept"
+            );
+        }
+        Ok(())
+    }
 
     #[test]
     fn reads_only_pages_under_the_docs_prefix() -> Result<()> {

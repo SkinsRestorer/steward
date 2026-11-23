@@ -30,6 +30,10 @@ pub struct AiConfig {
     /// When set, the model can read single documentation pages whose URL
     /// starts with this prefix, for example pages listed in an llms.txt index.
     pub docs_page_prefix: Option<&'static str>,
+    /// Links the model may post. Each entry is a host, which also covers its
+    /// subdomains, or a host and path prefix such as `github.com/SkinsRestorer`.
+    /// Other links are removed from AI replies.
+    pub allowed_links: &'static [&'static str],
     pub model: &'static str,
     pub prompt_injection_patterns: &'static [&'static str],
     pub response_disclaimer: &'static str,
@@ -237,6 +241,12 @@ impl BotDefinition {
         self.validate_commands()?;
         self.validate_copy()?;
         self.validate_docs_page_prefix()?;
+        for entry in self.chatbot.ai.allowed_links {
+            ensure!(
+                !entry.contains("://") && reqwest::Url::parse(&format!("https://{entry}")).is_ok(),
+                "allowed link `{entry}` must be a host or host/path without a scheme"
+            );
+        }
         self.validate_paste_checks()
     }
 
