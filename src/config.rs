@@ -143,9 +143,8 @@ pub struct ThreadStarterConfig {
     pub support_title: &'static str,
     pub support_description: &'static str,
     pub docs_url: &'static str,
-    pub priority_title: &'static str,
-    pub priority_description: &'static str,
-    pub priority_banner_url: &'static str,
+    /// One line under the support text that points to paid priority support.
+    pub priority_note: &'static str,
     pub pricing_url: &'static str,
     pub priority_support_url: &'static str,
 }
@@ -308,13 +307,11 @@ impl BotDefinition {
                 MAX_EMBED_DESCRIPTION_CHARS,
             )?;
             check_length(
-                "priority title",
-                starter.priority_title,
-                MAX_EMBED_TITLE_CHARS,
-            )?;
-            check_length(
-                "priority description",
-                starter.priority_description,
+                "support description and priority note",
+                &format!(
+                    "{}\n\n{}",
+                    starter.support_description, starter.priority_note
+                ),
                 MAX_EMBED_DESCRIPTION_CHARS,
             )?;
         }

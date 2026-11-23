@@ -255,11 +255,9 @@ pub static BOT: BotDefinition = BotDefinition {
     thread_starter: Some(ThreadStarterConfig {
         forum_ids: &[serenity::ChannelId::new(1_393_506_815_085_641_760)],
         support_title: "Need quick SoulFire help?",
-        support_description: "Check the documentation for setup, troubleshooting, and scripting help.\n\nDescribe the problem in this post. Include your SoulFire version, setup, logs, and what you have already tried. We'll follow up as soon as we can.",
+        support_description: "Describe the problem in this post. Include your SoulFire version, setup, logs, and what you already tried. The documentation covers setup, troubleshooting, and scripting.",
         docs_url: "https://soulfiremc.com/docs",
-        priority_title: "Need private priority support?",
-        priority_description: "We offer a **Priority Support** membership for users who want private, faster help from the SoulFire and PistonDev team.\n\nThe membership costs **5 EUR/month** and is a good fit if you want one-on-one troubleshooting instead of waiting in the public forum.\n\nYou can compare the available options on our website or join directly through Ko-fi below.",
-        priority_banner_url: "https://raw.githubusercontent.com/SkinsRestorer/steward/main/assets/soulfire-priority-support.png",
+        priority_note: "-# Need private help? **Priority Support** costs 5 EUR per month.",
         pricing_url: "https://soulfiremc.com/pricing",
         priority_support_url: "https://ko-fi.com/alexprogrammerde/tiers",
     }),

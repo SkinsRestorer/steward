@@ -26,21 +26,18 @@ pub async fn handle(
         .join_thread(&ctx.http)
         .await
         .with_context(|| format!("failed to join forum post {}", thread.id))?;
-    let support = serenity::CreateEmbed::new()
+    // One embed: what to post first, with paid support as a quiet last line.
+    let embed = serenity::CreateEmbed::new()
         .colour(data.bot.accent_color)
         .title(config.support_title)
-        .description(config.support_description);
-    let priority = serenity::CreateEmbed::new()
-        .colour(data.bot.accent_color)
-        .title(config.priority_title)
-        .image(config.priority_banner_url)
-        .description(config.priority_description);
-    let support_links = serenity::CreateActionRow::Buttons(vec![
-        serenity::CreateButton::new_link(config.docs_url).label("📚 Open Documentation"),
-    ]);
-    let priority_links = serenity::CreateActionRow::Buttons(vec![
-        serenity::CreateButton::new_link(config.pricing_url).label("💳 View Pricing"),
-        serenity::CreateButton::new_link(config.priority_support_url).label("☕ Join via Ko-fi"),
+        .description(format!(
+            "{}\n\n{}",
+            config.support_description, config.priority_note
+        ));
+    let links = serenity::CreateActionRow::Buttons(vec![
+        serenity::CreateButton::new_link(config.docs_url).label("Documentation"),
+        serenity::CreateButton::new_link(config.pricing_url).label("Pricing"),
+        serenity::CreateButton::new_link(config.priority_support_url).label("Priority Support"),
     ]);
 
     // A forum post's starter message shares the thread's ID. It can arrive after
@@ -53,8 +50,8 @@ pub async fn handle(
         .send_message(
             &ctx.http,
             serenity::CreateMessage::new()
-                .embeds(vec![support, priority])
-                .components(vec![support_links, priority_links])
+                .embed(embed)
+                .components(vec![links])
                 .reference_message(starter),
         )
         .await
