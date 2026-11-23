@@ -9,6 +9,12 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same ref supersedes the older run. The event name keeps a scheduled
+# run from cancelling a push run on main, which would skip that commit's deployment.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     if: "${{ github.event_name != 'pull_request' || github.repository != github.event.pull_request.head.repo.full_name }}"
