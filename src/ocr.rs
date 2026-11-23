@@ -1,6 +1,6 @@
 #![warn(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
 
-use std::{io::Cursor, sync::Arc};
+use std::{io::Cursor, sync::Arc, time::Duration};
 
 use anyhow::{Context as _, Result, anyhow, ensure};
 use image::ImageDecoder as _;
@@ -13,11 +13,16 @@ const EMBEDDED_RECOGNITION_MODEL: &[u8] = include_bytes!("../models/text-recogni
 const MAX_DECODE_ALLOCATION_BYTES: u64 = 128 * 1024 * 1024;
 const MAX_IMAGE_DIMENSION: u32 = 4_096;
 const MAX_IMAGE_PIXELS: u64 = 12 * 1024 * 1024;
+const MAX_QUEUED_IMAGES: usize = 8;
+const QUEUE_TIMEOUT: Duration = Duration::from_mins(1);
 
 #[derive(Clone)]
 pub struct OcrService {
     engine: Arc<OcrEngine>,
     permits: Arc<Semaphore>,
+    /// Bounds downloaded images waiting for OCR, so a flood of large images
+    /// cannot hold unbounded memory.
+    slots: Arc<Semaphore>,
 }
 
 impl OcrService {
@@ -39,7 +44,17 @@ impl OcrService {
         Ok(Self {
             engine: Arc::new(engine),
             permits: Arc::new(Semaphore::new(2)),
+            slots: Arc::new(Semaphore::new(MAX_QUEUED_IMAGES)),
         })
+    }
+
+    /// Reserves room for one image from download through recognition. Fails when
+    /// the queue stays full, so spam floods are dropped instead of queued forever.
+    pub async fn reserve(&self) -> Result<OwnedSemaphorePermit> {
+        tokio::time::timeout(QUEUE_TIMEOUT, Arc::clone(&self.slots).acquire_owned())
+            .await
+            .context("OCR queue is full")?
+            .context("OCR queue closed")
     }
 
     pub async fn acquire(&self) -> Result<OwnedSemaphorePermit> {
