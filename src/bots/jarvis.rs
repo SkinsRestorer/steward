@@ -1,3 +1,5 @@
+use poise::serenity_prelude as serenity;
+
 use crate::config::{
     AiConfig, AutouploadConfig, BotDefinition, ChatbotConfig, ChecksConfig, CommandField,
     CommandsConfig, DocsFooter, HelpConfig, HoneypotConfig, NoPingConfig, PASTE_CHECKS,
@@ -253,6 +255,7 @@ pub static BOT: BotDefinition = BotDefinition {
         exempt_role_ids: STAFF_ROLE_IDS,
     },
     thread_starter: ThreadStarterConfig {
+        forum_ids: &[serenity::ChannelId::new(1_393_506_815_085_641_760)],
         support_title: "Need quick SoulFire help?",
         support_description: "Check the documentation for setup, troubleshooting, and scripting help.\n\nDescribe the problem in this post. Include your SoulFire version, setup, logs, and what you have already tried. We'll follow up as soon as we can.",
         docs_url: "https://soulfiremc.com/docs",

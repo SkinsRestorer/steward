@@ -128,6 +128,8 @@ pub struct HoneypotConfig {
 
 #[derive(Clone, Copy, Debug)]
 pub struct ThreadStarterConfig {
+    /// Forums whose new posts get the support and priority-support message.
+    pub forum_ids: &'static [serenity::ChannelId],
     pub support_title: &'static str,
     pub support_description: &'static str,
     pub docs_url: &'static str,

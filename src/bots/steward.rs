@@ -1,3 +1,5 @@
+use poise::serenity_prelude as serenity;
+
 use crate::config::{
     AiConfig, AutouploadConfig, BotDefinition, ChatbotConfig, ChecksConfig, CommandField,
     CommandsConfig, DocsFooter, HelpConfig, HoneypotConfig, LatestConfig, NoPingConfig,
@@ -481,6 +483,7 @@ pub static BOT: BotDefinition = BotDefinition {
         exempt_role_ids: STAFF_ROLE_IDS,
     },
     thread_starter: ThreadStarterConfig {
+        forum_ids: &[serenity::ChannelId::new(1_058_044_481_246_605_383)],
         support_title: "Need quick SkinsRestorer help?",
         support_description: "Check the documentation for installation, configuration, and troubleshooting help.\n\nDescribe the problem in this post. Include your setup, logs, and the result of `/sr dump`.",
         docs_url: "https://skinsrestorer.net/docs",

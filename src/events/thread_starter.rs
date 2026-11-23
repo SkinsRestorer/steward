@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use poise::serenity_prelude as serenity;
 
 use crate::state::AppState;
@@ -8,29 +8,22 @@ pub async fn handle(
     data: &AppState,
     thread: &serenity::GuildChannel,
 ) -> Result<()> {
-    if thread.member.is_some() {
-        return Ok(());
-    }
-
-    let Some(parent_id) = thread.parent_id else {
-        return Ok(());
-    };
-    let parent_is_forum = ctx.cache.guild(thread.guild_id).is_some_and(|guild| {
-        guild
-            .channels
-            .get(&parent_id)
-            .is_some_and(|parent| parent.kind == serenity::ChannelType::Forum)
-    });
-    if !parent_is_forum {
-        return Ok(());
-    }
-
-    thread.id.join_thread(&ctx.http).await?;
-    let starter = thread
-        .id
-        .message(&ctx.http, serenity::MessageId::new(thread.id.get()))
-        .await?;
     let config = data.bot.thread_starter;
+    // The bot also gets ThreadCreate when it is added to an existing thread.
+    if thread.member.is_some()
+        || !thread
+            .parent_id
+            .is_some_and(|parent_id| config.forum_ids.contains(&parent_id))
+        || thread.owner_id == Some(ctx.cache.current_user().id)
+    {
+        return Ok(());
+    }
+
+    thread
+        .id
+        .join_thread(&ctx.http)
+        .await
+        .with_context(|| format!("failed to join forum post {}", thread.id))?;
     let support = serenity::CreateEmbed::new()
         .colour(data.bot.accent_color)
         .title(config.support_title)
@@ -48,15 +41,21 @@ pub async fn handle(
         serenity::CreateButton::new_link(config.priority_support_url).label("☕ Join via Ko-fi"),
     ]);
 
-    starter
-        .channel_id
+    // A forum post's starter message shares the thread's ID. It can arrive after
+    // ThreadCreate, so reference it without failing when it is not there yet.
+    let starter =
+        serenity::MessageReference::from((thread.id, serenity::MessageId::new(thread.id.get())))
+            .fail_if_not_exists(false);
+    thread
+        .id
         .send_message(
             &ctx.http,
             serenity::CreateMessage::new()
                 .embeds(vec![support, priority])
                 .components(vec![support_links, priority_links])
-                .reference_message(&starter),
+                .reference_message(starter),
         )
-        .await?;
+        .await
+        .with_context(|| format!("failed to post the welcome message in {}", thread.id))?;
     Ok(())
 }
