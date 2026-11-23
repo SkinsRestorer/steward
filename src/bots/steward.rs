@@ -169,7 +169,7 @@ const COMMANDS: &[StaticCommand] = &[
             },
             CommandField {
                 name: "Javadocs",
-                value: "https://docs.skinsrestorer.net",
+                value: "https://jd.skinsrestorer.net",
             },
         ],
     },
@@ -206,7 +206,7 @@ const COMMANDS: &[StaticCommand] = &[
         description: "Skins missing in TLauncher",
         title: "TLauncher skin issues",
         body: "TLauncher is malware, and its skin system overrides SkinsRestorer skins. Disable the TLauncher skin system or use a supported launcher. Follow the guide below.",
-        url: Some("https://skinsrestorer.net/docs/troubleshooting/launcher-issues#tlauncher"),
+        url: Some("https://skinsrestorer.net/docs/troubleshooting/launcher-issues"),
         fields: &[],
     },
     StaticCommand {
@@ -227,7 +227,7 @@ const COMMANDS: &[StaticCommand] = &[
         url: Some("https://modrinth.com/plugin/skinsrestorer"),
         fields: &[CommandField {
             name: "Dev downloads",
-            value: "https://ci.codemc.io/job/SkinsRestorer/job/SkinsRestorer-DEV/",
+            value: "https://ci.codemc.io/job/SkinsRestorer/job/SkinsRestorer/",
         }],
     },
     StaticCommand {
