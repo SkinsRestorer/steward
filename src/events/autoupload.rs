@@ -61,25 +61,45 @@ pub async fn handle(
 
         match upload_attachment(data, attachment, content_type).await {
             Ok(uploaded_url) => {
-                message
-                    .reply(
-                        ctx,
-                        (data.bot.autoupload.future_uploads_message)(
-                            &attachment.filename,
-                            &uploaded_url,
-                        ),
-                    )
-                    .await?;
+                reply_without_pings(
+                    ctx,
+                    message,
+                    (data.bot.autoupload.future_uploads_message)(
+                        &attachment.filename,
+                        &uploaded_url,
+                    ),
+                )
+                .await?;
             }
             Err(error) => {
                 tracing::error!(%error, attachment = %attachment.filename, "automatic paste upload failed");
-                message
-                    .reply(ctx, data.bot.autoupload.failed_upload_message)
+                reply_without_pings(ctx, message, data.bot.autoupload.failed_upload_message)
                     .await?;
             }
         }
     }
 
+    Ok(())
+}
+
+// Message::reply allows @everyone and role pings, and this text includes a
+// user-chosen filename.
+async fn reply_without_pings(
+    ctx: &serenity::Context,
+    message: &serenity::Message,
+    content: impl Into<String>,
+) -> Result<()> {
+    message
+        .channel_id
+        .send_message(
+            ctx,
+            serenity::CreateMessage::new()
+                .content(content)
+                .reference_message(message)
+                .allowed_mentions(serenity::CreateAllowedMentions::new()),
+        )
+        .await
+        .context("failed to reply to the uploaded attachment")?;
     Ok(())
 }
 

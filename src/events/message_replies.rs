@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use poise::serenity_prelude as serenity;
 
 use crate::state::AppState;
@@ -60,8 +60,10 @@ async fn reply_with_embed(
             ctx,
             serenity::CreateMessage::new()
                 .embed(embed)
-                .reference_message(message),
+                .reference_message(message)
+                .allowed_mentions(serenity::CreateAllowedMentions::new()),
         )
-        .await?;
+        .await
+        .context("failed to send a canned reply")?;
     Ok(())
 }

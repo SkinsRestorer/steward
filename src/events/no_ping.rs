@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use poise::serenity_prelude as serenity;
 
 use crate::{config::NoPingConfig, state::AppState};
@@ -32,8 +32,18 @@ pub async fn handle(
     }
 
     message
-        .reply(ctx, (config.warning_message)(message.author.id))
-        .await?;
+        .channel_id
+        .send_message(
+            ctx,
+            serenity::CreateMessage::new()
+                .content((config.warning_message)(message.author.id))
+                .reference_message(message)
+                .allowed_mentions(
+                    serenity::CreateAllowedMentions::new().users([message.author.id]),
+                ),
+        )
+        .await
+        .context("failed to send the no-ping warning")?;
     Ok(())
 }
 
