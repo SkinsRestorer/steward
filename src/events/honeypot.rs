@@ -120,8 +120,7 @@ pub async fn handle(
     );
     if let Some(member) = &member {
         ensure!(
-            highest_role(&guild.roles, everyone, &bot_member)
-                > highest_role(&guild.roles, everyone, member),
+            bot_outranks(&guild.roles, everyone, &bot_member, member),
             "honeypot bot role must be above the target member's highest role"
         );
     }
@@ -234,6 +233,17 @@ fn is_unknown_member(error: &serenity::Error) -> bool {
     )
 }
 
+/// Discord only lets the bot ban members whose highest role is strictly below
+/// its own.
+fn bot_outranks(
+    roles: &HashMap<serenity::RoleId, serenity::Role>,
+    everyone: serenity::RoleId,
+    bot: &serenity::Member,
+    member: &serenity::Member,
+) -> bool {
+    highest_role(roles, everyone, bot) > highest_role(roles, everyone, member)
+}
+
 fn highest_role<'a>(
     roles: &'a HashMap<serenity::RoleId, serenity::Role>,
     everyone: serenity::RoleId,
@@ -315,10 +325,53 @@ mod tests {
             highest_role(&roles, everyone, &member(2, &[5, 4, 3])).map(|role| role.id)
                 == Some(serenity::RoleId::new(3))
         );
-        ensure!(
-            highest_role(&roles, everyone, &member(2, &[3]))
-                == highest_role(&roles, everyone, &member(6, &[3]))
-        );
+        Ok(())
+    }
+
+    #[test]
+    fn bans_only_members_strictly_below_the_bot() -> Result<()> {
+        // Roles 3 and 4 share position 2, so Discord ranks the lower ID higher.
+        let roles: HashMap<_, _> = [(1, 0), (3, 2), (4, 2), (5, 1)]
+            .into_iter()
+            .map(|(id, position)| {
+                let mut role = serenity::Role::default();
+                role.id = serenity::RoleId::new(id);
+                role.position = position;
+                (role.id, role)
+            })
+            .collect();
+        let everyone = serenity::RoleId::new(1);
+
+        ensure!(!bot_outranks(
+            &roles,
+            everyone,
+            &member(9, &[3]),
+            &member(2, &[3])
+        ));
+        ensure!(bot_outranks(
+            &roles,
+            everyone,
+            &member(9, &[3]),
+            &member(2, &[4])
+        ));
+        ensure!(!bot_outranks(
+            &roles,
+            everyone,
+            &member(9, &[4]),
+            &member(2, &[3])
+        ));
+        ensure!(!bot_outranks(
+            &roles,
+            everyone,
+            &member(9, &[]),
+            &member(2, &[5])
+        ));
+        ensure!(bot_outranks(
+            &roles,
+            everyone,
+            &member(9, &[5]),
+            &member(2, &[])
+        ));
         Ok(())
     }
 
