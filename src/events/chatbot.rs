@@ -126,13 +126,25 @@ struct Conversation {
     /// After a failed compaction, answer from the recent window until this time
     /// instead of paying for a compaction that will likely fail again.
     compaction_retry_at: Option<Instant>,
-    generating: bool,
     messages: VecDeque<HistoryEntry>,
     next_order: u64,
-    pending: bool,
+    phase: Phase,
     reply_target: ReplyTarget,
-    scheduled_order: Option<u64>,
     summary: Option<ConversationSummary>,
+}
+
+/// Where a conversation is in its reply cycle.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Phase {
+    Idle,
+    /// A reply is debouncing for the message with this order. A newer message
+    /// replaces the order, so only the latest scheduled task starts generating.
+    Scheduled(u64),
+    /// A reply is being generated. `pending` records messages that arrived
+    /// meanwhile and need another reply afterwards.
+    Generating {
+        pending: bool,
+    },
 }
 
 struct GenerationRequest {
@@ -266,12 +278,10 @@ impl Conversation {
     fn new(reply_target: ReplyTarget) -> Self {
         Self {
             compaction_retry_at: None,
-            generating: false,
             messages: VecDeque::new(),
             next_order: 0,
-            pending: false,
+            phase: Phase::Idle,
             reply_target,
-            scheduled_order: None,
             summary: None,
         }
     }
@@ -291,23 +301,21 @@ impl Conversation {
         trim_history(&mut self.messages);
         self.reply_target = reply_target;
 
-        if self.generating {
-            self.pending = true;
+        if let Phase::Generating { pending } = &mut self.phase {
+            *pending = true;
             return None;
         }
 
-        self.scheduled_order = Some(order);
+        self.phase = Phase::Scheduled(order);
         Some(order)
     }
 
     fn begin_generation(&mut self, scheduled_order: u64) -> Option<GenerationRequest> {
-        if self.generating || self.scheduled_order != Some(scheduled_order) {
+        if self.phase != Phase::Scheduled(scheduled_order) {
             return None;
         }
 
-        self.generating = true;
-        self.pending = false;
-        self.scheduled_order = None;
+        self.phase = Phase::Generating { pending: false };
         let compact_count = if history_prefix_len(&self.messages, ACTIVE_HISTORY) > 0 {
             history_prefix_len(&self.messages, RECENT_HISTORY)
         } else {
@@ -338,6 +346,22 @@ impl Conversation {
             summary: self.summary.clone(),
             compaction,
         })
+    }
+
+    /// Records the reply, if one was sent, and leaves the generating phase.
+    /// Returns the order to schedule next when messages arrived meanwhile.
+    fn finish_generation(&mut self, request_order: u64, reply: Option<ChatMessage>) -> Option<u64> {
+        if let Some(reply) = reply {
+            insert_reply(&mut self.messages, request_order, reply);
+            trim_history(&mut self.messages);
+        }
+        if self.phase == (Phase::Generating { pending: true }) {
+            self.phase = Phase::Scheduled(self.next_order);
+            Some(self.next_order)
+        } else {
+            self.phase = Phase::Idle;
+            None
+        }
     }
 
     fn apply_compaction(&mut self, through_order: u64, summary: ConversationSummary) {
@@ -594,21 +618,11 @@ fn schedule_generation(
             }
         };
 
-        let next_scheduled_order = {
-            let mut state = conversation.state.lock().await;
-            if let Some(message) = assistant_message {
-                insert_reply(&mut state.messages, request_order, message);
-                trim_history(&mut state.messages);
-            }
-            state.generating = false;
-            if state.pending {
-                state.pending = false;
-                state.scheduled_order = Some(state.next_order);
-                Some(state.next_order)
-            } else {
-                None
-            }
-        };
+        let next_scheduled_order = conversation
+            .state
+            .lock()
+            .await
+            .finish_generation(request_order, assistant_message);
         if let Some(next_scheduled_order) = next_scheduled_order {
             schedule_generation(ctx, data, conversation, next_scheduled_order);
         }
@@ -878,8 +892,8 @@ mod tests {
     use anyhow::{Result, ensure};
 
     use super::{
-        Conversation, HistoryEntry, MAX_HISTORY_BYTES, ReplyTarget, SourceContent, build_content,
-        insert_reply, is_text_content_type, is_text_filename, trim_history,
+        Conversation, HistoryEntry, MAX_HISTORY_BYTES, Phase, ReplyTarget, SourceContent,
+        build_content, insert_reply, is_text_content_type, is_text_filename, trim_history,
     };
     use crate::ai::ChatMessage;
     use poise::serenity_prelude as serenity;
@@ -985,12 +999,12 @@ mod tests {
                     .back()
                     .is_some_and(|entry| entry.order == queued_order)
             );
-            ensure!(conversation.pending);
-            insert_reply(
-                &mut conversation.messages,
+            ensure!(conversation.phase == Phase::Generating { pending: true });
+            let next = conversation.finish_generation(
                 request.request_order,
-                ChatMessage::Assistant(Arc::from("reply")),
+                Some(ChatMessage::Assistant(Arc::from("reply"))),
             );
+            ensure!(next == Some(queued_order));
             ensure!(
                 conversation
                     .messages
@@ -999,7 +1013,7 @@ mod tests {
                     .nth(1)
                     .is_some_and(|entry| entry.order == request.request_order + 1)
             );
-            conversation.generating = false;
+            drop(conversation);
         }
         Ok(())
     }
@@ -1042,7 +1056,11 @@ mod tests {
         ensure!(conversation.summary == compactor.previous);
         ensure!(request.summary == compactor.previous);
         ensure!(request.messages.iter().map(ChatMessage::len).sum::<usize>() <= MAX_HISTORY_BYTES);
-        conversation.generating = false;
+        ensure!(
+            conversation
+                .finish_generation(request.request_order, None)
+                .is_none()
+        );
         let scheduled = conversation
             .enqueue(reply_target(4), Arc::from("try again"), vec![])
             .ok_or_else(|| anyhow::anyhow!("missing retry"))?;
@@ -1055,7 +1073,11 @@ mod tests {
         );
         ensure!(retry.messages.iter().map(ChatMessage::len).sum::<usize>() <= MAX_HISTORY_BYTES);
 
-        conversation.generating = false;
+        ensure!(
+            conversation
+                .finish_generation(retry.request_order, None)
+                .is_none()
+        );
         conversation.compaction_retry_at = Some(std::time::Instant::now());
         let scheduled = conversation
             .enqueue(reply_target(5), Arc::from("and again"), vec![])
@@ -1305,6 +1327,79 @@ mod tests {
         ensure!(content.matches("<source>").count() == sources.len());
         ensure!(content.contains("FIRST_HEAD") && content.contains("FIRST_TAIL"));
         ensure!(content.contains("SECOND_HEAD") && content.contains("SECOND_TAIL"));
+        Ok(())
+    }
+
+    #[test]
+    fn schedules_messages_that_arrived_during_generation() -> Result<()> {
+        let mut conversation = Conversation::new(reply_target(1));
+        let first = conversation
+            .enqueue(reply_target(1), Arc::from("first"), vec![])
+            .ok_or_else(|| anyhow::anyhow!("first message was not scheduled"))?;
+        let request = conversation
+            .begin_generation(first)
+            .ok_or_else(|| anyhow::anyhow!("missing generation"))?;
+        ensure!(
+            conversation
+                .enqueue(reply_target(2), Arc::from("second"), vec![])
+                .is_none()
+        );
+
+        let next = conversation.finish_generation(
+            request.request_order,
+            Some(ChatMessage::Assistant(Arc::from("reply"))),
+        );
+        let orders = conversation
+            .messages
+            .iter()
+            .map(|entry| entry.order)
+            .collect::<Vec<_>>();
+        ensure!(
+            next == Some(4) && orders == [2, 3, 4],
+            "next {next:?}, orders {orders:?}"
+        );
+        ensure!(conversation.begin_generation(4).is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn returns_to_idle_when_nothing_is_pending() -> Result<()> {
+        let mut conversation = Conversation::new(reply_target(1));
+        let first = conversation
+            .enqueue(reply_target(1), Arc::from("first"), vec![])
+            .ok_or_else(|| anyhow::anyhow!("first message was not scheduled"))?;
+        let request = conversation
+            .begin_generation(first)
+            .ok_or_else(|| anyhow::anyhow!("missing generation"))?;
+
+        // A failed send records no reply but must still release the conversation.
+        ensure!(
+            conversation
+                .finish_generation(request.request_order, None)
+                .is_none()
+        );
+        ensure!(conversation.phase == Phase::Idle);
+        ensure!(conversation.messages.len() == 1);
+        ensure!(
+            conversation
+                .enqueue(reply_target(2), Arc::from("second"), vec![])
+                .is_some()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn only_the_latest_scheduled_order_starts_generating() -> Result<()> {
+        let mut conversation = Conversation::new(reply_target(1));
+        let first = conversation
+            .enqueue(reply_target(1), Arc::from("first"), vec![])
+            .ok_or_else(|| anyhow::anyhow!("first message was not scheduled"))?;
+        let second = conversation
+            .enqueue(reply_target(2), Arc::from("second"), vec![])
+            .ok_or_else(|| anyhow::anyhow!("second message was not scheduled"))?;
+        ensure!(conversation.begin_generation(first).is_none());
+        ensure!(conversation.begin_generation(second).is_some());
+        ensure!(conversation.begin_generation(second).is_none());
         Ok(())
     }
 }
