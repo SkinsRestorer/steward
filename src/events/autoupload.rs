@@ -127,7 +127,14 @@ async fn upload_attachment(
         "text attachment",
     )
     .await?;
-    let content_type = detect_text_format(&content).unwrap_or(fallback_content_type);
+    // Parsing up to 20 MiB of JSON, XML, or YAML would stall a Tokio worker.
+    let (content, detected_type) = tokio::task::spawn_blocking(move || {
+        let detected_type = detect_text_format(&content);
+        (content, detected_type)
+    })
+    .await
+    .context("attachment format detection failed")?;
+    let content_type = detected_type.unwrap_or(fallback_content_type);
     let response = data
         .services
         .http
