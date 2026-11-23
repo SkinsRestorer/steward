@@ -78,6 +78,7 @@ async fn run() -> Result<()> {
         }),
     )
     .await;
+    services.logging.shutdown().await;
 
     Ok(())
 }
