@@ -40,6 +40,8 @@ Run the bot in release mode when evaluating OCR performance.
 ## Project structure
 
 - `src/bots/` contains the static definition for each Discord bot.
+- `src/config.rs` defines the bot definition types and checks them against
+  Discord's limits at startup.
 - `src/events/` contains message and gateway event behavior.
 - `src/commands.rs` builds Poise application commands.
 - `src/ai.rs` owns OpenRouter generation and Brave Search integration.
