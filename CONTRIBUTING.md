@@ -13,7 +13,7 @@ Keep each change focused. Avoid unrelated formatting and dependency updates.
 
 ## Prepare a checkout
 
-Install Rust through Rustup. Use `rust-toolchain.toml` when present, otherwise the minimum version in `Cargo.toml`. The lockfile pins dependencies.
+Install Rust 1.97.1 or newer through Rustup. `Cargo.toml` declares this minimum version. The lockfile pins dependencies.
 
 Install [Lefthook](https://lefthook.dev/install/) 1.13.6 or newer, then run `lefthook install` once per checkout.
 The pre-commit hook checks staged whitespace and Rust formatting. Before pushing Rust or dependency changes, Clippy checks all targets and features.
