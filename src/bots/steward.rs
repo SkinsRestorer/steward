@@ -397,12 +397,13 @@ const COMMANDS: &[StaticCommand] = &[
 
 const TEXT_CHECKS: &[TextCheck] = &[
     TextCheck {
-        needle: "SkinsRestorerAPI is not initialized yet",
-        title: "SkinsRestorerAPI is not initialized yet",
-        content: "A third-party plugin accessed SkinsRestorerAPI before SkinsRestorer finished loading. Report this bug to that plugin's developer.",
+        needle: "SkinsRestorer API is not enabled",
+        title: "SkinsRestorer API is not enabled",
+        content: "A third-party plugin requested the SkinsRestorer API, but the API was not available.",
         tips: &[
             "Make sure that SkinsRestorer is installed and enabled. Look for earlier startup errors in the server log.",
             "Add `softdepend: [ \"SkinsRestorer\" ]` to the third-party plugin's plugin.yml file. This loads it after SkinsRestorer.",
+            "On a proxy backend with `server.proxyMode.api: true`, connect the backend to the same MySQL or PostgreSQL database as the proxy.",
         ],
         link: Some(
             "https://skinsrestorer.net/docs/development/api#add-skinsrestorer-as-a-dependency",
