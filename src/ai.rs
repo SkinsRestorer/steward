@@ -16,7 +16,7 @@ use std::{
     env,
     fmt::Write as _,
     sync::{Arc, LazyLock},
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 
 use anyhow::{Context as _, Result, anyhow, bail};
@@ -25,9 +25,13 @@ use chrono_tz::Europe::Berlin;
 use futures::future::join_all;
 use regex::Regex;
 use reqwest::header::{ACCEPT, ACCEPT_ENCODING, CONTENT_TYPE};
-use rig_agent::AgentBuilder;
+use rig_agent::{
+    Agent, AgentBuilder,
+    run::{PromptError, PromptResponse},
+};
 use rig_core::{
     completion::{Message, message::UserContent},
+    error::ErrorReport,
     providers::openai::{OpenAI, OpenAIConfig, wire::OPENROUTER},
     tool::{Tool, ToolContext},
 };
@@ -44,6 +48,11 @@ const DOCS_CACHE_TTL: Duration = Duration::from_hours(24);
 const DOCS_REFRESH_RETRY_DELAY: Duration = Duration::from_mins(5);
 const GENERATION_QUEUE_TIMEOUT: Duration = Duration::from_secs(15);
 const GENERATION_TIMEOUT: Duration = Duration::from_secs(90);
+// Retry a transient model failure only when it came early enough to leave
+// room in the generation timeout for a second attempt.
+const MODEL_RETRY_WINDOW: Duration = Duration::from_secs(30);
+const MODEL_RETRY_DELAY: Duration = Duration::from_secs(1);
+const MAX_MODEL_RETRY_DELAY: Duration = Duration::from_secs(5);
 const MAX_BRAVE_RESPONSE_BYTES: usize = 8 * 1024 * 1024;
 const MAX_CONCURRENT_GENERATIONS: usize = 4;
 const MAX_DOCS_CONTEXT_BYTES: usize = 4 * 1024 * 1024;
@@ -224,13 +233,7 @@ impl AiService {
             bail!("support conversation must end with a user message");
         }
 
-        let result = agent
-            .prompt(prompt)
-            .history(conversation)
-            .max_turns(MAX_RESPONSE_CALLS)
-            .run()
-            .await
-            .context("OpenRouter agent run failed")?;
+        let result = run_with_retry(&agent, prompt, conversation).await?;
 
         info!(
             input = result.usage.input_tokens,
@@ -366,6 +369,63 @@ impl AiService {
         }
         Ok(text)
     }
+}
+
+/// Runs the agent and repeats the run once after a transient provider
+/// failure, such as a rate limit, a 5xx status, or a reset connection.
+async fn run_with_retry(
+    agent: &Agent,
+    prompt: Message,
+    history: Vec<Message>,
+) -> Result<PromptResponse> {
+    let started = Instant::now();
+    let first = agent
+        .prompt(prompt.clone())
+        .history(history.clone())
+        .max_turns(MAX_RESPONSE_CALLS)
+        .run()
+        .await;
+    let error = match first {
+        Ok(response) => return Ok(response),
+        Err(error) => error,
+    };
+    let Some(delay) =
+        transient_retry_delay(&error).filter(|_| started.elapsed() <= MODEL_RETRY_WINDOW)
+    else {
+        return Err(error).context("OpenRouter agent run failed");
+    };
+    warn!(
+        error = %format_args!("{error:#}"),
+        delay_ms = delay.as_millis(),
+        "retrying support generation after a transient model error"
+    );
+    tokio::time::sleep(delay).await;
+    agent
+        .prompt(prompt)
+        .history(history)
+        .max_turns(MAX_RESPONSE_CALLS)
+        .run()
+        .await
+        .context("OpenRouter agent run failed after a retry")
+}
+
+/// The wait before a retry, or `None` when the error is not transient or the
+/// provider asks for a longer wait than a reply can afford.
+fn transient_retry_delay(error: &PromptError) -> Option<Duration> {
+    let report = if let PromptError::Provider(error) = error {
+        ErrorReport::from(error)
+    } else if let PromptError::Report(report) = error {
+        report.clone()
+    } else {
+        return None;
+    };
+    if !report.is_retryable() {
+        return None;
+    }
+    let delay = report
+        .retry_after(SystemTime::now())
+        .unwrap_or(MODEL_RETRY_DELAY);
+    (delay <= MAX_MODEL_RETRY_DELAY).then_some(delay)
 }
 
 fn normalize_newlines(text: &str) -> String {
@@ -829,7 +889,7 @@ mod tests {
 
     use super::{
         ChatMessage, append_response_disclaimer, clamp_response, docs_page_url,
-        neutralize_prompt_tags, normalize_newlines, remove_unlisted_links,
+        neutralize_prompt_tags, normalize_newlines, remove_unlisted_links, run_with_retry,
         strip_response_disclaimer,
     };
 
@@ -974,6 +1034,52 @@ mod tests {
                 .to_message()
                 .is_none()
         );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn retries_a_transient_model_error_once() -> Result<()> {
+        use reqwest::StatusCode;
+        use rig_agent::{
+            AgentBuilder,
+            test_utils::{MockCompletionModel, MockTurn},
+        };
+
+        let model = MockCompletionModel::from_turns([
+            MockTurn::provider_response_error(StatusCode::BAD_GATEWAY, "upstream error", "a"),
+            MockTurn::text("answer"),
+        ]);
+        let agent = AgentBuilder::new(model.clone()).build();
+        let result = run_with_retry(&agent, "question".into(), vec![]).await?;
+        ensure!(result.output() == "answer");
+        ensure!(model.request_count() == 2);
+
+        // A rejected request fails the same way again, so it is not repeated.
+        let model = MockCompletionModel::from_turns([
+            MockTurn::provider_response_error(StatusCode::BAD_REQUEST, "bad request", "b"),
+            MockTurn::text("answer"),
+        ]);
+        let agent = AgentBuilder::new(model.clone()).build();
+        ensure!(
+            run_with_retry(&agent, "question".into(), vec![])
+                .await
+                .is_err()
+        );
+        ensure!(model.request_count() == 1);
+
+        // Only one retry, so a persistent outage fails the reply.
+        let model = MockCompletionModel::from_turns([
+            MockTurn::provider_response_error(StatusCode::SERVICE_UNAVAILABLE, "down", "c"),
+            MockTurn::provider_response_error(StatusCode::SERVICE_UNAVAILABLE, "down", "d"),
+            MockTurn::text("answer"),
+        ]);
+        let agent = AgentBuilder::new(model.clone()).build();
+        ensure!(
+            run_with_retry(&agent, "question".into(), vec![])
+                .await
+                .is_err()
+        );
+        ensure!(model.request_count() == 2);
         Ok(())
     }
 
