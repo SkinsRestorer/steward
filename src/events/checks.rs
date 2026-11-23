@@ -145,12 +145,13 @@ async fn handle_images(
         recognized_texts.push(text);
     }
 
-    for text in &recognized_texts {
+    // Check all screenshots together so each match is answered once per message.
+    if !recognized_texts.is_empty() {
         respond_to_text(
             ctx,
             data,
             message,
-            text,
+            &recognized_texts.join("\n"),
             &format!("Sent by {}", message.author.name),
             latest_release,
         )
@@ -296,7 +297,15 @@ async fn respond_to_text(
         if let Some(link) = check.link {
             embed = embed.field("Read More", link, false);
         }
-        reply(ctx, message, serenity::CreateMessage::new().embed(embed)).await?;
+        // One failed reply must not hide the remaining matches.
+        if let Err(error) = reply(ctx, message, serenity::CreateMessage::new().embed(embed)).await {
+            tracing::warn!(
+                error = %format_args!("{error:#}"),
+                message_id = %message.id,
+                needle = check.needle,
+                "failed to send a text check reply"
+            );
+        }
     }
 
     if data.bot.checks.analyze_dump {
