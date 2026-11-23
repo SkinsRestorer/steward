@@ -410,6 +410,16 @@ const TEXT_CHECKS: &[TextCheck] = &[
         ),
     },
     TextCheck {
+        needle: "Proxy mode API is enabled (server.proxyMode.api), but database storage is not set up",
+        title: "Backend API needs shared storage",
+        content: "This backend runs in proxy mode with `server.proxyMode.api: true` but uses file storage. Forwarded skins still work. Only the Java API for other plugins on this backend is unavailable.",
+        tips: &[
+            "If no plugin on this backend uses the SkinsRestorer API, set `server.proxyMode.api: false` and restart the backend. You do not need a database.",
+            "If a plugin needs the API, connect the proxy and this backend to the same MySQL or PostgreSQL database and table prefix.",
+        ],
+        link: Some("https://skinsrestorer.net/docs/troubleshooting/proxy-mode"),
+    },
+    TextCheck {
         needle: "is not supported by this version of SkinsRestorer",
         title: "Missing mapping in SkinsRestorer",
         content: "This SkinsRestorer build does not support the server's Minecraft version. SkinsRestorer requires a new mapping for each Minecraft version.",
