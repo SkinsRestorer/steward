@@ -245,7 +245,7 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Unsupported Forge server platforms",
         body: "SkinsRestorer does not support Cauldron, Thermos, SpongeForge, or Forge platforms with Bukkit compatibility layers. Try Skinport or OfflineSkins instead.",
         url: None,
-        documentation: true,
+        documentation: false,
         fields: &[],
     },
     StaticCommand {
@@ -486,7 +486,7 @@ pub static BOT: BotDefinition = BotDefinition {
         help: HelpConfig {
             description: "Show Steward help",
             embed_title: "Steward help",
-            embed_description: "Hi! :wave: I am Steward, the SkinsRestorer support bot. [View Steward on GitHub](https://github.com/SkinsRestorer/steward).",
+            embed_description: "Hi! 👋 I am Steward, the SkinsRestorer support bot. [View Steward on GitHub](https://github.com/SkinsRestorer/steward).",
         },
         latest: Some(LatestConfig {
             description: "Show latest version on GitHub",
