@@ -69,7 +69,7 @@ async fn handle_paste(
             .title("Invalid Paste!")
             .colour(0xFF_00_00)
             .description(
-                "The paste link you sent is invalid or expired. Check the link or create a new paste.",
+                "I could not open this paste. It may be private, deleted, or expired. Make sure that the paste is public, or create a new paste and send its link.",
             )
             .footer(serenity::CreateEmbedFooter::new(format!(
                 "{} | Sent by {}",
