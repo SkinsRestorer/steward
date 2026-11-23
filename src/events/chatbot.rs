@@ -492,30 +492,21 @@ async fn collect_sources(data: &AppState, message: &serenity::Message) -> Vec<So
         })
         .collect::<Vec<_>>();
 
-    requests.extend(
-        message
-            .attachments
-            .iter()
-            .filter(|attachment| is_text_attachment(attachment))
-            .filter_map(|attachment| {
-                if usize::try_from(attachment.size).map_or(true, |size| size > MAX_SOURCE_BYTES) {
-                    tracing::warn!(
-                        attachment = %attachment.filename,
-                        size = attachment.size,
-                        "skipping oversized chatbot attachment"
-                    );
-                    return None;
-                }
-                Some(SourceRequest {
-                    label: format!("Discord attachment {}", attachment.filename),
-                    resource: "chatbot attachment",
-                    url: attachment.url.clone(),
-                })
-            })
-            .take(MAX_ATTACHMENT_SOURCES),
-    );
+    let mut unread = Vec::new();
+    for source in message
+        .attachments
+        .iter()
+        .filter(|attachment| is_text_attachment(attachment))
+        .take(MAX_ATTACHMENT_SOURCES)
+        .map(attachment_source)
+    {
+        match source {
+            Ok(request) => requests.push(request),
+            Err(note) => unread.push(note),
+        }
+    }
 
-    stream::iter(requests)
+    let mut sources: Vec<SourceContent> = stream::iter(requests)
         .map(|request| async move {
             let result = fetch_source(data, &request).await;
             (request, result)
@@ -534,12 +525,47 @@ async fn collect_sources(data: &AppState, message: &serenity::Message) -> Vec<So
                         source = %request.label,
                         "failed to read chatbot support data"
                     );
-                    None
+                    // Tell the model, so it asks for another upload instead of
+                    // answering as if the user sent nothing.
+                    Some(SourceContent {
+                        label: request.label,
+                        text: format!(
+                            "[Not read: the download failed or the file is larger than {} MiB.]",
+                            MAX_SOURCE_BYTES / 1024 / 1024
+                        ),
+                    })
                 }
             }
         })
         .collect()
-        .await
+        .await;
+    sources.extend(unread);
+    sources
+}
+
+/// Returns the download for a text attachment, or a note for the model when
+/// the attachment is too large to read.
+fn attachment_source(attachment: &serenity::Attachment) -> Result<SourceRequest, SourceContent> {
+    let label = format!("Discord attachment {}", attachment.filename);
+    if usize::try_from(attachment.size).map_or(true, |size| size > MAX_SOURCE_BYTES) {
+        tracing::warn!(
+            attachment = %attachment.filename,
+            size = attachment.size,
+            "skipping oversized chatbot attachment"
+        );
+        return Err(SourceContent {
+            label,
+            text: format!(
+                "[Not read: the file is larger than {} MiB.]",
+                MAX_SOURCE_BYTES / 1024 / 1024
+            ),
+        });
+    }
+    Ok(SourceRequest {
+        label,
+        resource: "chatbot attachment",
+        url: attachment.url.clone(),
+    })
 }
 
 async fn fetch_source(data: &AppState, request: &SourceRequest) -> Result<String> {
@@ -1232,6 +1258,29 @@ mod tests {
                 ..
             })
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn notes_oversized_attachments_instead_of_dropping_them() -> Result<()> {
+        let mut attachment: serenity::Attachment = serde_json::from_value(serde_json::json!({
+            "id": "1", "filename": "latest.log", "size": 1024,
+            "url": "https://cdn.discordapp.com/attachments/1/2/latest.log",
+            "proxy_url": "https://media.discordapp.net/attachments/1/2/latest.log"
+        }))?;
+        let Ok(request) = super::attachment_source(&attachment) else {
+            anyhow::bail!("small attachment was not downloaded");
+        };
+        ensure!(request.url == attachment.url);
+
+        attachment.size = u32::try_from(super::MAX_SOURCE_BYTES)? + 1;
+        let Err(note) = super::attachment_source(&attachment) else {
+            anyhow::bail!("oversized attachment was downloaded");
+        };
+        // The note reaches the model, so a message with only a large log still
+        // gets an answer that explains the limit.
+        let content = build_content("", &[note], MAX_HISTORY_BYTES);
+        ensure!(content.contains("latest.log") && content.contains("larger than 4 MiB"));
         Ok(())
     }
 
