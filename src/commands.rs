@@ -118,13 +118,24 @@ async fn latest(ctx: Context<'_>) -> Result<(), Error> {
         || "The latest version is not available yet. Try again in a moment.".to_owned(),
         |release| format!("`{}`", release.tag_name),
     );
-    let embed = serenity::CreateEmbed::new()
+    let mut embed = serenity::CreateEmbed::new()
         .colour(ctx.data().bot.accent_color)
         .title(config.title)
         .description(description);
+    if let Some(url) = release_page_url(config.release_url) {
+        embed = embed.url(url);
+    }
 
     ctx.send(CreateReply::default().embed(embed)).await?;
     Ok(())
+}
+
+/// Maps a GitHub API latest-release URL to the release page with the downloads.
+fn release_page_url(api_url: &str) -> Option<String> {
+    let repository = api_url
+        .strip_prefix("https://api.github.com/repos/")?
+        .strip_suffix("/releases/latest")?;
+    Some(format!("https://github.com/{repository}/releases/latest"))
 }
 
 /// Marks the current support thread as resolved.
@@ -489,6 +500,34 @@ fn static_response_message(
     command: &StaticCommand,
 ) -> serenity::CreateMessage {
     serenity::CreateMessage::new().embed(static_response_embed(bot, command))
+}
+
+#[cfg(test)]
+mod release_page_tests {
+    use super::release_page_url;
+
+    #[test]
+    fn links_github_api_release_urls_to_the_release_page() {
+        assert_eq!(
+            release_page_url(
+                "https://api.github.com/repos/SkinsRestorer/SkinsRestorer/releases/latest"
+            )
+            .as_deref(),
+            Some("https://github.com/SkinsRestorer/SkinsRestorer/releases/latest")
+        );
+    }
+
+    #[test]
+    fn skips_urls_that_are_not_github_latest_release_endpoints() {
+        assert_eq!(
+            release_page_url("https://example.com/releases/latest"),
+            None
+        );
+        assert_eq!(
+            release_page_url("https://api.github.com/repos/SkinsRestorer/SkinsRestorer/releases"),
+            None
+        );
+    }
 }
 
 #[cfg(test)]
