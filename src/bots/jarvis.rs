@@ -202,11 +202,11 @@ pub static BOT: BotDefinition = BotDefinition {
     accent_color: 0x4E_A3_FF,
     logs_dir: "logs/jarvis",
     presence: "SoulFire support",
-    autoupload: AutouploadConfig {
+    autoupload: Some(AutouploadConfig {
         user_agent: "PistonDevJarvis",
         future_uploads_message,
         failed_upload_message: "Your file could not be automatically uploaded. Please use https://pastes.dev to share files.",
-    },
+    }),
     chatbot: ChatbotConfig {
         ai: &AI,
         channel_name_prefixes: &["support-bot"],
@@ -244,17 +244,17 @@ pub static BOT: BotDefinition = BotDefinition {
             url: None,
         },
     },
-    no_ping: NoPingConfig {
+    no_ping: Some(NoPingConfig {
         exempt_role_ids: &[1_492_607_130_635_861_047],
         staff_role_ids: STAFF_ROLE_IDS,
         warning_message,
-    },
-    honeypot: HoneypotConfig {
+    }),
+    honeypot: Some(HoneypotConfig {
         channel_names: &["interesting-chat"],
         delete_message_days: 1,
         exempt_role_ids: STAFF_ROLE_IDS,
-    },
-    thread_starter: ThreadStarterConfig {
+    }),
+    thread_starter: Some(ThreadStarterConfig {
         forum_ids: &[serenity::ChannelId::new(1_393_506_815_085_641_760)],
         support_title: "Need quick SoulFire help?",
         support_description: "Check the documentation for setup, troubleshooting, and scripting help.\n\nDescribe the problem in this post. Include your SoulFire version, setup, logs, and what you have already tried. We'll follow up as soon as we can.",
@@ -264,6 +264,6 @@ pub static BOT: BotDefinition = BotDefinition {
         priority_banner_url: "https://raw.githubusercontent.com/SkinsRestorer/steward/main/assets/soulfire-priority-support.png",
         pricing_url: "https://soulfiremc.com/pricing",
         priority_support_url: "https://ko-fi.com/alexprogrammerde/tiers",
-    },
+    }),
     message_replies: &[],
 };

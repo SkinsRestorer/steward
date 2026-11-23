@@ -50,7 +50,9 @@ pub async fn handle(
     data: &AppState,
     message: &serenity::Message,
 ) -> Result<bool> {
-    let config = data.bot.honeypot;
+    let Some(config) = data.bot.honeypot else {
+        return Ok(false);
+    };
     let Some(guild_id) = message.guild_id else {
         return Ok(false);
     };

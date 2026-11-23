@@ -235,7 +235,9 @@ async fn delete_and_kick_ocr_spammer(
         ctx,
         guild_id,
         message.author.id,
-        data.bot.honeypot.exempt_role_ids,
+        data.bot
+            .honeypot
+            .map_or(&[][..], |honeypot| honeypot.exempt_role_ids),
     )
     .await
     {

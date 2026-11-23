@@ -18,7 +18,9 @@ pub async fn handle(
     if message.mentions.is_empty() && message.mention_roles.is_empty() {
         return Ok(());
     }
-    let config = data.bot.no_ping;
+    let Some(config) = data.bot.no_ping else {
+        return Ok(());
+    };
     let sender_roles = message
         .member
         .as_deref()

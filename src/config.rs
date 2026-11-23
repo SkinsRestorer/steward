@@ -175,13 +175,14 @@ pub struct BotDefinition {
     pub accent_color: u32,
     pub logs_dir: &'static str,
     pub presence: &'static str,
-    pub autoupload: AutouploadConfig,
+    // Each optional feature is off when its config is `None`.
+    pub autoupload: Option<AutouploadConfig>,
     pub chatbot: ChatbotConfig,
     pub checks: ChecksConfig,
     pub commands: CommandsConfig,
-    pub no_ping: NoPingConfig,
-    pub honeypot: HoneypotConfig,
-    pub thread_starter: ThreadStarterConfig,
+    pub no_ping: Option<NoPingConfig>,
+    pub honeypot: Option<HoneypotConfig>,
+    pub thread_starter: Option<ThreadStarterConfig>,
     /// Canned replies to common mistakes in messages.
     pub message_replies: &'static [MessageReply],
 }

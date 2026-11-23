@@ -8,7 +8,9 @@ pub async fn handle(
     data: &AppState,
     thread: &serenity::GuildChannel,
 ) -> Result<()> {
-    let config = data.bot.thread_starter;
+    let Some(config) = data.bot.thread_starter else {
+        return Ok(());
+    };
     // The bot also gets ThreadCreate when it is added to an existing thread.
     if thread.member.is_some()
         || !thread

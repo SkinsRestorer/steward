@@ -441,11 +441,11 @@ pub static BOT: BotDefinition = BotDefinition {
     accent_color: 0xFD_EC_04,
     logs_dir: "logs/steward",
     presence: "SR Discord",
-    autoupload: AutouploadConfig {
+    autoupload: Some(AutouploadConfig {
         user_agent: "SkinsRestorerSteward",
         future_uploads_message,
         failed_upload_message: "The automatic upload failed. Upload the file to https://pastes.dev and share the returned link.",
-    },
+    }),
     chatbot: ChatbotConfig {
         ai: &AI,
         channel_name_prefixes: &["support-bot"],
@@ -489,17 +489,17 @@ pub static BOT: BotDefinition = BotDefinition {
             url: Some("https://discord.com/channels/186794372468178944/1058044481246605383"),
         },
     },
-    no_ping: NoPingConfig {
+    no_ping: Some(NoPingConfig {
         exempt_role_ids: &[1_492_530_262_993_801_457],
         staff_role_ids: STAFF_ROLE_IDS,
         warning_message,
-    },
-    honeypot: HoneypotConfig {
+    }),
+    honeypot: Some(HoneypotConfig {
         channel_names: &["interesting-chat"],
         delete_message_days: 1,
         exempt_role_ids: STAFF_ROLE_IDS,
-    },
-    thread_starter: ThreadStarterConfig {
+    }),
+    thread_starter: Some(ThreadStarterConfig {
         forum_ids: &[serenity::ChannelId::new(1_058_044_481_246_605_383)],
         support_title: "Need quick SkinsRestorer help?",
         support_description: "Check the documentation for installation, configuration, and troubleshooting help.\n\nDescribe the problem in this post. Include your setup, logs, and the result of `/sr dump`.",
@@ -509,6 +509,6 @@ pub static BOT: BotDefinition = BotDefinition {
         priority_banner_url: "https://raw.githubusercontent.com/SkinsRestorer/steward/main/assets/ko-fi-banner.png",
         pricing_url: "https://skinsrestorer.net/pricing",
         priority_support_url: "https://ko-fi.com/skinsrestorer/tiers",
-    },
+    }),
     message_replies: MESSAGE_REPLIES,
 };

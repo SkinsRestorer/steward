@@ -7,7 +7,7 @@ use serde::{
     de::{IgnoredAny, MapAccess, SeqAccess, Visitor},
 };
 
-use crate::{download, state::AppState};
+use crate::{config::AutouploadConfig, download, state::AppState};
 
 const SUPPORTED_CONTENT_TYPES: &[&str] = &[
     "application/json",
@@ -39,6 +39,9 @@ pub async fn handle(
     message: &serenity::Message,
 ) -> Result<()> {
     // pastes.dev links are public, so never republish files from private channels.
+    let Some(config) = data.bot.autoupload else {
+        return Ok(());
+    };
     if message.attachments.is_empty() || !is_public_channel(ctx, message) {
         return Ok(());
     }
@@ -59,22 +62,18 @@ pub async fn handle(
             continue;
         }
 
-        match upload_attachment(data, attachment, content_type).await {
+        match upload_attachment(data, &config, attachment, content_type).await {
             Ok(uploaded_url) => {
                 reply_without_pings(
                     ctx,
                     message,
-                    (data.bot.autoupload.future_uploads_message)(
-                        &attachment.filename,
-                        &uploaded_url,
-                    ),
+                    (config.future_uploads_message)(&attachment.filename, &uploaded_url),
                 )
                 .await?;
             }
             Err(error) => {
                 tracing::error!(error = %format_args!("{error:#}"), attachment = %attachment.filename, "automatic paste upload failed");
-                reply_without_pings(ctx, message, data.bot.autoupload.failed_upload_message)
-                    .await?;
+                reply_without_pings(ctx, message, config.failed_upload_message).await?;
             }
         }
     }
@@ -105,6 +104,7 @@ async fn reply_without_pings(
 
 async fn upload_attachment(
     data: &AppState,
+    config: &AutouploadConfig,
     attachment: &serenity::Attachment,
     fallback_content_type: &str,
 ) -> Result<String> {
@@ -133,7 +133,7 @@ async fn upload_attachment(
         .http
         .post(PASTE_API)
         .header("Content-Type", content_type)
-        .header("User-Agent", data.bot.autoupload.user_agent)
+        .header("User-Agent", config.user_agent)
         .body(content)
         .send()
         .await
