@@ -15,7 +15,6 @@ use super::{
 
 const IMAGE_TYPES: &[&str] = &["image/png", "image/jpeg", "image/webp"];
 const MAX_IMAGE_BYTES: u64 = 20 * 1024 * 1024;
-const MAX_OCR_IMAGES_PER_MESSAGE: usize = 4;
 const MAX_PASTE_BYTES: usize = 20 * 1024 * 1024;
 // Discord's default upload limit is 10 MiB. Leave room for the rest of the message.
 const MAX_PRETTY_DUMP_BYTES: usize = 8 * 1024 * 1024;
@@ -111,16 +110,12 @@ async fn handle_images(
     message: &serenity::Message,
     latest_release: Option<&LatestRelease>,
 ) -> Result<()> {
-    let attachments = message
-        .attachments
-        .iter()
-        .filter(|attachment| {
-            attachment
-                .content_type
-                .as_deref()
-                .is_some_and(|content_type| IMAGE_TYPES.contains(&content_type))
-        })
-        .take(MAX_OCR_IMAGES_PER_MESSAGE);
+    let attachments = message.attachments.iter().filter(|attachment| {
+        attachment
+            .content_type
+            .as_deref()
+            .is_some_and(|content_type| IMAGE_TYPES.contains(&content_type))
+    });
     let mut recognized_texts = Vec::new();
 
     for attachment in attachments {
