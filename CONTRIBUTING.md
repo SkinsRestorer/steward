@@ -19,7 +19,7 @@ Install [Lefthook](https://lefthook.dev/install/) 1.13.6 or newer, then run `lef
 The pre-commit hook checks staged whitespace and Rust formatting. Before pushing Rust or dependency changes, Clippy checks all targets and features.
 Install cargo-deny 0.20.2 to check dependencies before pushing changes to `Cargo.toml`, `Cargo.lock`, or `deny.toml`.
 The commit-msg hook checks the first line for a Conventional Commit subject and accepts standard Git-generated subjects.
-The pre-push hook compares `HEAD` with the branch's upstream. Keep the upstream set to the branch that you push.
+The pre-push hook compares `HEAD` with the remote branch that you push to. On the first push of a new branch, it checks all files.
 
 Run the commands below from the repository root unless a command names another directory.
 
