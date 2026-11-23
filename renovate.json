@@ -24,13 +24,9 @@
       "automergeType": "branch"
     },
     {
-      "description": "CI does not build the image, so review BuildKit updates before they reach the deploy",
-      "matchDepNames": ["moby/buildkit"],
-      "automerge": false
-    },
-    {
-      "description": "Railpack updates need new archive checksums in the publish workflow, so review them by hand",
-      "matchDepNames": ["railwayapp/railpack"],
+      "description": "CI does not build the image and Railpack updates need new checksums, so review these by hand. A separate group keeps them from blocking automerge of other updates.",
+      "matchDepNames": ["moby/buildkit", "railwayapp/railpack"],
+      "groupName": "image build tools",
       "automerge": false
     }
   ]
