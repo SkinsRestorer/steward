@@ -92,26 +92,26 @@ pub(super) fn build_content(
         .saturating_add(SUPPORT_DATA_OUTRO.len())
         .saturating_add(headers.iter().map(String::len).sum::<usize>())
         .saturating_add(SUPPORT_DATA_SOURCE_END.len().saturating_mul(sources.len()));
-    let Some(mut remaining_content_bytes) = max_bytes
+    let Some(content_bytes) = max_bytes
         .checked_sub(fixed_bytes)
         .filter(|&bytes| bytes > 0)
     else {
         return excerpt_text(&user_message, max_bytes);
     };
+    let texts = sources
+        .iter()
+        .map(|source| neutralize_prompt_tags(source.text.trim()))
+        .collect::<Vec<_>>();
+    let budgets = share_budget(
+        &texts.iter().map(|text| text.len()).collect::<Vec<_>>(),
+        content_bytes,
+    );
     let mut content = String::with_capacity(max_bytes);
     content.push_str(&user_message);
     content.push_str(SUPPORT_DATA_INTRO);
-    for ((source, header), remaining_sources) in
-        sources.iter().zip(headers).zip((1..=sources.len()).rev())
-    {
+    for ((text, header), budget) in texts.iter().zip(headers).zip(budgets) {
         content.push_str(&header);
-        let Some(source_budget) = remaining_content_bytes.checked_div(remaining_sources) else {
-            return excerpt_text(&user_message, max_bytes);
-        };
-        let excerpt = excerpt_text(&neutralize_prompt_tags(source.text.trim()), source_budget);
-        // Exhaust the budget when an excerpt uses the remaining bytes.
-        remaining_content_bytes = remaining_content_bytes.saturating_sub(excerpt.len());
-        content.push_str(&excerpt);
+        content.push_str(&excerpt_text(text, budget));
         content.push_str(SUPPORT_DATA_SOURCE_END);
     }
     content.push_str(SUPPORT_DATA_OUTRO);
@@ -121,6 +121,26 @@ pub(super) fn build_content(
         content.len()
     );
     content
+}
+
+/// Splits `total` bytes across texts of the given lengths. Short texts take
+/// only what they need, and the rest is shared evenly by the longer ones.
+fn share_budget(lengths: &[usize], total: usize) -> Vec<usize> {
+    let mut by_length = (0..lengths.len()).collect::<Vec<_>>();
+    by_length.sort_unstable_by_key(|&index| lengths.get(index).copied().unwrap_or_default());
+    let mut budgets = vec![0; lengths.len()];
+    let mut remaining = total;
+    for (index, remaining_texts) in by_length.into_iter().zip((1..=lengths.len()).rev()) {
+        let share = remaining
+            .checked_div(remaining_texts)
+            .unwrap_or_default()
+            .min(lengths.get(index).copied().unwrap_or_default());
+        remaining = remaining.saturating_sub(share);
+        if let Some(budget) = budgets.get_mut(index) {
+            *budget = share;
+        }
+    }
+    budgets
 }
 
 fn sanitize_source_label(label: &str) -> String {
@@ -167,4 +187,41 @@ pub(super) fn suffix_bytes(text: &str, max_bytes: usize) -> &str {
     // A budget larger than the string starts the suffix at the beginning.
     let start = text.ceil_char_boundary(text.len().saturating_sub(max_bytes));
     text.get(start..).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::{Result, ensure};
+
+    use super::{SourceContent, build_content, share_budget};
+
+    #[test]
+    fn gives_unused_budget_from_short_texts_to_long_ones() -> Result<()> {
+        let budgets = share_budget(&[10_000, 100, 10_000, 1_000], 6_100);
+        ensure!(budgets == [2_500, 100, 2_500, 1_000], "budgets {budgets:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn keeps_more_of_a_long_log_sent_next_to_a_short_config() -> Result<()> {
+        let sources = [
+            SourceContent {
+                label: "latest.log".to_owned(),
+                text: "line\n".repeat(400),
+            },
+            SourceContent {
+                label: "config.yml".to_owned(),
+                text: "enabled: true".to_owned(),
+            },
+        ];
+
+        let content = build_content("Why does it fail?", &sources, 2_048);
+
+        ensure!(content.len() <= 2_048);
+        ensure!(content.contains("enabled: true"));
+        let kept_lines = content.matches("line\n").count();
+        // An even split would leave the log well under half of the budget.
+        ensure!(kept_lines > 250, "kept {kept_lines} log lines");
+        Ok(())
+    }
 }
