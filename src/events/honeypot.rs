@@ -76,39 +76,53 @@ pub async fn handle(
 
     // Fetch current roles so a recent staff promotion is respected.
     let bot_id = ctx.cache.current_user().id;
-    let (guild, member, bot_member) = tokio::try_join!(
+    let (guild, bot_member) = tokio::try_join!(
         ctx.http.get_guild(guild_id),
-        ctx.http.get_member(guild_id, message.author.id),
         ctx.http.get_member(guild_id, bot_id),
     )
-    .context("failed to fetch current membership for honeypot ban")?;
+    .context("failed to fetch the guild for a honeypot ban")?;
+    let member = match ctx.http.get_member(guild_id, message.author.id).await {
+        Ok(member) => Some(member),
+        // Spam accounts often leave right away. Discord can still ban them by ID.
+        Err(error) if is_unknown_member(&error) => None,
+        Err(error) => {
+            return Err(error).context("failed to fetch the honeypot sender's membership");
+        }
+    };
     let everyone = serenity::RoleId::new(guild_id.get());
     ensure!(
         guild.roles.contains_key(&everyone)
             && member
-                .roles
                 .iter()
+                .flat_map(|member| &member.roles)
                 .chain(&bot_member.roles)
                 .all(|id| guild.roles.contains_key(id)),
         "honeypot cannot determine permissions because guild roles are missing"
     );
-    if is_exempt(
-        guild.owner_id,
-        &member,
-        guild.member_permissions(&member),
-        config.exempt_role_ids,
-    ) {
+    if message.author.id == guild.owner_id {
+        return Ok(true);
+    }
+    if let Some(member) = &member
+        && is_exempt(
+            guild.owner_id,
+            member,
+            guild.member_permissions(member),
+            config.exempt_role_ids,
+        )
+    {
         return Ok(true);
     }
     ensure!(
         guild.member_permissions(&bot_member).ban_members(),
         "honeypot requires the Ban Members permission"
     );
-    ensure!(
-        highest_role(&guild.roles, everyone, &bot_member)
-            > highest_role(&guild.roles, everyone, &member),
-        "honeypot bot role must be above the target member's highest role"
-    );
+    if let Some(member) = &member {
+        ensure!(
+            highest_role(&guild.roles, everyone, &bot_member)
+                > highest_role(&guild.roles, everyone, member),
+            "honeypot bot role must be above the target member's highest role"
+        );
+    }
 
     let reason = format!(
         "Honeypot: posted in channel {} (message {})",
@@ -117,7 +131,7 @@ pub async fn handle(
     guild_id
         .ban_with_reason(
             &ctx.http,
-            member.user.id,
+            message.author.id,
             config.delete_message_days,
             reason,
         )
@@ -128,7 +142,8 @@ pub async fn handle(
         %guild_id,
         channel_id = %message.channel_id,
         message_id = %message.id,
-        user_id = %member.user.id,
+        user_id = %message.author.id,
+        still_member = member.is_some(),
         delete_message_days = config.delete_message_days,
         "banned honeypot sender"
     );
@@ -206,6 +221,15 @@ fn is_exempt(
             .roles
             .iter()
             .any(|role| exempt_role_ids.contains(&role.get()))
+}
+
+fn is_unknown_member(error: &serenity::Error) -> bool {
+    const UNKNOWN_MEMBER: isize = 10_007;
+    matches!(
+        error,
+        serenity::Error::Http(serenity::HttpError::UnsuccessfulRequest(response))
+            if response.error.code == UNKNOWN_MEMBER
+    )
 }
 
 fn highest_role<'a>(
