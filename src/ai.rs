@@ -107,13 +107,13 @@ pub struct AiService {
 }
 
 impl AiService {
-    pub fn new(client: reqwest::Client) -> Result<Self> {
+    pub fn new(client: reqwest::Client, model_client: reqwest::Client) -> Result<Self> {
         let openrouter_api_key =
             env::var("OPENROUTER_API_KEY").context("OPENROUTER_API_KEY must be configured")?;
         let search_api_key =
             env::var("BRAVE_SEARCH_API_KEY").context("BRAVE_SEARCH_API_KEY must be configured")?;
         let openrouter = OpenAIConfig::with_key(&OPENROUTER, openrouter_api_key)
-            .connect(rig_reqwest::ReqwestClient::from(client.clone()));
+            .connect(rig_reqwest::ReqwestClient::from(model_client));
 
         Ok(Self {
             client,

@@ -41,8 +41,20 @@ impl SharedServices {
             .timeout(Duration::from_secs(30))
             .build()
             .context("failed to build HTTP client")?;
+        // Model calls with large docs and reasoning can exceed the shared 30 second
+        // limit. AiService still bounds a whole reply with its own timeout.
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "The model client needs a longer request timeout than the shared client."
+        )]
+        let model_http = reqwest::Client::builder()
+            .user_agent(concat!("steward/", env!("CARGO_PKG_VERSION")))
+            .connect_timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(80))
+            .build()
+            .context("failed to build model HTTP client")?;
         let patterns = PatternService::compile(bots::ALL)?;
-        let ai = AiService::new(http.clone())?;
+        let ai = AiService::new(http.clone(), model_http)?;
         let ocr = OcrService::load().await?;
         let logging = LoggingService::start(bots::ALL).await?;
         let releases = ReleaseService::new(http.clone());
