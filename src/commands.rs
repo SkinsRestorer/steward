@@ -177,8 +177,11 @@ async fn resolved(ctx: Context<'_>) -> Result<(), Error> {
             .id
             .edit_thread(
                 ctx.http(),
+                // An auto-archived post rejects tag edits and the reply below,
+                // so unarchive it in the same edit.
                 serenity::EditThread::new()
                     .applied_tags(tags)
+                    .archived(false)
                     .audit_log_reason("resolved"),
             )
             .await
