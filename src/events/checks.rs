@@ -2,7 +2,7 @@
 
 use std::io;
 
-use anyhow::{Context as _, Result, anyhow};
+use anyhow::{Context as _, Result};
 use poise::serenity_prelude as serenity;
 use unicode_normalization::{UnicodeNormalization as _, char::is_combining_mark};
 
@@ -422,7 +422,7 @@ async fn reply(
         .channel_id
         .send_message(ctx, builder.reference_message(message))
         .await
-        .map_err(|error| anyhow!(error))?;
+        .context("failed to reply to the message")?;
     Ok(())
 }
 
