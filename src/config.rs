@@ -578,15 +578,18 @@ pub const PASTE_CHECKS: &[PasteCheck] = &[
         raw_url: "https://pastebin.com/raw/{code}",
     },
     PasteCheck {
-        pattern: r"https?://gist\.github\.com/([\w-]+/\w+|\w+)",
-        raw_url: "https://gist.github.com/{code}/raw/",
+        // Gist IDs are hex or, for old gists, decimal. Requiring that shape
+        // skips profile links such as gist.github.com/some-user.
+        pattern: r"https?://gist\.github\.com/((?:[\w-]+/)?(?:[0-9a-f]{20,}|\d+))\b",
+        // Unlike /raw/, the .txt form also works without the owner in the URL.
+        raw_url: "https://gist.github.com/{code}.txt",
     },
     PasteCheck {
         pattern: r"https?://mclo\.gs/(\w+)",
         raw_url: "https://api.mclo.gs/1/raw/{code}",
     },
     PasteCheck {
-        pattern: r"https?://gitlab\.com/snippets/(\w+)(?:\.\w+)?",
+        pattern: r"https?://gitlab\.com/(?:-/)?snippets/(\d+)",
         raw_url: "https://gitlab.com/snippets/{code}/raw",
     },
 ];

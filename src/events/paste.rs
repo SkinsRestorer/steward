@@ -135,12 +135,24 @@ mod tests {
                 "https://paste.helpch.at/raw/abcdef",
             ),
             (
-                "https://gist.github.com/some-user/0123abcd",
-                "https://gist.github.com/some-user/0123abcd/raw/",
+                "https://gist.github.com/some-user/6cad326836d38bd3a7ae",
+                "https://gist.github.com/some-user/6cad326836d38bd3a7ae.txt",
             ),
             (
-                "https://gist.github.com/0123abcd",
-                "https://gist.github.com/0123abcd/raw/",
+                "https://gist.github.com/6cad326836d38bd3a7ae#file-x",
+                "https://gist.github.com/6cad326836d38bd3a7ae.txt",
+            ),
+            (
+                "https://gist.github.com/schacon/1",
+                "https://gist.github.com/schacon/1.txt",
+            ),
+            (
+                "https://gitlab.com/-/snippets/6092868",
+                "https://gitlab.com/snippets/6092868/raw",
+            ),
+            (
+                "https://gitlab.com/snippets/6092868",
+                "https://gitlab.com/snippets/6092868/raw",
             ),
             ("https://mclo.gs/AbC123", "https://api.mclo.gs/1/raw/AbC123"),
             ("https://pastes.dev/AbC123", "https://api.pastes.dev/AbC123"),
@@ -154,6 +166,8 @@ mod tests {
 
         for input in [
             "https://pastebin.com/u/someone",
+            "https://gist.github.com/some-user",
+            "https://gist.github.com/discover",
             // Toptal's hastebin needs an API token, so every raw request fails.
             "https://hastebin.com/abcdef",
         ] {
