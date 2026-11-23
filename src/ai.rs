@@ -21,7 +21,7 @@ use std::{
 use anyhow::{Context as _, Result, anyhow, bail};
 use chrono::Utc;
 use chrono_tz::Europe::Berlin;
-use futures::future::try_join_all;
+use futures::future::join_all;
 use reqwest::header::{ACCEPT, ACCEPT_ENCODING, CONTENT_TYPE};
 use rig_agent::AgentBuilder;
 use rig_core::{
@@ -39,6 +39,7 @@ use crate::{config::AiConfig, download};
 
 const DEFAULT_MAX_OUTPUT_TOKENS: u64 = 1_200;
 const DOCS_CACHE_TTL: Duration = Duration::from_hours(24);
+const DOCS_REFRESH_RETRY_DELAY: Duration = Duration::from_mins(5);
 const GENERATION_QUEUE_TIMEOUT: Duration = Duration::from_secs(15);
 const GENERATION_TIMEOUT: Duration = Duration::from_secs(90);
 const MAX_BRAVE_RESPONSE_BYTES: usize = 8 * 1024 * 1024;
@@ -246,13 +247,18 @@ impl AiService {
             return Ok(None);
         }
 
-        let docs = try_join_all(
-            config
-                .docs_context_urls
-                .iter()
-                .map(|url| self.get_docs_context(url)),
-        )
-        .await?;
+        // Missing docs make answers worse, but failing every reply is worse still.
+        let docs = join_all(config.docs_context_urls.iter().map(|url| async move {
+            self.get_docs_context(url).await.unwrap_or_else(|error| {
+                warn!(
+                    error = %format_args!("{error:#}"),
+                    %url,
+                    "answering without documentation context"
+                );
+                Arc::from("")
+            })
+        }))
+        .await;
         if docs.iter().all(|text| text.trim().is_empty()) {
             return Ok(None);
         }
@@ -288,7 +294,18 @@ impl AiService {
                 tokio::spawn(async move {
                     let _guard = guard;
                     if let Err(error) = service.refresh_docs_context(url).await {
-                        warn!(%error, %url, "failed to refresh documentation context");
+                        warn!(
+                            error = %format_args!("{error:#}"),
+                            %url,
+                            "failed to refresh documentation context"
+                        );
+                        // Keep serving the stale copy, but do not retry on every request.
+                        if let Some(cached) = service.docs_cache.write().await.get_mut(url)
+                            && let Some(retry_at) =
+                                Instant::now().checked_add(DOCS_REFRESH_RETRY_DELAY)
+                        {
+                            cached.expires_at = retry_at;
+                        }
                     }
                 });
             }
