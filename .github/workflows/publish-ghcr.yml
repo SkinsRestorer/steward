@@ -11,8 +11,9 @@ permissions:
   contents: read
   packages: write
 
+# Runs that skip publishing get their own group so they cannot cancel a deployment.
 concurrency:
-  group: publish-ghcr-${{ github.ref }}
+  group: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && 'publish-ghcr' || format('publish-ghcr-skipped-{0}', github.run_id) }}
   cancel-in-progress: true
 
 env:
