@@ -776,6 +776,10 @@ impl Tool for DocsPage {
             .send()
             .await?
             .error_for_status()?;
+        // The client follows redirects, so check where the page actually came from.
+        if docs_page_url(self.prefix, response.url().as_str()).is_none() {
+            return Err(DocsPageError::OutsideDocs(self.prefix));
+        }
         let text = download::read_limited_text(response, MAX_DOCS_PAGE_BYTES, "documentation page")
             .await
             .map_err(DocsPageError::Response)?;
