@@ -117,24 +117,18 @@ async fn handle_images(
             continue;
         }
 
-        let text = {
-            let permit = data.services.ocr.acquire().await?;
-            let response = data
-                .services
-                .http
-                .get(&attachment.proxy_url)
-                .send()
-                .await
-                .context("failed to download OCR attachment")?
-                .error_for_status()
-                .context("OCR attachment download failed")?;
-            let bytes = download::read_limited_bytes(
-                response,
-                usize::try_from(MAX_IMAGE_BYTES).unwrap_or(usize::MAX),
-                "OCR attachment",
-            )
-            .await?;
-            data.services.ocr.recognize(bytes, permit).await?
+        // One unreadable image must not stop the spam check for the others.
+        let text = match recognize_attachment(data, attachment).await {
+            Ok(text) => text,
+            Err(error) => {
+                tracing::warn!(
+                    error = format!("{error:#}"),
+                    attachment = %attachment.filename,
+                    message_id = %message.id,
+                    "skipping unreadable OCR attachment"
+                );
+                continue;
+            }
         };
 
         if contains_prohibited_ocr_content(&text) {
@@ -163,6 +157,30 @@ async fn handle_images(
             .await?;
     }
     Ok(())
+}
+
+async fn recognize_attachment(
+    data: &AppState,
+    attachment: &serenity::Attachment,
+) -> Result<String> {
+    let response = data
+        .services
+        .http
+        .get(&attachment.proxy_url)
+        .send()
+        .await
+        .context("failed to download OCR attachment")?
+        .error_for_status()
+        .context("OCR attachment download failed")?;
+    let bytes = download::read_limited_bytes(
+        response,
+        usize::try_from(MAX_IMAGE_BYTES).unwrap_or(usize::MAX),
+        "OCR attachment",
+    )
+    .await?;
+    // Take the OCR slot only after the download so slow transfers do not block OCR.
+    let permit = data.services.ocr.acquire().await?;
+    data.services.ocr.recognize(bytes, permit).await
 }
 
 fn contains_prohibited_ocr_content(text: &str) -> bool {
