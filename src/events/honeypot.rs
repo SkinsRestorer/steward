@@ -167,6 +167,26 @@ async fn is_honeypot_channel(
     Ok(matches)
 }
 
+/// Checks current membership so moderation never acts on staff.
+pub(super) async fn is_exempt_member(
+    ctx: &serenity::Context,
+    guild_id: serenity::GuildId,
+    user_id: serenity::UserId,
+    exempt_role_ids: &[u64],
+) -> Result<bool> {
+    let (guild, member) = tokio::try_join!(
+        ctx.http.get_guild(guild_id),
+        ctx.http.get_member(guild_id, user_id),
+    )
+    .context("failed to fetch current membership for moderation exemption")?;
+    Ok(is_exempt(
+        guild.owner_id,
+        &member,
+        guild.member_permissions(&member),
+        exempt_role_ids,
+    ))
+}
+
 fn is_exempt(
     owner_id: serenity::UserId,
     member: &serenity::Member,

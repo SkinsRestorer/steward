@@ -7,11 +7,14 @@ use poise::serenity_prelude as serenity;
 use regex::Regex;
 use semver::Version;
 use serde::{Deserialize, de::IgnoredAny};
-use unicode_normalization::UnicodeNormalization as _;
+use unicode_normalization::{UnicodeNormalization as _, char::is_combining_mark};
 
 use crate::{download, releases::LatestRelease, state::AppState};
 
-use super::paste::{self, PasteLink};
+use super::{
+    honeypot,
+    paste::{self, PasteLink},
+};
 
 const IMAGE_TYPES: &[&str] = &["image/png", "image/jpeg", "image/webp"];
 const MAX_IMAGE_BYTES: u64 = 20 * 1024 * 1024;
@@ -132,7 +135,7 @@ async fn handle_images(
         };
 
         if contains_prohibited_ocr_content(&text) {
-            delete_and_kick_ocr_spammer(ctx, message).await;
+            delete_and_kick_ocr_spammer(ctx, data, message).await;
             return Ok(());
         }
 
@@ -184,35 +187,70 @@ async fn recognize_attachment(
 }
 
 fn contains_prohibited_ocr_content(text: &str) -> bool {
+    // Match within words so unrelated text cannot join across word breaks.
     let normalized = normalize_ocr_moderation_text(text);
-    normalized.contains("crypto") && normalized.contains("casino")
+    let has_word = |needle: &str| normalized.split(' ').any(|word| word.contains(needle));
+    has_word("crypto") && has_word("casino")
 }
 
+/// Lowercases text, maps common confusables to ASCII letters, and separates
+/// words with single spaces.
 fn normalize_ocr_moderation_text(text: &str) -> String {
-    text.nfkd()
+    let mapped = text
+        .nfkd()
+        .filter(|character| !is_combining_mark(*character))
         .flat_map(char::to_lowercase)
-        .filter_map(|character| {
-            let character = match character {
-                '$' | '5' => 's',
-                '!' | '1' | '|' | 'ι' | 'і' => 'i',
-                '+' | '7' | 'τ' | 'т' => 't',
-                '0' | 'ο' | 'о' => 'o',
-                '3' | 'ε' | 'е' => 'e',
-                '4' | '@' | 'α' | 'а' => 'a',
-                'ρ' | 'р' => 'p',
-                'с' => 'c',
-                'υ' | 'у' => 'y',
-                other => other,
-            };
-            character.is_ascii_lowercase().then_some(character)
+        .map(|character| match character {
+            '$' | '5' => 's',
+            '!' | '1' | '|' | 'ι' | 'і' => 'i',
+            '+' | '7' | 'τ' | 'т' => 't',
+            '0' | 'ο' | 'о' => 'o',
+            '3' | 'ε' | 'е' => 'e',
+            '4' | '@' | 'α' | 'а' => 'a',
+            'ρ' | 'р' => 'p',
+            'с' => 'c',
+            'υ' | 'у' => 'y',
+            other if other.is_ascii_lowercase() => other,
+            _ => ' ',
         })
-        .collect()
+        .collect::<String>();
+    mapped.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-async fn delete_and_kick_ocr_spammer(ctx: &serenity::Context, message: &serenity::Message) {
+async fn delete_and_kick_ocr_spammer(
+    ctx: &serenity::Context,
+    data: &AppState,
+    message: &serenity::Message,
+) {
     let Some(guild_id) = message.guild_id else {
         return;
     };
+    match honeypot::is_exempt_member(
+        ctx,
+        guild_id,
+        message.author.id,
+        data.bot.honeypot.exempt_role_ids,
+    )
+    .await
+    {
+        Ok(false) => {}
+        Ok(true) => {
+            tracing::info!(
+                message_id = %message.id,
+                user_id = %message.author.id,
+                "OCR spam match from exempt member ignored"
+            );
+            return;
+        }
+        Err(error) => {
+            tracing::error!(
+                error = format!("{error:#}"),
+                message_id = %message.id,
+                "skipping OCR spam action because the exemption check failed"
+            );
+            return;
+        }
+    }
     let reason = format!(
         "OCR detected crypto/casino spam from {} ({})",
         message.author.tag(),
@@ -560,8 +598,21 @@ mod tests {
 
     #[test]
     fn normalizes_common_ocr_confusables() -> Result<()> {
-        ensure!(normalize_ocr_moderation_text("CRΥPT0 C@S1N0") == "cryptocasino");
+        ensure!(normalize_ocr_moderation_text("CRΥPT0 C@S1N0") == "crypto casino");
+        ensure!(normalize_ocr_moderation_text("Café-Bar") == "cafe bar");
         ensure!(contains_prohibited_ocr_content("CRYPTO\nCASINO"));
+        ensure!(contains_prohibited_ocr_content("Best CryptoCasino bonus"));
+        Ok(())
+    }
+
+    #[test]
+    fn ignores_crypto_and_casino_split_across_words() -> Result<()> {
+        ensure!(!contains_prohibited_ocr_content(
+            "javax.crypto.BadPaddingException\nSync basic as in old versions"
+        ));
+        ensure!(!contains_prohibited_ocr_content(
+            "javax.crypto.Cipher failed"
+        ));
         Ok(())
     }
 
