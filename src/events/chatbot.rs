@@ -554,88 +554,34 @@ fn schedule_generation(
 ) {
     tokio::spawn(async move {
         tokio::time::sleep(GENERATION_DEBOUNCE).await;
-        let Some(mut request) = ({
+        let Some(request) = ({
             let mut state = conversation.state.lock().await;
             state.begin_generation(scheduled_order)
         }) else {
             return;
         };
 
-        broadcast_typing(&ctx, request.reply_target.channel).await;
-        let ai = data.services.ai.clone();
-        let conversation_id = format!(
-            "{}:{}:{}",
-            data.bot.id, request.reply_target.channel, request.reply_target.author
-        );
-        let reply_target = request.reply_target;
-        let (progress_tx, progress_rx) = watch::channel(GenerationProgress::Thinking);
-        let mut progress_reply = ProgressReply::default();
-        let generated = {
-            let generation = async {
-                compact_request(
-                    &conversation.state,
-                    &mut request,
-                    &ai.compactor(data.bot.chatbot.ai),
-                    &conversation_id,
-                )
-                .await;
-                ai.generate_response(
-                    &request.messages,
-                    request.summary.as_ref(),
-                    data.bot.chatbot.ai,
-                    data.bot.chatbot.max_response_length,
-                    Some(progress_tx),
-                )
-                .await
-            };
-            tokio::pin!(generation);
-            let mut typing_interval = tokio::time::interval(Duration::from_secs(8));
-            typing_interval.tick().await;
-            let mut progress_interval = tokio::time::interval(Duration::from_secs(3));
-            progress_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-            loop {
-                tokio::select! {
-                    response = &mut generation => break response,
-                    _ = typing_interval.tick() => {
-                        broadcast_typing(&ctx, reply_target.channel).await;
-                    }
-                    _ = progress_interval.tick() => {
-                        let progress = *progress_rx.borrow();
-                        progress_reply.update(&ctx, reply_target, progress).await;
-                    }
-                }
-            }
-        };
-
-        let assistant_message = match generated {
-            Ok(text) => match send_reply(&ctx, request.reply_target, &text, true).await {
-                Ok(true) => Some(ChatMessage::Assistant(text.into())),
-                Ok(false) => None,
-                Err(error) => {
-                    tracing::error!(%error, "failed to send chatbot reply");
-                    None
-                }
-            },
+        let request_order = request.request_order;
+        // Run the turn in its own task so a panic still releases the conversation.
+        let assistant_message = match tokio::spawn(generate_reply(
+            ctx.clone(),
+            data.clone(),
+            Arc::clone(&conversation),
+            request,
+        ))
+        .await
+        {
+            Ok(message) => message,
             Err(error) => {
-                tracing::error!(%error, bot = data.bot.id, "support response generation failed");
-                let fallback = data.bot.chatbot.generation_error_message;
-                match send_reply(&ctx, request.reply_target, fallback, true).await {
-                    Ok(true) => Some(ChatMessage::Assistant(Arc::from(fallback))),
-                    Ok(false) => None,
-                    Err(send_error) => {
-                        tracing::error!(%send_error, "failed to send chatbot error reply");
-                        None
-                    }
-                }
+                tracing::error!(%error, bot = data.bot.id, "chatbot generation task failed");
+                None
             }
         };
-
-        progress_reply.clear(&ctx).await;
 
         let next_scheduled_order = {
             let mut state = conversation.state.lock().await;
             if let Some(message) = assistant_message {
-                insert_reply(&mut state.messages, request.request_order, message);
+                insert_reply(&mut state.messages, request_order, message);
                 trim_history(&mut state.messages);
             }
             state.generating = false;
@@ -651,6 +597,85 @@ fn schedule_generation(
             schedule_generation(ctx, data, conversation, next_scheduled_order);
         }
     });
+}
+
+async fn generate_reply(
+    ctx: serenity::Context,
+    data: AppState,
+    conversation: Arc<ConversationHandle>,
+    mut request: GenerationRequest,
+) -> Option<ChatMessage> {
+    broadcast_typing(&ctx, request.reply_target.channel).await;
+    let ai = data.services.ai.clone();
+    let conversation_id = format!(
+        "{}:{}:{}",
+        data.bot.id, request.reply_target.channel, request.reply_target.author
+    );
+    let reply_target = request.reply_target;
+    let (progress_tx, progress_rx) = watch::channel(GenerationProgress::Thinking);
+    let mut progress_reply = ProgressReply::default();
+    let generated = {
+        let generation = async {
+            compact_request(
+                &conversation.state,
+                &mut request,
+                &ai.compactor(data.bot.chatbot.ai),
+                &conversation_id,
+            )
+            .await;
+            ai.generate_response(
+                &request.messages,
+                request.summary.as_ref(),
+                data.bot.chatbot.ai,
+                data.bot.chatbot.max_response_length,
+                Some(progress_tx),
+            )
+            .await
+        };
+        tokio::pin!(generation);
+        let mut typing_interval = tokio::time::interval(Duration::from_secs(8));
+        typing_interval.tick().await;
+        let mut progress_interval = tokio::time::interval(Duration::from_secs(3));
+        progress_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            tokio::select! {
+                response = &mut generation => break response,
+                _ = typing_interval.tick() => {
+                    broadcast_typing(&ctx, reply_target.channel).await;
+                }
+                _ = progress_interval.tick() => {
+                    let progress = *progress_rx.borrow();
+                    progress_reply.update(&ctx, reply_target, progress).await;
+                }
+            }
+        }
+    };
+
+    let assistant_message = match generated {
+        Ok(text) => match send_reply(&ctx, request.reply_target, &text, true).await {
+            Ok(true) => Some(ChatMessage::Assistant(text.into())),
+            Ok(false) => None,
+            Err(error) => {
+                tracing::error!(%error, "failed to send chatbot reply");
+                None
+            }
+        },
+        Err(error) => {
+            tracing::error!(%error, bot = data.bot.id, "support response generation failed");
+            let fallback = data.bot.chatbot.generation_error_message;
+            match send_reply(&ctx, request.reply_target, fallback, true).await {
+                Ok(true) => Some(ChatMessage::Assistant(Arc::from(fallback))),
+                Ok(false) => None,
+                Err(send_error) => {
+                    tracing::error!(%send_error, "failed to send chatbot error reply");
+                    None
+                }
+            }
+        }
+    };
+
+    progress_reply.clear(&ctx).await;
+    assistant_message
 }
 
 fn insert_reply(messages: &mut VecDeque<HistoryEntry>, request_order: u64, message: ChatMessage) {
