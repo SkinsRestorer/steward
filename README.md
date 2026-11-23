@@ -38,6 +38,29 @@ Both bots use [`deepseek/deepseek-v4.1-flash`](https://openrouter.ai/deepseek/de
 through OpenRouter. To change the model, edit `AiConfig.model` in the matching
 bot definition. Choose an OpenRouter model that supports tool calling for Brave Search.
 
+## Features
+
+Each bot definition in [`src/bots`](src/bots) sets which features run. A bot
+acts only in the servers in its `guild_ids`. To turn off an optional feature,
+set its field to `None` or to an empty list.
+
+| Feature | What it does | How to turn it off |
+| --- | --- | --- |
+| Support commands | Registers the slash commands in `commands.responses`, `/help`, `/latest`, and `/resolved`. `/resolved` tags, locks, and archives a forum post. The Send Help and Send to Support Forum message commands answer a selected message. | Remove entries from `commands.responses`. Set `commands.latest` to `None` to remove `/latest`. |
+| AI chat | Answers each message in channels whose name starts with an entry in `chatbot.channel_name_prefixes`. It uses OpenRouter, Brave Search, and the pages in `docs_context_urls` and `docs_page_prefix`. It removes links that do not match `allowed_links`. Moderators can also use the Reply with AI message command in any channel. | Set `channel_name_prefixes` to `&[]`. |
+| Text checks | Reads paste links that match `checks.paste_checks` and the text in screenshots. Replies when the text contains a `checks.text_checks` entry. | Set both lists to `&[]`. |
+| Dump analysis | Summarizes a pasted debug dump and compares its version with the release at `checks.release_url`. Only Steward has one. | Set `checks.dump_analyzer` to `None`. |
+| Image spam removal | Deletes a message when the text in its image contains both "crypto" and "casino", and kicks the sender. Members that the honeypot exempts are not kicked. | Always on. |
+| Paste uploads | Uploads text, JSON, YAML, and XML attachments in public channels to pastes.dev and replies with the link. It skips files with names such as `.env` or `token`. | Set `autoupload` to `None`. |
+| Thread starter | Posts a support message in new posts in the `forum_ids` forums. | Set `thread_starter` to `None`. |
+| Message replies | Replies to common mistakes, such as a server command typed in Discord. | Set `message_replies` to `&[]`. |
+| No-ping warning | Warns members who ping a `staff_role_ids` role or member outside an active conversation. | Set `no_ping` to `None`. |
+| Honeypot | Bans members who post in a trap channel. See [Honeypot channels](#honeypot-channels). | Set `honeypot` to `None`. |
+| Message logs | Writes each member message to a daily JSON Lines file in `logs_dir`. | Always on. |
+
+The bot needs Manage Messages and Kick Members for image spam removal, and
+Manage Threads for `/resolved`.
+
 ## Honeypot channels
 
 Both bots ban members who post in a text channel named exactly
