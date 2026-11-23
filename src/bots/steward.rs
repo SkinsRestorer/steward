@@ -188,7 +188,7 @@ const COMMANDS: &[StaticCommand] = &[
         description: "Data storage options",
         title: "SkinsRestorer Data Storage",
         body: "Learn how SkinsRestorer stores and shares skin data.",
-        url: Some("https://skinsrestorer.net/docs/development/storage"),
+        url: Some("https://skinsrestorer.net/docs/configuration/database"),
         fields: &[],
     },
     StaticCommand {
