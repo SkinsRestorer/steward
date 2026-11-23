@@ -552,10 +552,21 @@ fn clamp_response(text: &str, max_length: usize) -> String {
         .collect::<String>()
         .trim_end()
         .to_owned();
+    // Punctuation ends a sentence only before whitespace, so the cut does not
+    // land inside a URL, a file name, or a version such as 1.21.4.
     let sentence_break = sliced
         .char_indices()
-        .filter(|(_, character)| matches!(character, '.' | '!' | '?' | '\n'))
-        .filter_map(|(index, character)| index.checked_add(character.len_utf8()))
+        .filter_map(|(index, character)| {
+            let end = index.checked_add(character.len_utf8())?;
+            let ends_sentence = character == '\n'
+                || (matches!(character, '.' | '!' | '?')
+                    && normalized
+                        .get(end..)?
+                        .chars()
+                        .next()
+                        .is_none_or(char::is_whitespace));
+            ends_sentence.then_some(end)
+        })
         .next_back();
 
     if let Some(sentence) = sentence_break.and_then(|end| sliced.get(..end))
@@ -967,6 +978,24 @@ mod tests {
         // A sentence of exactly 300 characters is long enough to end on.
         let text = format!("{}. {}", "a".repeat(299), "b".repeat(100));
         ensure!(clamp_response(&text, 350) == format!("{}.", "a".repeat(299)));
+        Ok(())
+    }
+
+    #[test]
+    fn does_not_end_on_dots_inside_urls_or_versions() -> Result<()> {
+        let sentence = format!("{}.", "a".repeat(299));
+        for tail in [
+            " Use 1.21.4 with more words after it",
+            " See https://skinsrestorer.net/docs for more words after it",
+        ] {
+            let text = format!("{sentence}{tail}");
+            // The cut lands after the dot in "1." or "skinsrestorer.".
+            let limit = sentence.len() + tail.find('.').unwrap_or_default() + 5;
+            ensure!(
+                clamp_response(&text, limit) == sentence,
+                "{tail} was cut inside a word"
+            );
+        }
         Ok(())
     }
 
