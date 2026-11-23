@@ -190,7 +190,7 @@ impl ProgressReply {
             return;
         }
         let content = match progress {
-            GenerationProgress::Searching => "Checking documentation...",
+            GenerationProgress::Searching => "Searching the web...",
             GenerationProgress::Thinking => "Preparing a reply...",
         };
         let result = if let Some(message) = &mut self.message {
