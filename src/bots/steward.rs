@@ -216,7 +216,7 @@ const COMMANDS: &[StaticCommand] = &[
         group: "Troubleshooting",
         description: "Why SkinsRestorer updates automatically",
         title: "Why does SkinsRestorer auto-update?",
-        body: "Automatic updates install current bug fixes and features. New SkinsRestorer versions continue to support older Minecraft versions.",
+        body: "On Paper, Spigot, and other Bukkit-compatible servers, SkinsRestorer downloads updates automatically to install bug fixes and features. New plugin versions still support older Minecraft versions. To turn this off, create an empty `noautoupdate.txt` file in `plugins/SkinsRestorer` and restart the server.",
         url: Some("https://skinsrestorer.net/docs/configuration/auto-update"),
         fields: &[],
     },
