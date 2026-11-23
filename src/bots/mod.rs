@@ -41,8 +41,13 @@ mod tests {
                     "{} command description exceeds Discord's limit",
                     command.name
                 );
+                // static_response_embed adds a link field when the command has a URL.
                 ensure!(
-                    command.fields.len() <= 25,
+                    command
+                        .fields
+                        .len()
+                        .saturating_add(usize::from(command.url.is_some()))
+                        <= 25,
                     "{} command embed exceeds Discord's field limit",
                     command.name
                 );
