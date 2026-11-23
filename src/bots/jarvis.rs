@@ -7,13 +7,13 @@ use crate::config::{
 const STAFF_ROLE_IDS: &[u64] = &[1_021_760_363_213_864_176];
 
 const PROMPT_INJECTION_PATTERNS: &[&str] = &[
-    r"(?i)ignore\s+(?:all\s+)?(?:previous|prior|above)\s+(?:instructions|messages)",
-    r"(?i)(?:you are now|from now on|new instructions|you will now)",
-    r"(?i)(?:system prompt|developer message|hidden prompt|jailbreak|prompt injection)",
-    r"(?i)(?:act as|pretend to be|roleplay as|persona)",
-    r"(?i)(?:points system|lose \d+ points|termination)",
-    r"(?i)(?:stop using|no longer use|do not use).{0,40}(?:documentation|docs)",
-    r"(?i)(?:do not|don't|stop).{0,40}(?:talk about|discuss|mention).{0,40}soulfire",
+    r"(?i)\bignore\s+(?:all\s+)?(?:(?:the|your)\s+)?(?:previous|prior|above)\s+(?:instructions|messages|prompts?)\b",
+    r"(?i)\b(?:from\s+now\s+on,?\s+you\s+(?:are|will|must|should)|you\s+are\s+now\s+(?:an?|my)\s|new\s+instructions\s*:)",
+    r"(?i)\b(?:system prompt|developer message|hidden prompt|jailbreak|prompt injection)\b",
+    r"(?i)\b(?:pretend\s+(?:to\s+be|you\s+are)|roleplay\s+as|act\s+as\s+(?:if\s+you|an?\s+(?:ai|assistant|bot|chatbot|human|person)\b))",
+    r"(?i)\b(?:points system|lose \d+ points)\b",
+    r"(?i)\b(?:stop using|no longer use|do not use)\b.{0,40}\b(?:documentation|docs)\b",
+    r"(?i)\b(?:do not|don't|stop)\b.{0,40}\b(?:talk about|discuss|mention)\b.{0,40}soulfire",
 ];
 
 const AI: AiConfig = AiConfig {

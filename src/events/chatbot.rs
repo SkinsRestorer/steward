@@ -429,21 +429,9 @@ pub async fn handle(
         &sources,
         MAX_HISTORY_BYTES - image_url_bytes,
     );
+    // Fetched logs and pastes are wrapped as untrusted data, so only the
+    // user's own text goes through the injection check above.
     if content.is_empty() && images.is_empty() {
-        return Ok(());
-    }
-    if data
-        .services
-        .patterns
-        .is_prompt_injection(data.bot, &content)
-    {
-        send_reply(
-            ctx,
-            reply_target,
-            data.bot.chatbot.prompt_injection_error_message,
-            false,
-        )
-        .await?;
         return Ok(());
     }
 
