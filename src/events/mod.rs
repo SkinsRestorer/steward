@@ -60,7 +60,7 @@ async fn handle_message(ctx: &serenity::Context, data: &AppState, message: &sere
         Ok(false) => {}
         Err(error) => {
             tracing::error!(
-                %error,
+                error = %format_args!("{error:#}"),
                 bot = data.bot.id,
                 guild_id = ?message.guild_id,
                 channel_id = %message.channel_id,
@@ -68,7 +68,8 @@ async fn handle_message(ctx: &serenity::Context, data: &AppState, message: &sere
                 user_id = %message.author.id,
                 "honeypot handler failed"
             );
-            return;
+            // Only a confirmed trap channel stops processing. A failed lookup must
+            // not drop moderation checks and replies for ordinary messages.
         }
     }
 
