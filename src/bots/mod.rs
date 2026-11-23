@@ -65,6 +65,32 @@ mod tests {
     }
 
     #[test]
+    fn rejects_oversized_built_in_command_copy() -> Result<()> {
+        let base = **ALL.first().context("no bots are defined")?;
+        // One character over Discord's 100-character command description limit.
+        let description: &'static str = Box::leak("x".repeat(101).into_boxed_str());
+        // One character over Discord's 256-character embed title limit.
+        let title: &'static str = Box::leak("x".repeat(257).into_boxed_str());
+
+        let mut bot = base;
+        bot.commands.help.description = description;
+        ensure!(bot.validate().is_err(), "a long /help description");
+
+        let mut bot = base;
+        bot.commands.resolved.description = description;
+        ensure!(bot.validate().is_err(), "a long /resolved description");
+
+        let mut bot = base;
+        bot.commands.help.embed_title = title;
+        ensure!(bot.validate().is_err(), "a long help title");
+
+        let mut bot = base;
+        bot.commands.support_context.title = title;
+        ensure!(bot.validate().is_err(), "a long support redirect title");
+        Ok(())
+    }
+
+    #[test]
     fn allows_only_configured_servers_and_direct_messages() -> Result<()> {
         for bot in ALL {
             let configured = *bot.guild_ids.first().context("no server configured")?;

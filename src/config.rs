@@ -324,10 +324,38 @@ impl BotDefinition {
     }
 
     fn validate_copy(&self) -> Result<()> {
+        let help = self.commands.help;
+        check_length(
+            "/help command description",
+            help.description,
+            MAX_COMMAND_DESCRIPTION_CHARS,
+        )?;
+        check_length("help title", help.embed_title, MAX_EMBED_TITLE_CHARS)?;
         check_length(
             "help description",
-            self.commands.help.embed_description,
+            help.embed_description,
             MAX_EMBED_DESCRIPTION_CHARS,
+        )?;
+        for group in help.groups {
+            check_length("/help group name", group, MAX_EMBED_FIELD_NAME_CHARS)?;
+        }
+        if let Some(latest) = self.commands.latest {
+            check_length(
+                "/latest command description",
+                latest.description,
+                MAX_COMMAND_DESCRIPTION_CHARS,
+            )?;
+            check_length("latest title", latest.title, MAX_EMBED_TITLE_CHARS)?;
+        }
+        check_length(
+            "/resolved command description",
+            self.commands.resolved.description,
+            MAX_COMMAND_DESCRIPTION_CHARS,
+        )?;
+        check_length(
+            "support redirect title",
+            self.commands.support_context.title,
+            MAX_EMBED_TITLE_CHARS,
         )?;
         check_length(
             "support redirect description",
