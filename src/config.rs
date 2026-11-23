@@ -1,5 +1,7 @@
 use poise::serenity_prelude as serenity;
 
+use crate::releases::LatestRelease;
+
 #[derive(Clone, Copy, Debug)]
 pub struct CommandField {
     pub name: &'static str,
@@ -52,12 +54,17 @@ pub struct TextCheck {
     pub link: Option<&'static str>,
 }
 
+/// Returns summary embeds for a product's debug dump, or `None` when the text is
+/// not such a dump.
+pub type DumpAnalyzer = fn(&str, Option<&LatestRelease>) -> Option<Vec<serenity::CreateEmbed>>;
+
 #[derive(Clone, Copy, Debug)]
 pub struct ChecksConfig {
     pub paste_checks: &'static [PasteCheck],
     pub release_url: Option<&'static str>,
     pub text_checks: &'static [TextCheck],
-    pub analyze_dump: bool,
+    /// Turns a pasted debug dump into summary embeds. `None` disables dump analysis.
+    pub dump_analyzer: Option<DumpAnalyzer>,
 }
 
 #[derive(Clone, Copy, Debug)]

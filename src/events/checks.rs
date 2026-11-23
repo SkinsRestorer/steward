@@ -1,15 +1,12 @@
 #![warn(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
 
-use std::{borrow::Cow, io, sync::LazyLock};
+use std::io;
 
 use anyhow::{Context as _, Result, anyhow};
 use poise::serenity_prelude as serenity;
-use regex::Regex;
-use semver::Version;
-use serde::{Deserialize, de::IgnoredAny};
 use unicode_normalization::{UnicodeNormalization as _, char::is_combining_mark};
 
-use crate::{download, releases::LatestRelease, state::AppState};
+use crate::{config::DumpAnalyzer, download, releases::LatestRelease, state::AppState};
 
 use super::{
     honeypot,
@@ -22,7 +19,6 @@ const MAX_OCR_IMAGES_PER_MESSAGE: usize = 4;
 const MAX_PASTE_BYTES: usize = 20 * 1024 * 1024;
 // Discord's default upload limit is 10 MiB. Leave room for the rest of the message.
 const MAX_PRETTY_DUMP_BYTES: usize = 8 * 1024 * 1024;
-const MAX_DUMP_FIELD_CHARS: usize = 100;
 
 pub async fn handle(
     ctx: &serenity::Context,
@@ -314,113 +310,37 @@ async fn respond_to_text(
         }
     }
 
-    if data.bot.checks.analyze_dump {
-        analyze_dump(ctx, message, text, footer, latest_release).await?;
+    if let Some(analyzer) = data.bot.checks.dump_analyzer {
+        analyze_dump(ctx, message, analyzer, text, footer, latest_release).await?;
     }
     Ok(())
-}
-
-#[derive(Deserialize)]
-struct SkinsRestorerDump<'a> {
-    #[serde(borrow, rename = "buildInfo")]
-    build: BuildInfo<'a>,
-    #[serde(borrow, rename = "environmentInfo")]
-    environment: EnvironmentInfo<'a>,
-    #[serde(borrow, rename = "javaInfo")]
-    java: JavaInfo<'a>,
-    #[serde(borrow, rename = "osInfo")]
-    os: OsInfo<'a>,
-    #[serde(borrow, rename = "platformInfo")]
-    platform: PlatformInfo<'a>,
-    #[serde(rename = "pluginInfo")]
-    plugin: PluginInfo,
-    #[serde(borrow, rename = "userInfo")]
-    user: UserInfo<'a>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct BuildInfo<'a> {
-    #[serde(borrow)]
-    build_time: Cow<'a, str>,
-    #[serde(borrow)]
-    version: Cow<'a, str>,
-}
-
-#[derive(Deserialize)]
-struct EnvironmentInfo<'a> {
-    hybrid: bool,
-    #[serde(borrow)]
-    platform: Cow<'a, str>,
-    #[serde(borrow, rename = "platformType")]
-    platform_type: Cow<'a, str>,
-}
-
-#[derive(Deserialize)]
-struct JavaInfo<'a> {
-    #[serde(borrow)]
-    version: Cow<'a, str>,
-}
-
-#[derive(Deserialize)]
-struct OsInfo<'a> {
-    #[serde(borrow)]
-    arch: Cow<'a, str>,
-    #[serde(borrow)]
-    name: Cow<'a, str>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PlatformInfo<'a> {
-    #[serde(borrow)]
-    platform_name: Cow<'a, str>,
-    #[serde(borrow)]
-    platform_version: Cow<'a, str>,
-    plugins: Vec<IgnoredAny>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PluginInfo {
-    config_data: ConfigData,
-    proxy_mode: bool,
-}
-
-#[derive(Deserialize)]
-struct ConfigData {
-    dev: DevConfig,
-}
-
-#[derive(Deserialize)]
-struct DevConfig {
-    debug: bool,
-}
-
-#[derive(Deserialize)]
-struct UserInfo<'a> {
-    #[serde(borrow)]
-    dir: Cow<'a, str>,
-    #[serde(borrow)]
-    home: Cow<'a, str>,
-    #[serde(borrow)]
-    name: Cow<'a, str>,
 }
 
 async fn analyze_dump(
     ctx: &serenity::Context,
     message: &serenity::Message,
+    analyzer: DumpAnalyzer,
     text: &str,
     footer: &str,
     latest_release: Option<&LatestRelease>,
 ) -> Result<()> {
-    let Ok(dump) = serde_json::from_str::<SkinsRestorerDump<'_>>(text) else {
+    // Parsing and formatting a dump of up to 20 MB is CPU work, so keep it off
+    // the async executor threads.
+    let text = text.to_owned();
+    let latest_release = latest_release.cloned();
+    let analysis = tokio::task::spawn_blocking(move || {
+        let embeds = analyzer(&text, latest_release.as_ref())?;
+        Some((embeds, pretty_print_json(&text)))
+    })
+    .await
+    .context("dump analysis task failed")?;
+    let Some((embeds, pretty_dump)) = analysis else {
         return Ok(());
     };
-    let embeds = build_dump_embeds(&dump, latest_release);
+
     let mut reply_message = serenity::CreateMessage::new().embeds(embeds);
     // Send the analysis even when the formatted dump is too large to attach.
-    match pretty_print_json(text) {
+    match pretty_dump {
         Ok(pretty_dump) => {
             reply_message = reply_message
                 .content(format!("Analysis for `{footer}`:"))
@@ -440,123 +360,6 @@ async fn analyze_dump(
     reply(ctx, message, reply_message).await
 }
 
-fn build_dump_embeds(
-    dump: &SkinsRestorerDump<'_>,
-    latest_release: Option<&LatestRelease>,
-) -> Vec<serenity::CreateEmbed> {
-    let version = coerce_version(dump.build.version.as_ref());
-    let latest_version = latest_release.and_then(|release| coerce_version(&release.tag_name));
-    let version_display = version
-        .as_ref()
-        .map_or_else(|| dump.build.version.to_string(), ToString::to_string);
-    let mut embeds = Vec::new();
-
-    if let (Some(version), Some(latest_version)) = (&version, &latest_version)
-        && version < latest_version
-    {
-        embeds.push(
-            serenity::CreateEmbed::new()
-                .title("Update SkinsRestorer")
-                .colour(0xED_42_45)
-                .description(format!(
-                    "SkinsRestorer `{version}` is outdated. Update to `{latest_version}`."
-                ))
-                .field(
-                    " ",
-                    format!(
-                        "[Download {latest_version}](https://modrinth.com/plugin/skinsrestorer/version/{latest_version})"
-                    ),
-                    false,
-                ),
-        );
-    }
-
-    embeds.push(
-        serenity::CreateEmbed::new()
-            .title("Build")
-            .colour(0x58_65_F2)
-            .description(format!(
-                "SkinsRestorer version: `{}`\nBuild date: `{}`",
-                dump_field(&version_display),
-                dump_field(&dump.build.build_time)
-            )),
-    );
-
-    if dump.user.name == "?"
-        || dump.user.dir == "/home/container"
-        || dump.user.home == "/home/container"
-    {
-        embeds.push(
-            serenity::CreateEmbed::new()
-                .title("Docker environment")
-                .colour(0x58_65_F2)
-                .description(
-                    "The dump shows a Docker container, possibly managed by Pterodactyl or Pelican. Include this detail in support requests.",
-                ),
-        );
-    }
-
-    embeds.push(
-        serenity::CreateEmbed::new()
-            .title("Operating system and Java")
-            .colour(0x58_65_F2)
-            .description(format!(
-                "Operating system: `{}`\nArchitecture: `{}`\nJava: `{}`",
-                dump_field(&dump.os.name),
-                dump_field(&dump.os.arch),
-                dump_field(&dump.java.version)
-            )),
-    );
-    embeds.push(
-        serenity::CreateEmbed::new()
-            .title("Server platform")
-            .colour(0x58_65_F2)
-            .description(format!(
-                "Platform: `{}`\nEnvironment: `{}` / `{}`\nVersion: `{}`\nPlugins: `{}`",
-                dump_field(&dump.platform.platform_name),
-                dump_field(&dump.environment.platform),
-                dump_field(&dump.environment.platform_type),
-                dump_field(&dump.platform.platform_version),
-                dump.platform.plugins.len()
-            )),
-    );
-    if dump.environment.hybrid {
-        embeds.push(
-            serenity::CreateEmbed::new()
-                .title("Unsupported hybrid platform")
-                .colour(0xED_42_45)
-                .description(
-                    "This platform mixes mods and plugins. SkinsRestorer does not support hybrid platforms because they can cause compatibility problems.",
-                ),
-        );
-    }
-    embeds.push(
-        serenity::CreateEmbed::new()
-            .title("Plugin configuration")
-            .colour(0x58_65_F2)
-            .description(format!(
-                "Proxy mode: `{}`\nDebug mode: `{}`",
-                dump.plugin.proxy_mode, dump.plugin.config_data.dev.debug
-            )),
-    );
-    embeds
-}
-
-/// Shortens a user-controlled dump value and removes backticks so it fits in an
-/// inline code span and the embed stays within Discord's limits.
-fn dump_field(value: &str) -> String {
-    let value = value.replace('`', "'");
-    if value.chars().count() <= MAX_DUMP_FIELD_CHARS {
-        return value;
-    }
-    let mut shortened = value
-        .chars()
-        .take(MAX_DUMP_FIELD_CHARS.saturating_sub(3))
-        .collect::<String>();
-    shortened.push_str("...");
-    shortened
-}
-
 fn pretty_print_json(text: &str) -> Result<Vec<u8>> {
     let mut deserializer = serde_json::Deserializer::from_str(text);
     let mut output =
@@ -564,10 +367,10 @@ fn pretty_print_json(text: &str) -> Result<Vec<u8>> {
     let formatter = serde_json::ser::PrettyFormatter::with_indent(b"  ");
     let mut serializer = serde_json::Serializer::with_formatter(&mut output, formatter);
     serde_transcode::transcode(&mut deserializer, &mut serializer)
-        .context("failed to format SkinsRestorer dump")?;
+        .context("failed to format the dump")?;
     deserializer
         .end()
-        .context("SkinsRestorer dump contains trailing data")?;
+        .context("the dump contains trailing data")?;
     Ok(output.into_inner())
 }
 
@@ -608,18 +411,6 @@ impl io::Write for LimitedWriter {
     }
 }
 
-fn coerce_version(input: &str) -> Option<Version> {
-    static VERSION_PATTERN: LazyLock<Result<Regex, regex::Error>> =
-        LazyLock::new(|| Regex::new(r"(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?"));
-    let captures = VERSION_PATTERN.as_ref().ok()?.captures(input)?;
-    let major = captures.name("major")?.as_str();
-    let minor = captures.name("minor")?.as_str();
-    let patch = captures
-        .name("patch")
-        .map_or("0", |capture| capture.as_str());
-    Version::parse(&format!("{major}.{minor}.{patch}")).ok()
-}
-
 async fn reply(
     ctx: &serenity::Context,
     message: &serenity::Message,
@@ -638,8 +429,7 @@ mod tests {
     use anyhow::{Result, ensure};
 
     use super::{
-        MAX_DUMP_FIELD_CHARS, SkinsRestorerDump, coerce_version, contains_prohibited_ocr_content,
-        dump_field, normalize_ocr_moderation_text, pretty_print_json,
+        contains_prohibited_ocr_content, normalize_ocr_moderation_text, pretty_print_json,
     };
 
     #[test]
@@ -665,21 +455,7 @@ mod tests {
     }
 
     #[test]
-    fn bounds_and_escapes_dump_fields() -> Result<()> {
-        ensure!(dump_field("Paper `1.21`") == "Paper '1.21'");
-        let long = dump_field(&"x".repeat(5_000));
-        ensure!(long.chars().count() == MAX_DUMP_FIELD_CHARS && long.ends_with("..."));
-        Ok(())
-    }
-
-    #[test]
-    fn coerces_release_versions() -> Result<()> {
-        ensure!(coerce_version("v15.2.1-SNAPSHOT") == Some(semver::Version::new(15, 2, 1)));
-        Ok(())
-    }
-
-    #[test]
-    fn formats_dumps_without_rejecting_escaped_paths() -> Result<()> {
+    fn formats_json_dumps_without_rejecting_escaped_paths() -> Result<()> {
         let input = r#"{
             "buildInfo":{"buildTime":"today","version":"15.2.1"},
             "environmentInfo":{"hybrid":false,"platform":"Paper","platformType":"SERVER"},
@@ -689,9 +465,6 @@ mod tests {
             "pluginInfo":{"configData":{"dev":{"debug":false}},"proxyMode":false},
             "userInfo":{"dir":"C:\\server","home":"C:\\Users\\Alex","name":"Alex"}
         }"#;
-
-        let dump = serde_json::from_str::<SkinsRestorerDump<'_>>(input)?;
-        ensure!(dump.user.dir == r"C:\server");
 
         let formatted = pretty_print_json(input)?;
         let original_value = serde_json::from_str::<serde_json::Value>(input)?;

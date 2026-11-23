@@ -1,3 +1,5 @@
+mod dump;
+
 use poise::serenity_prelude as serenity;
 
 use crate::config::{
@@ -442,7 +444,7 @@ pub static BOT: BotDefinition = BotDefinition {
             "https://api.github.com/repos/SkinsRestorer/SkinsRestorer/releases/latest",
         ),
         text_checks: TEXT_CHECKS,
-        analyze_dump: true,
+        dump_analyzer: Some(dump::analyze),
     },
     commands: CommandsConfig {
         responses: COMMANDS,

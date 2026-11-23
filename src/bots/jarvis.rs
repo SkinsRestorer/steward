@@ -218,7 +218,7 @@ pub static BOT: BotDefinition = BotDefinition {
         paste_checks: PASTE_CHECKS,
         release_url: None,
         text_checks: &[],
-        analyze_dump: false,
+        dump_analyzer: None,
     },
     commands: CommandsConfig {
         responses: COMMANDS,
