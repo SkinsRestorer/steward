@@ -9,6 +9,7 @@ const PARTICIPATION_WINDOW_MS: i64 = 24 * 60 * 60 * 1_000;
 const RECENT_PARTICIPATION_GRACE_MS: i64 = 5 * 60 * 1_000;
 // Bound the REST calls one staff ping can cost in a busy channel.
 const MAX_HISTORY_PAGES: usize = 3;
+const HISTORY_PAGE_SIZE: u8 = 100;
 
 pub async fn handle(
     ctx: &serenity::Context,
@@ -161,7 +162,12 @@ async fn sender_is_active_chat_participant(
     for _ in 0..MAX_HISTORY_PAGES {
         let messages = match message
             .channel_id
-            .messages(ctx, serenity::GetMessages::new().before(before).limit(100))
+            .messages(
+                ctx,
+                serenity::GetMessages::new()
+                    .before(before)
+                    .limit(HISTORY_PAGE_SIZE),
+            )
             .await
         {
             Ok(messages) => messages,
@@ -175,25 +181,44 @@ async fn sender_is_active_chat_participant(
                 return true;
             }
         };
-        if messages.is_empty() {
-            return false;
+        match inspect_history_page(&messages, message.author.id, earliest_timestamp) {
+            HistoryPage::Participated => return true,
+            HistoryPage::Exhausted => return false,
+            HistoryPage::Continue(oldest) => before = oldest,
         }
-        if messages.iter().any(|candidate| {
-            candidate.author.id == message.author.id
-                && candidate.timestamp.timestamp_millis() >= earliest_timestamp
-        }) {
-            return true;
-        }
-
-        let Some(oldest) = messages.iter().min_by_key(|candidate| candidate.timestamp) else {
-            return false;
-        };
-        if oldest.timestamp.timestamp_millis() < earliest_timestamp {
-            return false;
-        }
-        before = oldest.id;
     }
     false
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum HistoryPage {
+    Participated,
+    Exhausted,
+    Continue(serenity::MessageId),
+}
+
+fn inspect_history_page(
+    messages: &[serenity::Message],
+    author: serenity::UserId,
+    earliest_timestamp: i64,
+) -> HistoryPage {
+    if messages.iter().any(|candidate| {
+        candidate.author.id == author
+            && candidate.timestamp.timestamp_millis() >= earliest_timestamp
+    }) {
+        return HistoryPage::Participated;
+    }
+    // A short page means Discord has no older messages to return.
+    if messages.len() < usize::from(HISTORY_PAGE_SIZE) {
+        return HistoryPage::Exhausted;
+    }
+    let Some(oldest) = messages.iter().min_by_key(|candidate| candidate.timestamp) else {
+        return HistoryPage::Exhausted;
+    };
+    if oldest.timestamp.timestamp_millis() < earliest_timestamp {
+        return HistoryPage::Exhausted;
+    }
+    HistoryPage::Continue(oldest.id)
 }
 
 fn create_snowflake_after_timestamp(timestamp_ms: i64) -> serenity::MessageId {
@@ -215,8 +240,8 @@ mod tests {
     use anyhow::{Result, ensure};
 
     use super::{
-        DISCORD_EPOCH_MS, create_snowflake_after_timestamp, has_configured_role,
-        only_pings_reply_target,
+        DISCORD_EPOCH_MS, HISTORY_PAGE_SIZE, HistoryPage, create_snowflake_after_timestamp,
+        has_configured_role, inspect_history_page, only_pings_reply_target,
     };
     use poise::serenity_prelude as serenity;
 
@@ -270,6 +295,57 @@ mod tests {
         ensure!(only_pings_reply_target(&[author], author));
         ensure!(!only_pings_reply_target(&[author, other_staff], author));
         ensure!(!only_pings_reply_target(&[other_staff], author));
+        Ok(())
+    }
+
+    fn history_message(id: u64, author: u64, timestamp_ms: i64) -> Result<serenity::Message> {
+        let mut message = serenity::Message::default();
+        message.id = serenity::MessageId::new(id);
+        message.author.id = serenity::UserId::new(author);
+        message.timestamp = serenity::Timestamp::from_millis(timestamp_ms)?;
+        Ok(message)
+    }
+
+    fn full_page(author: u64, newest_ms: i64) -> Result<Vec<serenity::Message>> {
+        (0..i64::from(HISTORY_PAGE_SIZE))
+            .map(|offset| {
+                history_message(
+                    u64::try_from(1_000 - offset)?,
+                    author,
+                    newest_ms.saturating_sub(offset),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn stops_paging_after_a_short_history_page() -> Result<()> {
+        let sender = serenity::UserId::new(1);
+        let page = [history_message(5, 2, 2_000_000_000_000)?];
+
+        ensure!(inspect_history_page(&page, sender, 0) == HistoryPage::Exhausted);
+        ensure!(inspect_history_page(&[], sender, 0) == HistoryPage::Exhausted);
+        Ok(())
+    }
+
+    #[test]
+    fn pages_to_the_oldest_message_of_a_full_page() -> Result<()> {
+        let sender = serenity::UserId::new(1);
+        let page = full_page(2, 2_000_000_000_000)?;
+        let oldest = serenity::MessageId::new(1_000 - u64::from(HISTORY_PAGE_SIZE) + 1);
+
+        ensure!(inspect_history_page(&page, sender, 0) == HistoryPage::Continue(oldest));
+        ensure!(inspect_history_page(&page, sender, 2_000_000_000_000) == HistoryPage::Exhausted);
+        Ok(())
+    }
+
+    #[test]
+    fn finds_sender_participation_inside_the_window() -> Result<()> {
+        let sender = serenity::UserId::new(1);
+        let page = [history_message(5, 1, 2_000_000_000_000)?];
+
+        ensure!(inspect_history_page(&page, sender, 0) == HistoryPage::Participated);
+        ensure!(inspect_history_page(&page, sender, 2_000_000_000_001) == HistoryPage::Exhausted);
         Ok(())
     }
 }
