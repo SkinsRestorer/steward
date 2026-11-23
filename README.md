@@ -119,19 +119,18 @@ cargo test --all-targets
 cargo build --release --locked
 ```
 
-## Deploy with Railpack
+## Build the image
 
-Railpack detects the root `Cargo.toml` as a Rust application, builds the
-`steward` release binary, and starts it as `./bin/steward`. The repository does
-not need a Railpack configuration file, Dockerfile, or Compose file.
+The [`Dockerfile`](Dockerfile) builds the release binary in a pinned Rust image
+and copies it into a pinned distroless image that runs as a non-root user:
 
-Configure the environment variables above in the deployment service and deploy
-the repository root. Railpack supplies OpenSSL headers and `pkg-config` in its
-build image. Its runtime image supplies the OpenSSL libraries and CA certificates.
+```bash
+docker build -t steward .
+```
 
 ## Run the published image
 
-Pushes to `main` build a release image with Railpack and publish it to
+Pushes to `main` build a release image from the Dockerfile and publish it to
 `ghcr.io/skinsrestorer/steward`. The workflow publishes three tags for both architectures:
 
 - `latest`: the latest published build from `main`
@@ -156,7 +155,8 @@ docker run -d --name steward --restart unless-stopped \
 
 Each bot writes the messages it sees to daily JSON Lines files in
 `/app/logs/<bot>`. Mount a volume there to keep them when the container is
-recreated.
+recreated. The container runs as the distroless `nonroot` user (UID 65532), so
+a bind-mounted host directory must be writable by that user.
 
 The image includes the OCR models. No model volume is required.
 

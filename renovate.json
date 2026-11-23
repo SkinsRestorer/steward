@@ -1,33 +1,10 @@
 {
   "extends": ["config:recommended", "group:allNonMajor", ":semanticCommits", "helpers:pinGitHubActionDigests"],
-  "customManagers": [
-    {
-      "customType": "regex",
-      "description": "Update the BuildKit image pinned in the publish workflow script",
-      "managerFilePatterns": ["/^\\.github/workflows/publish-ghcr\\.yml$/"],
-      "matchStrings": ["(?<depName>moby/buildkit):(?<currentValue>v[0-9.]+)@(?<currentDigest>sha256:[a-f0-9]+)"],
-      "datasourceTemplate": "docker"
-    },
-    {
-      "customType": "regex",
-      "description": "Update the Railpack release installed by the publish workflow",
-      "managerFilePatterns": ["/^\\.github/workflows/publish-ghcr\\.yml$/"],
-      "matchStrings": ["RAILPACK_VERSION: (?<currentValue>v[0-9.]+)"],
-      "depNameTemplate": "railwayapp/railpack",
-      "datasourceTemplate": "github-releases"
-    }
-  ],
   "packageRules": [
     {
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "automerge": true,
       "automergeType": "branch"
-    },
-    {
-      "description": "CI does not build the image and Railpack updates need new checksums, so review these by hand. A separate group keeps them from blocking automerge of other updates.",
-      "matchDepNames": ["moby/buildkit", "railwayapp/railpack"],
-      "groupName": "image build tools",
-      "automerge": false
     }
   ]
 }
