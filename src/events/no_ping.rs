@@ -246,6 +246,24 @@ mod tests {
     }
 
     #[test]
+    fn matches_only_configured_roles() -> Result<()> {
+        let roles = [serenity::RoleId::new(8)];
+        ensure!(!has_configured_role(&roles, &[3, 7, 9]));
+        ensure!(!has_configured_role(&[], &[7]));
+        ensure!(!has_configured_role(&[serenity::RoleId::new(7)], &[]));
+        Ok(())
+    }
+
+    #[test]
+    fn clamps_snowflakes_before_the_discord_epoch() -> Result<()> {
+        // The earliest valid snowflake is one millisecond after the epoch.
+        for timestamp in [i64::MIN, 0, DISCORD_EPOCH_MS - 1, DISCORD_EPOCH_MS] {
+            ensure!(create_snowflake_after_timestamp(timestamp).get() == 1 << 22);
+        }
+        Ok(())
+    }
+
+    #[test]
     fn allows_only_the_reply_ping_to_skip_the_warning() -> Result<()> {
         let author = serenity::UserId::new(10);
         let other_staff = serenity::UserId::new(11);
