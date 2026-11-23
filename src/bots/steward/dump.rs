@@ -18,9 +18,9 @@ const MAX_DUMP_FIELD_CHARS: usize = 100;
 pub fn analyze(
     text: &str,
     latest_release: Option<&LatestRelease>,
-) -> Option<Vec<serenity::CreateEmbed>> {
+) -> Option<serenity::CreateEmbed> {
     let dump = serde_json::from_str::<SkinsRestorerDump<'_>>(text).ok()?;
-    Some(build_dump_embeds(&dump, latest_release))
+    Some(build_dump_embed(&dump, latest_release))
 }
 
 #[derive(Deserialize)]
@@ -110,106 +110,89 @@ struct UserInfo<'a> {
     name: Cow<'a, str>,
 }
 
-fn build_dump_embeds(
+/// Builds one embed: problems that need action first, then the details as
+/// compact fields.
+fn build_dump_embed(
     dump: &SkinsRestorerDump<'_>,
     latest_release: Option<&LatestRelease>,
-) -> Vec<serenity::CreateEmbed> {
+) -> serenity::CreateEmbed {
     let version = coerce_version(dump.build.version.as_ref());
     let latest_version = latest_release.and_then(|release| coerce_version(&release.tag_name));
     let version_display = version
         .as_ref()
         .map_or_else(|| dump.build.version.to_string(), ToString::to_string);
-    let mut embeds = Vec::new();
 
+    let mut problems = Vec::new();
     if let (Some(version), Some(latest_version)) = (&version, &latest_version)
         && version < latest_version
     {
-        embeds.push(
-            serenity::CreateEmbed::new()
-                .title("Update SkinsRestorer")
-                .colour(0xED_42_45)
-                .description(format!(
-                    "SkinsRestorer `{version}` is outdated. Update to `{latest_version}`."
-                ))
-                .field(
-                    " ",
-                    format!(
-                        "[Download {latest_version}](https://modrinth.com/plugin/skinsrestorer/version/{latest_version})"
-                    ),
-                    false,
-                ),
+        problems.push(format!(
+            "**Outdated:** `{version}` is installed. [Update to {latest_version}](https://modrinth.com/plugin/skinsrestorer/version/{latest_version})."
+        ));
+    }
+    if dump.environment.hybrid {
+        problems.push(
+            "**Unsupported platform:** this server mixes mods and plugins. SkinsRestorer does not support hybrid platforms."
+                .to_owned(),
         );
     }
-
-    embeds.push(
-        serenity::CreateEmbed::new()
-            .title("Build")
-            .colour(0x58_65_F2)
-            .description(format!(
-                "SkinsRestorer version: `{}`\nBuild date: `{}`",
-                dump_field(&version_display),
-                dump_field(&dump.build.build_time)
-            )),
-    );
-
+    let mut description = if problems.is_empty() {
+        "No known problems found.".to_owned()
+    } else {
+        problems.join("\n")
+    };
     if dump.user.name == "?"
         || dump.user.dir == "/home/container"
         || dump.user.home == "/home/container"
     {
-        embeds.push(
-            serenity::CreateEmbed::new()
-                .title("Docker environment")
-                .colour(0x58_65_F2)
-                .description(
-                    "The dump shows a Docker container, possibly managed by Pterodactyl or Pelican. Include this detail in support requests.",
-                ),
+        description.push_str(
+            "\n-# The server runs in a Docker container, possibly managed by Pterodactyl or Pelican. Mention this in support requests.",
         );
     }
 
-    embeds.push(
-        serenity::CreateEmbed::new()
-            .title("Operating system and Java")
-            .colour(0x58_65_F2)
-            .description(format!(
-                "Operating system: `{}`\nArchitecture: `{}`\nJava: `{}`",
-                dump_field(&dump.os.name),
-                dump_field(&dump.os.arch),
-                dump_field(&dump.java.version)
-            )),
-    );
-    embeds.push(
-        serenity::CreateEmbed::new()
-            .title("Server platform")
-            .colour(0x58_65_F2)
-            .description(format!(
-                "Platform: `{}`\nEnvironment: `{}` / `{}`\nVersion: `{}`\nPlugins: `{}`",
-                dump_field(&dump.platform.platform_name),
-                dump_field(&dump.environment.platform),
-                dump_field(&dump.environment.platform_type),
-                dump_field(&dump.platform.platform_version),
-                dump.platform.plugins.len()
-            )),
-    );
-    if dump.environment.hybrid {
-        embeds.push(
-            serenity::CreateEmbed::new()
-                .title("Unsupported hybrid platform")
-                .colour(0xED_42_45)
-                .description(
-                    "This platform mixes mods and plugins. SkinsRestorer does not support hybrid platforms because they can cause compatibility problems.",
-                ),
-        );
-    }
-    embeds.push(
-        serenity::CreateEmbed::new()
-            .title("Plugin configuration")
-            .colour(0x58_65_F2)
-            .description(format!(
-                "Proxy mode: `{}`\nDebug mode: `{}`",
-                dump.plugin.proxy_mode, dump.plugin.config_data.dev.debug
-            )),
-    );
-    embeds
+    let code = |value: &str| format!("`{}`", dump_field(value));
+    let yes_no = |value: bool| if value { "Yes" } else { "No" };
+    serenity::CreateEmbed::new()
+        .title("SkinsRestorer dump")
+        .colour(if problems.is_empty() {
+            0x58_65_F2
+        } else {
+            0xED_42_45
+        })
+        .description(description)
+        .field("SkinsRestorer", code(&version_display), true)
+        .field("Built", code(&dump.build.build_time), true)
+        .field(
+            "Platform",
+            format!(
+                "{} {}",
+                code(&dump.platform.platform_name),
+                code(&dump.platform.platform_version)
+            ),
+            true,
+        )
+        .field(
+            "Environment",
+            format!(
+                "{} / {}",
+                code(&dump.environment.platform),
+                code(&dump.environment.platform_type)
+            ),
+            true,
+        )
+        .field("Plugins", dump.platform.plugins.len().to_string(), true)
+        .field("Java", code(&dump.java.version), true)
+        .field(
+            "Operating system",
+            format!("{} ({})", code(&dump.os.name), code(&dump.os.arch)),
+            true,
+        )
+        .field("Proxy mode", yes_no(dump.plugin.proxy_mode), true)
+        .field(
+            "Debug mode",
+            yes_no(dump.plugin.config_data.dev.debug),
+            true,
+        )
 }
 
 /// Shortens a user-controlled dump value and removes backticks so it fits in an
@@ -260,22 +243,16 @@ mod tests {
         .to_string()
     }
 
-    fn titles(text: &str, latest: &str) -> Result<Vec<String>> {
+    fn description(text: &str, latest: &str) -> Result<String> {
         let release = LatestRelease {
             tag_name: latest.to_owned(),
         };
-        let embeds = analyze(text, Some(&release)).context("dump should parse")?;
-        embeds
-            .into_iter()
-            .map(|embed| {
-                let value = serde_json::to_value(embed)?;
-                Ok(value
-                    .get("title")
-                    .and_then(serde_json::Value::as_str)
-                    .unwrap_or_default()
-                    .to_owned())
-            })
-            .collect()
+        let embed = analyze(text, Some(&release)).context("dump should parse")?;
+        Ok(serde_json::to_value(embed)?
+            .get("description")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default()
+            .to_owned())
     }
 
     #[test]
@@ -295,27 +272,31 @@ mod tests {
 
     #[test]
     fn flags_outdated_versions_only() -> Result<()> {
+        ensure!(description(&dump("15.1.0", "/srv", false), "v15.2.0")?.contains("**Outdated:**"));
         ensure!(
-            titles(&dump("15.1.0", "/srv", false), "v15.2.0")?
-                .contains(&"Update SkinsRestorer".to_owned())
-        );
-        ensure!(
-            !titles(&dump("15.2.0", "/srv", false), "v15.2.0")?
-                .contains(&"Update SkinsRestorer".to_owned())
+            description(&dump("15.2.0", "/srv", false), "v15.2.0")? == "No known problems found."
         );
         // 15.10 is newer than 15.9, which a string comparison would get wrong.
-        ensure!(
-            !titles(&dump("15.10.0", "/srv", false), "15.9.0")?
-                .contains(&"Update SkinsRestorer".to_owned())
-        );
+        ensure!(!description(&dump("15.10.0", "/srv", false), "15.9.0")?.contains("Outdated"));
         Ok(())
     }
 
     #[test]
-    fn notes_docker_and_hybrid_platforms() -> Result<()> {
-        let titles = titles(&dump("15.2.0", "/home/container", true), "15.2.0")?;
-        ensure!(titles.contains(&"Docker environment".to_owned()));
-        ensure!(titles.contains(&"Unsupported hybrid platform".to_owned()));
+    fn lists_problems_before_the_docker_note() -> Result<()> {
+        let text = description(&dump("15.1.0", "/home/container", true), "15.2.0")?;
+        let outdated = text
+            .find("**Outdated:**")
+            .context("missing outdated line")?;
+        let hybrid = text
+            .find("**Unsupported platform:**")
+            .context("missing hybrid line")?;
+        let docker = text
+            .find("Docker container")
+            .context("missing Docker note")?;
+        ensure!(
+            outdated < hybrid && hybrid < docker,
+            "unexpected order: {text}"
+        );
         Ok(())
     }
 

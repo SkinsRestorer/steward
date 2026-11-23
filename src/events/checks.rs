@@ -331,16 +331,16 @@ async fn analyze_dump(
     let text = text.to_owned();
     let latest_release = latest_release.cloned();
     let analysis = tokio::task::spawn_blocking(move || {
-        let embeds = analyzer(&text, latest_release.as_ref())?;
-        Some((embeds, pretty_print_json(&text)))
+        let embed = analyzer(&text, latest_release.as_ref())?;
+        Some((embed, pretty_print_json(&text)))
     })
     .await
     .context("dump analysis task failed")?;
-    let Some((embeds, pretty_dump)) = analysis else {
+    let Some((embed, pretty_dump)) = analysis else {
         return Ok(());
     };
 
-    let mut reply_message = serenity::CreateMessage::new().embeds(embeds);
+    let mut reply_message = serenity::CreateMessage::new().embed(embed);
     // Send the analysis even when the formatted dump is too large to attach.
     match pretty_dump {
         Ok(pretty_dump) => {
