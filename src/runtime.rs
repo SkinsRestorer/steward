@@ -165,6 +165,14 @@ async fn register_commands(
                 return;
             }
             Err(error) => {
+                if is_permanent_registration_error(&error) {
+                    tracing::error!(
+                        error = %format_args!("{error:#}"),
+                        bot = bot.id,
+                        "Discord rejected the global application commands; not retrying"
+                    );
+                    return;
+                }
                 tracing::error!(
                     error = %format_args!("{error:#}"),
                     bot = bot.id,
@@ -176,6 +184,21 @@ async fn register_commands(
             }
         }
     }
+}
+
+/// Discord answers a repeated request with the same client error, unless the
+/// error is a rate limit or a timeout.
+fn is_permanent_registration_error(error: &serenity::Error) -> bool {
+    let serenity::Error::Http(error) = error else {
+        return false;
+    };
+    error.status_code().is_some_and(is_permanent_status)
+}
+
+fn is_permanent_status(status: serenity::StatusCode) -> bool {
+    status.is_client_error()
+        && status != serenity::StatusCode::TOO_MANY_REQUESTS
+        && status != serenity::StatusCode::REQUEST_TIMEOUT
 }
 
 /// Commands are registered globally, so refuse them in servers outside the
@@ -228,5 +251,27 @@ async fn handle_framework_error(error: poise::FrameworkError<'_, AppState, Error
     tracing::error!(error = %format_args!("{error:#}"), "Discord framework error");
     if let Err(reporting_error) = poise::builtins::on_error(error).await {
         tracing::error!(error = %format_args!("{reporting_error:#}"), "failed to report Discord framework error");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use poise::serenity_prelude::StatusCode;
+
+    use super::is_permanent_status;
+
+    #[test]
+    fn client_errors_stop_command_registration() {
+        assert!(is_permanent_status(StatusCode::BAD_REQUEST));
+        assert!(is_permanent_status(StatusCode::UNAUTHORIZED));
+        assert!(is_permanent_status(StatusCode::FORBIDDEN));
+    }
+
+    #[test]
+    fn transient_errors_retry_command_registration() {
+        assert!(!is_permanent_status(StatusCode::TOO_MANY_REQUESTS));
+        assert!(!is_permanent_status(StatusCode::REQUEST_TIMEOUT));
+        assert!(!is_permanent_status(StatusCode::INTERNAL_SERVER_ERROR));
+        assert!(!is_permanent_status(StatusCode::BAD_GATEWAY));
     }
 }
