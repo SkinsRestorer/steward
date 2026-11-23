@@ -68,8 +68,17 @@ async fn run() -> Result<()> {
     let (shutdown_sender, shutdown) = watch::channel(false);
     tokio::spawn(async move {
         wait_for_shutdown_signal().await;
-        tracing::info!("shutting down");
+        tracing::info!("shutting down; send the signal again to exit immediately");
         shutdown_sender.send_replace(true);
+        // Tokio keeps handling the signals, so without this a stuck shutdown
+        // could only be ended with SIGKILL.
+        wait_for_shutdown_signal().await;
+        tracing::warn!("received a second shutdown signal; exiting without cleanup");
+        #[expect(
+            clippy::exit,
+            reason = "A second signal must end the process even when shutdown is stuck."
+        )]
+        std::process::exit(1);
     });
 
     join_all(
