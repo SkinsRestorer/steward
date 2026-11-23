@@ -38,9 +38,6 @@ Both bots use [`deepseek/deepseek-v4.1-flash`](https://openrouter.ai/deepseek/de
 through OpenRouter. To change the model, edit `AiConfig.model` in the matching
 bot definition. Choose an OpenRouter model that supports tool calling for Brave Search.
 
-When migrating from direct DeepSeek access, replace `DEEPSEEK_API_KEY` with
-`OPENROUTER_API_KEY` and use an OpenRouter API key.
-
 ## Honeypot channels
 
 Both bots ban members who post in a text channel named exactly
@@ -121,12 +118,22 @@ Pushes to `main` build a release image with Railpack and publish it to
 The workflow builds amd64 on `ubuntu-26.04` and arm64 on `ubuntu-26.04-arm`.
 It authenticates to GHCR with `GITHUB_TOKEN` and `packages: write` permission.
 
+The workflow publishes only commits whose build, tests, and dependency checks
+passed. After publishing, it calls the Dokploy deploy webhook. Set the
+`DOKPLOY_WEBHOOK_URL` repository secret, or the deploy step fails after the
+image is pushed.
+
 Put the required environment variables in a local `.env` file. Then run:
 
 ```bash
 docker run -d --name steward --restart unless-stopped \
-  --env-file .env ghcr.io/skinsrestorer/steward:latest
+  --env-file .env -v steward-logs:/app/logs \
+  ghcr.io/skinsrestorer/steward:latest
 ```
+
+Each bot writes the messages it sees to daily JSON Lines files in
+`/app/logs/<bot>`. Mount a volume there to keep them when the container is
+recreated.
 
 The image includes the OCR models. No model volume is required.
 
@@ -141,6 +148,14 @@ registered from these static definitions at startup.
 
 The bundled OCR model provenance and license are documented in
 [`models/README.md`](models/README.md).
+
+## License
+
+Steward is licensed under the GNU General Public License v3.0 or later. See
+[`LICENSE`](LICENSE).
+
+Steward started as a fork of the LuckPerms Discord bot. That project's MIT
+license notice is kept in [`LICENSE.txt`](LICENSE.txt) as its license requires.
 
 ## Contributing and support
 
