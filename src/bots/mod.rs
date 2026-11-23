@@ -7,93 +7,63 @@ pub const ALL: &[&BotDefinition] = &[&steward::BOT, &jarvis::BOT];
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use anyhow::{Context as _, Result, ensure};
-    use regex::Regex;
 
     use super::ALL;
+    use crate::config::{CommandField, PasteCheck, StaticCommand};
 
     #[test]
-    fn bot_command_definitions_fit_discord_limits() -> Result<()> {
+    fn bot_definitions_fit_discord_limits() -> Result<()> {
         for bot in ALL {
-            ensure!(
-                bot.honeypot
-                    .is_none_or(|honeypot| honeypot.delete_message_days <= 7),
-                "{} honeypot cleanup exceeds Discord's seven-day limit",
-                bot.name
-            );
-            let mut names = HashSet::new();
-
-            for command in bot.commands.responses {
-                ensure!(
-                    names.insert(command.name),
-                    "{} defines the `{}` command more than once",
-                    bot.name,
-                    command.name
-                );
-                ensure!(
-                    command.name.len() <= 32,
-                    "{} command name exceeds Discord's limit",
-                    command.name
-                );
-                ensure!(
-                    command.description.len() <= 100,
-                    "{} command description exceeds Discord's limit",
-                    command.name
-                );
-                // static_response_embed adds a link field when the command has a URL.
-                ensure!(
-                    command
-                        .fields
-                        .len()
-                        .saturating_add(usize::from(command.url.is_some()))
-                        <= 25,
-                    "{} command embed exceeds Discord's field limit",
-                    command.name
-                );
-            }
-
-            ensure!(
-                bot.commands.responses.len() <= 25,
-                "{} help embed exceeds Discord's field limit",
-                bot.name
-            );
-            ensure!(
-                !names.contains("help"),
-                "{} defines a reserved command",
-                bot.name
-            );
-            ensure!(
-                !names.contains("resolved"),
-                "{} defines a reserved command",
-                bot.name
-            );
-            if bot.commands.latest.is_some() {
-                ensure!(
-                    !names.contains("latest"),
-                    "{} defines a reserved command",
-                    bot.name
-                );
-            }
-
-            for pattern in bot.chatbot.ai.prompt_injection_patterns {
-                Regex::new(pattern).with_context(|| {
-                    format!(
-                        "{} has an invalid prompt-injection pattern `{pattern}`",
-                        bot.name
-                    )
-                })?;
-            }
-            for paste_check in bot.checks.paste_checks {
-                Regex::new(paste_check.pattern).with_context(|| {
-                    format!(
-                        "{} has an invalid paste pattern `{}`",
-                        bot.name, paste_check.pattern
-                    )
-                })?;
-            }
+            bot.validate()
+                .with_context(|| format!("{} definition is invalid", bot.name))?;
         }
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_definitions_that_break_discord_limits() -> Result<()> {
+        let base = **ALL.first().context("no bots are defined")?;
+
+        let mut bot = base;
+        bot.application_id = 0;
+        ensure!(
+            bot.validate().is_err(),
+            "a zero application ID must be rejected"
+        );
+
+        // One character over Discord's 1,024-character field value limit.
+        let value: &'static str = Box::leak("x".repeat(1_025).into_boxed_str());
+        let fields: &'static [CommandField] = Box::leak(Box::new([CommandField {
+            name: "Field",
+            value,
+        }]));
+        let commands: &'static [StaticCommand] = Box::leak(Box::new([StaticCommand {
+            name: "example",
+            description: "Example",
+            title: "Example",
+            body: "Example",
+            url: None,
+            documentation: false,
+            fields,
+        }]));
+        let mut bot = base;
+        bot.commands.responses = commands;
+        ensure!(
+            bot.validate().is_err(),
+            "an oversized field value must be rejected"
+        );
+
+        let paste_checks: &'static [PasteCheck] = Box::leak(Box::new([PasteCheck {
+            pattern: r"https?://paste\.example/(\w+)",
+            raw_url: "https://paste.example/raw",
+        }]));
+        let mut bot = base;
+        bot.checks.paste_checks = paste_checks;
+        ensure!(
+            bot.validate().is_err(),
+            "a raw URL without {{code}} must be rejected"
+        );
         Ok(())
     }
 }

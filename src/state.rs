@@ -31,6 +31,10 @@ pub struct SharedServices {
 
 impl SharedServices {
     pub async fn load() -> Result<Self> {
+        for bot in bots::ALL {
+            bot.validate()
+                .with_context(|| format!("{} definition is invalid", bot.name))?;
+        }
         #[expect(
             clippy::disallowed_methods,
             reason = "This is the shared HTTP client constructor and sets both timeouts."

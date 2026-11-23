@@ -1,4 +1,8 @@
+use std::collections::HashSet;
+
+use anyhow::{Context as _, Result, ensure};
 use poise::serenity_prelude as serenity;
+use regex::Regex;
 
 use crate::releases::LatestRelease;
 
@@ -185,6 +189,161 @@ pub struct BotDefinition {
     pub thread_starter: Option<ThreadStarterConfig>,
     /// Canned replies to common mistakes in messages.
     pub message_replies: &'static [MessageReply],
+}
+
+// Discord limits that static bot copy must respect.
+const MAX_COMMAND_NAME_CHARS: usize = 32;
+const MAX_COMMAND_DESCRIPTION_CHARS: usize = 100;
+const MAX_EMBED_TITLE_CHARS: usize = 256;
+const MAX_EMBED_DESCRIPTION_CHARS: usize = 4_096;
+const MAX_EMBED_FIELDS: usize = 25;
+const MAX_EMBED_FIELD_NAME_CHARS: usize = 256;
+const MAX_EMBED_FIELD_VALUE_CHARS: usize = 1_024;
+const MAX_SELECT_OPTIONS: usize = 25;
+const MAX_BAN_MESSAGE_DAYS: u8 = 7;
+const RESERVED_COMMAND_NAMES: &[&str] = &["help", "latest", "resolved"];
+
+impl BotDefinition {
+    /// Checks the static definition against Discord's limits, so a bad edit
+    /// fails at startup instead of at command registration or the first reply.
+    pub fn validate(&self) -> Result<()> {
+        ensure!(self.application_id != 0, "application_id must not be 0");
+        ensure!(
+            self.commands.resolved.tag_id != 0,
+            "the resolved tag ID must not be 0"
+        );
+        if let Some(honeypot) = self.honeypot {
+            ensure!(
+                honeypot.delete_message_days <= MAX_BAN_MESSAGE_DAYS,
+                "honeypot cleanup exceeds Discord's seven-day limit"
+            );
+        }
+
+        self.validate_commands()?;
+        self.validate_copy()?;
+        self.validate_paste_checks()
+    }
+
+    fn validate_commands(&self) -> Result<()> {
+        let mut names = HashSet::new();
+        for command in self.commands.responses {
+            ensure!(
+                names.insert(command.name),
+                "the `{}` command is defined more than once",
+                command.name
+            );
+            ensure!(
+                !RESERVED_COMMAND_NAMES.contains(&command.name),
+                "`{}` is a reserved command name",
+                command.name
+            );
+            check_length("command name", command.name, MAX_COMMAND_NAME_CHARS)?;
+            check_length(
+                "command description",
+                command.description,
+                MAX_COMMAND_DESCRIPTION_CHARS,
+            )?;
+            // The documentation style prefixes the title with an emoji and a space.
+            check_length(
+                "command title",
+                command.title,
+                MAX_EMBED_TITLE_CHARS.saturating_sub(2),
+            )?;
+            check_length("command body", command.body, MAX_EMBED_DESCRIPTION_CHARS)?;
+            // static_response_embed adds a link field when the command has a URL.
+            ensure!(
+                command
+                    .fields
+                    .len()
+                    .saturating_add(usize::from(command.url.is_some()))
+                    <= MAX_EMBED_FIELDS,
+                "the `{}` command embed has too many fields",
+                command.name
+            );
+            for field in command.fields {
+                check_length("field name", field.name, MAX_EMBED_FIELD_NAME_CHARS)?;
+                check_length("field value", field.value, MAX_EMBED_FIELD_VALUE_CHARS)?;
+            }
+        }
+        // Help lists every command as an embed field and as a select option.
+        ensure!(
+            self.commands.responses.len() <= MAX_EMBED_FIELDS.min(MAX_SELECT_OPTIONS),
+            "too many response commands for the help embed and menu"
+        );
+        Ok(())
+    }
+
+    fn validate_copy(&self) -> Result<()> {
+        check_length(
+            "help description",
+            self.commands.help.embed_description,
+            MAX_EMBED_DESCRIPTION_CHARS,
+        )?;
+        check_length(
+            "support redirect description",
+            self.commands.support_context.description,
+            MAX_EMBED_DESCRIPTION_CHARS,
+        )?;
+        if let Some(starter) = self.thread_starter {
+            check_length(
+                "support title",
+                starter.support_title,
+                MAX_EMBED_TITLE_CHARS,
+            )?;
+            check_length(
+                "support description",
+                starter.support_description,
+                MAX_EMBED_DESCRIPTION_CHARS,
+            )?;
+            check_length(
+                "priority title",
+                starter.priority_title,
+                MAX_EMBED_TITLE_CHARS,
+            )?;
+            check_length(
+                "priority description",
+                starter.priority_description,
+                MAX_EMBED_DESCRIPTION_CHARS,
+            )?;
+        }
+        for reply in self.message_replies {
+            check_length("reply title", reply.title, MAX_EMBED_TITLE_CHARS)?;
+            check_length(
+                "reply description",
+                reply.description,
+                MAX_EMBED_DESCRIPTION_CHARS,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn validate_paste_checks(&self) -> Result<()> {
+        for check in self.checks.paste_checks {
+            let pattern = Regex::new(check.pattern)
+                .with_context(|| format!("invalid paste pattern `{}`", check.pattern))?;
+            // captures_len counts the whole match as group 0.
+            ensure!(
+                pattern.captures_len() == 2,
+                "paste pattern `{}` must have exactly one capture group",
+                check.pattern
+            );
+            ensure!(
+                check.raw_url.contains("{code}"),
+                "paste URL `{}` must contain {{code}}",
+                check.raw_url
+            );
+        }
+        Ok(())
+    }
+}
+
+fn check_length(what: &str, text: &str, max_chars: usize) -> Result<()> {
+    let length = text.chars().count();
+    ensure!(
+        length <= max_chars,
+        "{what} has {length} characters and exceeds Discord's limit of {max_chars}: {text:.40}..."
+    );
+    Ok(())
 }
 
 pub const PASTE_CHECKS: &[PasteCheck] = &[
