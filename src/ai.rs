@@ -170,10 +170,6 @@ impl AiService {
         max_length: usize,
         progress: Option<watch::Sender<GenerationProgress>>,
     ) -> Result<String> {
-        if config.system_prompt.trim().is_empty() {
-            bail!("the support system prompt must not be empty");
-        }
-
         let brave_search = BraveSearch {
             api_key: Arc::clone(&self.search_api_key),
             client: self.client.clone(),
@@ -369,24 +365,7 @@ impl AiService {
 }
 
 fn normalize_newlines(text: &str) -> String {
-    let text = text.trim();
-    if !text.contains('\r') {
-        return text.to_owned();
-    }
-
-    let mut normalized = String::with_capacity(text.len());
-    let mut characters = text.chars().peekable();
-    while let Some(character) = characters.next() {
-        if character == '\r' {
-            if characters.peek() == Some(&'\n') {
-                characters.next();
-            }
-            normalized.push('\n');
-        } else {
-            normalized.push(character);
-        }
-    }
-    normalized
+    text.trim().replace("\r\n", "\n").replace('\r', "\n")
 }
 
 fn build_request_context(allowed_links: &[&str]) -> String {

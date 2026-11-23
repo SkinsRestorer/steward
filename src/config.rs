@@ -228,6 +228,10 @@ impl BotDefinition {
             "guild_ids must list at least one server"
         );
         ensure!(
+            !self.chatbot.ai.system_prompt.trim().is_empty(),
+            "the AI system prompt must not be empty"
+        );
+        ensure!(
             self.commands.resolved.tag_id != 0,
             "the resolved tag ID must not be 0"
         );
