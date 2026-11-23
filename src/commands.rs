@@ -79,14 +79,24 @@ async fn help(ctx: Context<'_>) -> Result<(), Error> {
         .title(bot.commands.help.embed_title)
         .description(bot.commands.help.embed_description);
 
-    for command in bot.commands.responses {
-        let name = command_ids
-            .and_then(|ids| ids.get(command.name))
-            .map_or_else(
-                || format!("/{}", command.name),
-                |id| format!("</{}:{id}>", command.name),
-            );
-        embed = embed.field(name, command.description, true);
+    // One field per topic keeps the list scannable instead of a flat grid.
+    for group in bot.commands.help.groups {
+        let lines = bot
+            .commands
+            .responses
+            .iter()
+            .filter(|command| command.group == *group)
+            .map(|command| {
+                let mention = command_ids
+                    .and_then(|ids| ids.get(command.name))
+                    .map_or_else(
+                        || format!("`/{}`", command.name),
+                        |id| format!("</{}:{id}>", command.name),
+                    );
+                format!("{mention} {}", command.description)
+            })
+            .collect::<Vec<_>>();
+        embed = embed.field(*group, lines.join("\n"), false);
     }
 
     ctx.send(CreateReply::default().ephemeral(true).embed(embed))

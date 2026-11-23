@@ -74,7 +74,8 @@ Tone: calm, direct, and technical. Keep replies short. Default to 2 to 4 short s
 const COMMANDS: &[StaticCommand] = &[
     StaticCommand {
         name: "docs",
-        description: "Send a link to the SoulFire docs",
+        group: "Getting started",
+        description: "Documentation home",
         title: "SoulFire Documentation",
         body: "Read the official SoulFire docs for installation, first-run setup, automation, scripting, troubleshooting, development, and reference pages.",
         url: Some("https://soulfiremc.com/docs"),
@@ -82,7 +83,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "download",
-        description: "Send a link to the SoulFire download page",
+        group: "Getting started",
+        description: "Download page",
         title: "Download SoulFire",
         body: "Use the official download page to pick the correct SoulFire build for your operating system, architecture, and workflow.",
         url: Some("https://soulfiremc.com/download"),
@@ -90,7 +92,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "start",
-        description: "Send the getting started docs",
+        group: "Getting started",
+        description: "Getting started guide",
         title: "Start with SoulFire",
         body: "Start here if you are new to SoulFire. The guide helps you choose a setup, install SoulFire, and run your first session.",
         url: Some("https://soulfiremc.com/docs/start-here"),
@@ -98,7 +101,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "troubleshooting",
-        description: "Send SoulFire troubleshooting docs",
+        group: "Guides",
+        description: "Troubleshooting guide",
         title: "SoulFire Troubleshooting",
         body: "Use the troubleshooting docs to diagnose connection, auth, proxy, scripting, and deployment problems by symptom.",
         url: Some("https://soulfiremc.com/docs/troubleshooting"),
@@ -106,7 +110,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "versions",
-        description: "Send the supported versions docs",
+        group: "Getting started",
+        description: "Supported Minecraft versions",
         title: "Supported Minecraft Versions",
         body: "SoulFire supports many Java and Bedrock versions through ViaFabricPlus and related Via libraries. Check this page for the current list.",
         url: Some("https://soulfiremc.com/docs/usage/versions"),
@@ -114,7 +119,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "scripting",
-        description: "Send SoulFire scripting docs",
+        group: "Guides",
+        description: "Visual scripting guide",
         title: "SoulFire Scripting",
         body: "Use scripting when you want to build bot behavior visually without writing a full plugin.",
         url: Some("https://soulfiremc.com/docs/scripting"),
@@ -122,7 +128,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "plugins",
-        description: "Send SoulFire plugin docs",
+        group: "Guides",
+        description: "Plugin guide",
         title: "SoulFire Plugins",
         body: "SoulFire plugins are Fabric mods. Use this page to understand compatibility, plugin structure, and when a plugin is the right tool.",
         url: Some("https://soulfiremc.com/docs/usage/plugins"),
@@ -130,7 +137,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "development",
-        description: "Send SoulFire development docs",
+        group: "Guides",
+        description: "Development guide",
         title: "SoulFire Development",
         body: "Use the development docs when scripting is not enough and you need Mixins, events, bot control, custom settings, or direct API access.",
         url: Some("https://soulfiremc.com/docs/development"),
@@ -138,7 +146,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "resources",
-        description: "Send SoulFire resources",
+        group: "Guides",
+        description: "Community resources",
         title: "SoulFire Resources",
         body: "Browse community plugins and scripts, and check how to submit resources for other SoulFire users.",
         url: Some("https://soulfiremc.com/resources"),
@@ -146,7 +155,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "logs",
-        description: "Ask the user to send logs",
+        group: "Ask for details",
+        description: "Ask for logs",
         title: "Please send logs",
         body: "Send the relevant SoulFire logs, the exact error, what mode you are running, and what you were trying to do.",
         url: None,
@@ -163,7 +173,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "just-ask",
-        description: "Ask the user to send their question",
+        group: "Ask for details",
+        description: "Ask the user to post the full question",
         title: "Please ask your question",
         body: "Describe the issue directly and include the details needed to reproduce it. People can help faster when they know what you tried, what happened, and what you expected.",
         url: None,
@@ -174,7 +185,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "responsible-use",
-        description: "Send SoulFire responsible use guidance",
+        group: "Guides",
+        description: "Responsible use guidance",
         title: "Use SoulFire responsibly",
         body: "Only use SoulFire on servers you own or have explicit permission to test. We cannot help with abusing third-party servers, bypassing bans, harassment, or attacks.",
         url: None,
@@ -225,6 +237,7 @@ pub static BOT: BotDefinition = BotDefinition {
     commands: CommandsConfig {
         responses: COMMANDS,
         help: HelpConfig {
+            groups: &["Getting started", "Guides", "Ask for details"],
             description: "Show Jarvis help",
             embed_title: "Jarvis help",
             embed_description: "Hi! I am Jarvis. I help with SoulFire and PistonDev support.",

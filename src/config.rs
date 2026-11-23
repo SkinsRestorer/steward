@@ -15,6 +15,8 @@ pub struct CommandField {
 #[derive(Clone, Copy, Debug)]
 pub struct StaticCommand {
     pub name: &'static str,
+    /// The /help section that lists this command. Must be one of `HelpConfig::groups`.
+    pub group: &'static str,
     pub description: &'static str,
     pub title: &'static str,
     pub body: &'static str,
@@ -86,6 +88,8 @@ pub struct AutouploadConfig {
 
 #[derive(Clone, Copy, Debug)]
 pub struct HelpConfig {
+    /// /help sections, in display order.
+    pub groups: &'static [&'static str],
     pub description: &'static str,
     pub embed_title: &'static str,
     pub embed_description: &'static str,
@@ -276,7 +280,42 @@ impl BotDefinition {
                 check_length("field value", field.value, MAX_EMBED_FIELD_VALUE_CHARS)?;
             }
         }
-        // Help lists every command as an embed field and as a select option.
+        for group in self.commands.help.groups {
+            let commands = self
+                .commands
+                .responses
+                .iter()
+                .filter(|command| command.group == *group)
+                .collect::<Vec<_>>();
+            ensure!(
+                !commands.is_empty(),
+                "the /help group `{group}` has no commands"
+            );
+            // Each line is "</name:id> description", and a command ID has up to 20 digits.
+            let length = commands
+                .iter()
+                .map(|command| {
+                    command
+                        .name
+                        .len()
+                        .saturating_add(command.description.chars().count())
+                        .saturating_add(27)
+                })
+                .sum::<usize>();
+            ensure!(
+                length <= MAX_EMBED_FIELD_VALUE_CHARS,
+                "the /help group `{group}` is too long for one embed field"
+            );
+        }
+        for command in self.commands.responses {
+            ensure!(
+                self.commands.help.groups.contains(&command.group),
+                "the `{}` command uses the unknown /help group `{}`",
+                command.name,
+                command.group
+            );
+        }
+        // Send Help lists every command as a select option.
         ensure!(
             self.commands.responses.len() <= MAX_EMBED_FIELDS.min(MAX_SELECT_OPTIONS),
             "too many response commands for the help embed and menu"

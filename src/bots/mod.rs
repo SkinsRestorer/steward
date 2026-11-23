@@ -38,14 +38,12 @@ mod tests {
             name: "Field",
             value,
         }]));
-        let commands: &'static [StaticCommand] = Box::leak(Box::new([StaticCommand {
-            name: "example",
-            description: "Example",
-            title: "Example",
-            body: "Example",
-            url: None,
-            fields,
-        }]));
+        let mut responses = base.commands.responses.to_vec();
+        responses
+            .first_mut()
+            .context("no commands are defined")?
+            .fields = fields;
+        let commands: &'static [StaticCommand] = Box::leak(responses.into_boxed_slice());
         let mut bot = base;
         bot.commands.responses = commands;
         ensure!(

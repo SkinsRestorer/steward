@@ -90,7 +90,8 @@ Write 2 to 4 short sentences by default. If the user asks multiple questions, us
 const COMMANDS: &[StaticCommand] = &[
     StaticCommand {
         name: "wrong-channel",
-        description: "Redirect a user to the support forum",
+        group: "Ask for details",
+        description: "Point a user to the support forum",
         title: "Use the support forum",
         body: "Create a post in <#1058044481246605383> for SkinsRestorer support. This channel does not provide support.",
         url: Some("https://discord.com/channels/186794372468178944/1058044481246605383"),
@@ -98,7 +99,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "docs",
-        description: "Send a link to the docs",
+        group: "Getting started",
+        description: "Documentation home",
         title: "SkinsRestorer Documentation",
         body: "Read the documentation to learn how to install, configure, and use SkinsRestorer.",
         url: Some("https://skinsrestorer.net/docs"),
@@ -106,7 +108,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "install",
-        description: "Send a message with a link to the installation guide",
+        group: "Getting started",
+        description: "Installation guide",
         title: "Installing SkinsRestorer",
         body: "Follow the installation guide for your server or proxy platform.",
         url: Some("https://skinsrestorer.net/docs/installation"),
@@ -114,7 +117,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "proxy-install",
-        description: "Send a link to the proxy installation guide",
+        group: "Getting started",
+        description: "Proxy network installation guide",
         title: "Network Installation",
         body: "Install SkinsRestorer on the proxy and every backend server. Use the guide for your proxy platform.",
         url: Some("https://skinsrestorer.net/docs/installation"),
@@ -131,7 +135,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "troubleshooting",
-        description: "Send a link to the troubleshooting guide",
+        group: "Troubleshooting",
+        description: "Troubleshooting guide",
         title: "Troubleshooting",
         body: "Use this guide to solve common SkinsRestorer problems.",
         url: Some("https://skinsrestorer.net/docs/troubleshooting"),
@@ -139,7 +144,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "command-help",
-        description: "Send a link to the command help page",
+        group: "Getting started",
+        description: "Commands and permissions",
         title: "Command/Permissions Usage",
         body: "View all SkinsRestorer commands and permissions.",
         url: Some("https://skinsrestorer.net/docs/configuration/commands-permissions"),
@@ -147,7 +153,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "api",
-        description: "Send a link to the API page",
+        group: "Project",
+        description: "Developer API",
         title: "Developer API",
         body: "Learn how to use the SkinsRestorer API in your project.",
         url: Some("https://github.com/SkinsRestorer/SkinsRestorer/wiki/SkinsRestorerAPI"),
@@ -168,7 +175,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "config",
-        description: "Send a link to the config page",
+        group: "Getting started",
+        description: "Configuration guide",
         title: "SkinsRestorer Configuration",
         body: "Learn what each configuration option controls.",
         url: Some("https://skinsrestorer.net/docs/configuration"),
@@ -176,7 +184,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "storage",
-        description: "Send a link to the storage page",
+        group: "Getting started",
+        description: "Data storage options",
         title: "SkinsRestorer Data Storage",
         body: "Learn how SkinsRestorer stores and shares skin data.",
         url: Some("https://skinsrestorer.net/docs/development/storage"),
@@ -184,7 +193,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "launcher-issues",
-        description: "Send a link to the launcher issues page",
+        group: "Troubleshooting",
+        description: "Skins missing in a launcher",
         title: "Launcher skin issues",
         body: "Fix skin problems caused by third-party launchers.",
         url: Some("https://skinsrestorer.net/docs/troubleshooting/launcher-issues"),
@@ -192,7 +202,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "tlauncher",
-        description: "Explain how to fix TLauncher issues",
+        group: "Troubleshooting",
+        description: "Skins missing in TLauncher",
         title: "TLauncher skin issues",
         body: "TLauncher is malware, and its skin system overrides SkinsRestorer skins. Disable the TLauncher skin system or use a supported launcher. Follow the guide below.",
         url: Some("https://skinsrestorer.net/docs/troubleshooting/launcher-issues#tlauncher"),
@@ -200,7 +211,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "auto-update",
-        description: "Explain what auto update is for",
+        group: "Troubleshooting",
+        description: "Why SkinsRestorer updates automatically",
         title: "Why does SkinsRestorer auto-update?",
         body: "Automatic updates install current bug fixes and features. New SkinsRestorer versions continue to support older Minecraft versions.",
         url: Some("https://skinsrestorer.net/docs/configuration/auto-update"),
@@ -208,7 +220,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "downloads",
-        description: "Send a link to the downloads page",
+        group: "Getting started",
+        description: "Download links",
         title: "Downloads",
         body: "You can download SkinsRestorer for Bukkit/Spigot/Paper, BungeeCord, Sponge and Velocity.",
         url: Some("https://modrinth.com/plugin/skinsrestorer"),
@@ -219,7 +232,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "crowdin",
-        description: "Send a link to the Crowdin page",
+        group: "Project",
+        description: "Help translate SkinsRestorer",
         title: "Translating SkinsRestorer",
         body: "SkinsRestorer translations are managed on Crowdin. You can contribute corrections or new translations.",
         url: Some("https://translate.skinsrestorer.net"),
@@ -227,7 +241,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "forge",
-        description: "Send a message that Forge is not supported",
+        group: "Troubleshooting",
+        description: "Forge and hybrid servers are not supported",
         title: "Unsupported Forge server platforms",
         body: "SkinsRestorer does not support Cauldron, Thermos, SpongeForge, or Forge platforms with Bukkit compatibility layers. Try Skinport or OfflineSkins instead.",
         url: None,
@@ -235,7 +250,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "color-codes",
-        description: "Send a link to a page with color codes",
+        group: "Project",
+        description: "Minecraft color codes",
         title: "Colour Codes",
         body: "A helpful list of all colour codes that you can use.",
         url: None,
@@ -246,7 +262,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "not-working",
-        description: "Send a message that the plugin is not working",
+        group: "Ask for details",
+        description: "Ask what is not working",
         title: "Describe the problem",
         body: "Tell us what you expected and what happened instead. Include the steps to reproduce the problem, relevant logs, and useful screenshots.",
         url: None,
@@ -257,7 +274,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "issue-tracker",
-        description: "Send a link to the issue tracker",
+        group: "Project",
+        description: "Report a bug or request a feature",
         title: "Suggestions and Bug Reports",
         body: "Open a GitHub issue to report a bug or request a feature.",
         url: None,
@@ -268,7 +286,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "server-info",
-        description: "Send a message with server info",
+        group: "Ask for details",
+        description: "Ask for server details",
         title: "Share server information",
         body: "Run these commands and share screenshots of the results.",
         url: None,
@@ -285,7 +304,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "send-logs",
-        description: "Send a message with info to send logs",
+        group: "Ask for details",
+        description: "Ask for the full server log",
         title: "Share the full server log",
         body: "Upload the complete server log to https://mclo.gs/ and send the returned link.",
         url: None,
@@ -306,7 +326,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "just-ask",
-        description: "Ask the user to post their full question",
+        group: "Ask for details",
+        description: "Ask the user to post the full question",
         title: "Post your question",
         body: "Ask your full question in this channel. Include your setup, the expected result, and what happened instead.",
         url: None,
@@ -323,7 +344,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "no-wildcard",
-        description: "Explain problems with wildcard permissions",
+        group: "Troubleshooting",
+        description: "Problems with wildcard permissions",
         title: "Wildcard issues",
         body: "Some plugins do not work correctly with the root `*` permission. Grant specific permissions instead.",
         url: None,
@@ -334,7 +356,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "proxy-mode",
-        description: "Send a message that explains Proxy Mode",
+        group: "Getting started",
+        description: "What Proxy Mode does",
         title: "SkinsRestorer Proxy Mode",
         body: "Proxy mode connects SkinsRestorer on backend servers to SkinsRestorer on a BungeeCord or Velocity proxy.",
         url: None,
@@ -363,7 +386,8 @@ const COMMANDS: &[StaticCommand] = &[
     },
     StaticCommand {
         name: "sr-dump",
-        description: "Send a message to run /sr dump",
+        group: "Ask for details",
+        description: "Ask the user to run /sr dump",
         title: "Run `/sr dump` on the server",
         body: "Run `/sr dump` in the game or console. Paste the returned link in this channel.",
         url: None,
@@ -456,6 +480,12 @@ pub static BOT: BotDefinition = BotDefinition {
     commands: CommandsConfig {
         responses: COMMANDS,
         help: HelpConfig {
+            groups: &[
+                "Getting started",
+                "Troubleshooting",
+                "Ask for details",
+                "Project",
+            ],
             description: "Show Steward help",
             embed_title: "Steward help",
             embed_description: "Hi! 👋 I am Steward, the SkinsRestorer support bot. [View Steward on GitHub](https://github.com/SkinsRestorer/steward).",
