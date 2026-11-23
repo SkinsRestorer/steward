@@ -695,6 +695,29 @@ mod tests {
     }
 
     #[test]
+    fn clamps_short_limits_and_multibyte_text() -> Result<()> {
+        ensure!(clamp_response("  hi  ", 10) == "hi");
+        ensure!(clamp_response("abcdef", 0).is_empty());
+        ensure!(clamp_response("abcdef", 2) == "..");
+        ensure!(clamp_response(&"é".repeat(500), 10) == format!("{}...", "é".repeat(7)));
+        Ok(())
+    }
+
+    #[test]
+    fn ignores_sentence_breaks_that_would_drop_most_of_the_reply() -> Result<()> {
+        // A break under 300 characters would discard too much, so cut with "...".
+        let text = format!("Hi. {}", "a".repeat(400));
+        let clamped = clamp_response(&text, 100);
+        ensure!(clamped == format!("Hi. {}...", "a".repeat(93)));
+        ensure!(clamped.chars().count() == 100);
+
+        // A sentence of exactly 300 characters is long enough to end on.
+        let text = format!("{}. {}", "a".repeat(299), "b".repeat(100));
+        ensure!(clamp_response(&text, 350) == format!("{}.", "a".repeat(299)));
+        Ok(())
+    }
+
+    #[test]
     fn reserves_room_for_the_disclaimer() -> Result<()> {
         let result = append_response_disclaimer(&"a".repeat(100), "notice", 50);
 
