@@ -368,7 +368,7 @@ const COMMANDS: &[StaticCommand] = &[
             },
             CommandField {
                 name: "What changes in proxy mode?",
-                value: "The backend plugin does not store data, expose the API, or register commands. It receives skin and GUI actions through plugin messages.",
+                value: "The backend plugin does not store data or handle normal skin commands. It receives skin and GUI actions through plugin messages. It exposes the API only with `server.proxyMode.api: true` and a database shared with the proxy.",
             },
             CommandField {
                 name: "How do I use it?",
@@ -380,7 +380,7 @@ const COMMANDS: &[StaticCommand] = &[
             },
             CommandField {
                 name: "Can I use standalone mode?",
-                value: "Yes. Remove SkinsRestorer from the proxy and connect the backend servers to the same MySQL database.",
+                value: "Yes. Remove SkinsRestorer from the proxy and connect the backend servers to the same MySQL or PostgreSQL database.",
             },
         ],
     },
