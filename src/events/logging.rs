@@ -28,8 +28,34 @@ struct LogRecord {
     channel: String,
     author: String,
     content: String,
+    message_id: String,
+    channel_id: String,
+    guild_id: Option<String>,
+    user_id: String,
     #[serde(skip)]
     date: String,
+}
+
+impl LogRecord {
+    fn new(
+        message: &serenity::Message,
+        channel_name: &str,
+        now: chrono::DateTime<chrono_tz::Tz>,
+    ) -> Self {
+        Self {
+            timestamp: now.to_rfc3339(),
+            channel: channel_name.to_owned(),
+            author: message.author.tag(),
+            content: message.content.clone(),
+            // Snowflakes are strings so log readers that parse JSON numbers as
+            // doubles keep every digit.
+            message_id: message.id.to_string(),
+            channel_id: message.channel_id.to_string(),
+            guild_id: message.guild_id.map(|guild_id| guild_id.to_string()),
+            user_id: message.author.id.to_string(),
+            date: now.format("%Y-%m-%d").to_string(),
+        }
+    }
 }
 
 impl LoggingService {
@@ -75,14 +101,7 @@ impl LoggingService {
         message: &serenity::Message,
         channel_name: &str,
     ) -> Result<()> {
-        let now = Utc::now().with_timezone(&Berlin);
-        let record = LogRecord {
-            timestamp: now.to_rfc3339(),
-            channel: channel_name.to_owned(),
-            author: message.author.tag(),
-            content: message.content.clone(),
-            date: now.format("%Y-%m-%d").to_string(),
-        };
+        let record = LogRecord::new(message, channel_name, Utc::now().with_timezone(&Berlin));
         let sender = self
             .senders
             .get(bot.id)
@@ -192,6 +211,9 @@ async fn open_log_file(logs_dir: &str, date: &str) -> Result<File> {
 #[cfg(test)]
 mod tests {
     use anyhow::{Result, ensure};
+    use chrono::TimeZone as _;
+    use chrono_tz::Europe::Berlin;
+    use poise::serenity_prelude as serenity;
     use tokio::sync::{mpsc, watch};
 
     use super::{LogRecord, run_writer};
@@ -202,6 +224,10 @@ mod tests {
             channel: "general".to_owned(),
             author: "user".to_owned(),
             content: content.to_owned(),
+            message_id: "1".to_owned(),
+            channel_id: "2".to_owned(),
+            guild_id: Some("3".to_owned()),
+            user_id: "4".to_owned(),
             date: "2026-11-23".to_owned(),
         }
     }
@@ -237,6 +263,45 @@ mod tests {
         ensure!(
             contents == ["first", "second", "third"],
             "unexpected log: {contents:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn records_identify_the_original_message() -> Result<()> {
+        let mut message = serenity::Message::default();
+        message.id = serenity::MessageId::new(1_234_567_890_123_456_789);
+        message.channel_id = serenity::ChannelId::new(222);
+        message.guild_id = Some(serenity::GuildId::new(333));
+        message.author.id = serenity::UserId::new(444);
+        message.author.name = "alice".to_owned();
+        message.content = "hello".to_owned();
+        let now = Berlin
+            .with_ymd_and_hms(2026, 11, 23, 23, 30, 0)
+            .single()
+            .ok_or_else(|| anyhow::anyhow!("invalid test time"))?;
+
+        let record = LogRecord::new(&message, "general", now);
+        let value = serde_json::to_value(&record)?;
+
+        ensure!(
+            value
+                == serde_json::json!({
+                    "timestamp": "2026-11-23T23:30:00+01:00",
+                    "channel": "general",
+                    "author": "alice",
+                    "content": "hello",
+                    "message_id": "1234567890123456789",
+                    "channel_id": "222",
+                    "guild_id": "333",
+                    "user_id": "444",
+                }),
+            "unexpected record: {value}"
+        );
+        ensure!(
+            record.date == "2026-11-23",
+            "unexpected date {}",
+            record.date
         );
         Ok(())
     }
