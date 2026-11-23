@@ -84,7 +84,7 @@ impl OcrService {
     }
 }
 
-fn decode_image(bytes: &[u8]) -> Result<image::RgbImage> {
+fn decode_image(bytes: &[u8]) -> Result<image::GrayImage> {
     let mut limits = image::Limits::default();
     limits.max_image_width = Some(MAX_IMAGE_DIMENSION);
     limits.max_image_height = Some(MAX_IMAGE_DIMENSION);
@@ -107,9 +107,21 @@ fn decode_image(bytes: &[u8]) -> Result<image::RgbImage> {
         "OCR image contains {pixels} pixels, exceeding the {MAX_IMAGE_PIXELS} pixel limit"
     );
 
-    image::DynamicImage::from_decoder(decoder)
-        .context("failed to decode image for OCR")
-        .map(image::DynamicImage::into_rgb8)
+    let mut image = image::DynamicImage::from_decoder(decoder)
+        .context("failed to decode image for OCR")?
+        .into_luma8();
+    // The models read dark text on a light background more reliably, but console
+    // screenshots usually show light text on a dark background.
+    if is_mostly_dark(&image) {
+        image::imageops::invert(&mut image);
+    }
+    Ok(image)
+}
+
+fn is_mostly_dark(image: &image::GrayImage) -> bool {
+    let pixels = image.as_raw();
+    let dark_pixels = pixels.iter().filter(|&&value| value < 128).count();
+    dark_pixels.saturating_mul(2) > pixels.len()
 }
 
 fn load_model(model_name: &str, embedded: &'static [u8]) -> Result<Model> {
@@ -155,6 +167,21 @@ mod tests {
         image.write_to(&mut encoded, image::ImageFormat::Png)?;
 
         ensure!(decode_image(&encoded.into_inner()).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn inverts_mostly_dark_images_only() -> Result<()> {
+        let decode = |pixels: Vec<u8>| -> Result<Vec<u8>> {
+            let image = image::GrayImage::from_raw(3, 1, pixels)
+                .ok_or_else(|| anyhow!("invalid test image"))?;
+            let mut encoded = Cursor::new(Vec::new());
+            image.write_to(&mut encoded, image::ImageFormat::Png)?;
+            Ok(decode_image(&encoded.into_inner())?.into_raw())
+        };
+
+        ensure!(decode(vec![0, 10, 230])? == [255, 245, 25]);
+        ensure!(decode(vec![255, 240, 20])? == [255, 240, 20]);
         Ok(())
     }
 }
