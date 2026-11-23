@@ -87,7 +87,9 @@ struct PlatformInfo<'a> {
 #[serde(rename_all = "camelCase")]
 struct PluginInfo {
     config_data: ConfigData,
-    proxy_mode: bool,
+    /// `null` on proxy platforms, where the server-side proxy mode does not
+    /// apply.
+    proxy_mode: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -187,7 +189,11 @@ fn build_dump_embed(
             format!("{} ({})", code(&dump.os.name), code(&dump.os.arch)),
             true,
         )
-        .field("Proxy mode", yes_no(dump.plugin.proxy_mode), true)
+        .field(
+            "Proxy mode",
+            dump.plugin.proxy_mode.map_or("Not applicable", yes_no),
+            true,
+        )
         .field(
             "Debug mode",
             yes_no(dump.plugin.config_data.dev.debug),
@@ -260,6 +266,28 @@ mod tests {
         let input = dump("15.2.1", r"C:\server", false);
         let parsed = serde_json::from_str::<SkinsRestorerDump<'_>>(&input)?;
         ensure!(parsed.user.dir == r"C:\server");
+        Ok(())
+    }
+
+    #[test]
+    fn reads_proxy_dumps_without_proxy_mode() -> Result<()> {
+        let input =
+            dump("15.2.1", "/srv", false).replace(r#""proxyMode":false"#, r#""proxyMode":null"#);
+        ensure!(input.contains(r#""proxyMode":null"#));
+        let embed = analyze(&input, None).context("proxy dump should parse")?;
+        let embed = serde_json::to_value(embed)?;
+        let proxy_mode = embed
+            .get("fields")
+            .and_then(serde_json::Value::as_array)
+            .context("missing fields")?
+            .iter()
+            .find(|field| {
+                field.get("name").and_then(serde_json::Value::as_str) == Some("Proxy mode")
+            })
+            .context("missing proxy mode field")?;
+        ensure!(
+            proxy_mode.get("value").and_then(serde_json::Value::as_str) == Some("Not applicable")
+        );
         Ok(())
     }
 
