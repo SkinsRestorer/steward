@@ -410,12 +410,11 @@ const TEXT_CHECKS: &[TextCheck] = &[
         ),
     },
     TextCheck {
-        needle: "NoMappingException",
+        needle: "is not supported by this version of SkinsRestorer",
         title: "Missing mapping in SkinsRestorer",
-        content: "This SkinsRestorer build does not support the server's Minecraft version. Spigot requires a new mapping for each Minecraft version.",
+        content: "This SkinsRestorer build does not support the server's Minecraft version. SkinsRestorer requires a new mapping for each Minecraft version.",
         tips: &[
             "Install a SkinsRestorer update that supports this Minecraft version. If no update exists, wait for a compatible release.",
-            "If Paper supports this Minecraft version, change from Spigot to Paper. SkinsRestorer does not require mappings on Paper.",
         ],
         link: None,
     },
