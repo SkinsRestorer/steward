@@ -109,6 +109,27 @@ mod tests {
     }
 
     #[test]
+    fn rejects_command_embeds_over_the_total_character_limit() -> Result<()> {
+        let base = **ALL.first().context("no bots are defined")?;
+        // Six full fields stay within the field limit but total 6,144 characters.
+        let value: &'static str = Box::leak("x".repeat(1_024).into_boxed_str());
+        let fields: &'static [CommandField] =
+            Box::leak(vec![CommandField { name: "F", value }; 6].into_boxed_slice());
+        let mut responses = base.commands.responses.to_vec();
+        responses
+            .first_mut()
+            .context("no commands are defined")?
+            .fields = fields;
+        let mut bot = base;
+        bot.commands.responses = Box::leak(responses.into_boxed_slice());
+        ensure!(
+            bot.validate().is_err(),
+            "an embed over 6,000 characters must be rejected"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn rejects_text_checks_that_break_embed_limits() -> Result<()> {
         let base = **ALL.first().context("no bots are defined")?;
         let check = TextCheck {

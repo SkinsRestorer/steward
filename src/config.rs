@@ -204,6 +204,8 @@ const MAX_EMBED_DESCRIPTION_CHARS: usize = 4_096;
 const MAX_EMBED_FIELDS: usize = 25;
 const MAX_EMBED_FIELD_NAME_CHARS: usize = 256;
 const MAX_EMBED_FIELD_VALUE_CHARS: usize = 1_024;
+/// Discord also caps the combined text of an embed's title, description, and fields.
+const MAX_EMBED_TOTAL_CHARS: usize = 6_000;
 const MAX_SELECT_OPTIONS: usize = 25;
 const MAX_MESSAGE_CHARS: usize = 2_000;
 /// Chatbot replies start with `<@user_id> `, and a user ID has up to 20 digits.
@@ -279,11 +281,23 @@ impl BotDefinition {
                 "the `{}` command embed has too many fields",
                 command.name
             );
+            let mut embed_length =
+                char_count(command.title).saturating_add(char_count(command.body));
             for field in command.fields {
                 check_length("field name", field.name, MAX_EMBED_FIELD_NAME_CHARS)?;
                 check_length("field value", field.value, MAX_EMBED_FIELD_VALUE_CHARS)?;
+                embed_length = embed_length
+                    .saturating_add(char_count(field.name))
+                    .saturating_add(char_count(field.value));
             }
+            ensure!(
+                embed_length <= MAX_EMBED_TOTAL_CHARS,
+                "the `{}` command embed has {embed_length} characters and exceeds Discord's limit of {MAX_EMBED_TOTAL_CHARS}",
+                command.name
+            );
         }
+        let mut help_length = char_count(self.commands.help.embed_title)
+            .saturating_add(char_count(self.commands.help.embed_description));
         for group in self.commands.help.groups {
             let commands = self
                 .commands
@@ -310,7 +324,14 @@ impl BotDefinition {
                 length <= MAX_EMBED_FIELD_VALUE_CHARS,
                 "the /help group `{group}` is too long for one embed field"
             );
+            help_length = help_length
+                .saturating_add(char_count(group))
+                .saturating_add(length);
         }
+        ensure!(
+            help_length <= MAX_EMBED_TOTAL_CHARS,
+            "the /help embed has up to {help_length} characters and exceeds Discord's limit of {MAX_EMBED_TOTAL_CHARS}"
+        );
         for command in self.commands.responses {
             ensure!(
                 self.commands.help.groups.contains(&command.group),
@@ -481,8 +502,12 @@ impl BotDefinition {
     }
 }
 
+fn char_count(text: &str) -> usize {
+    text.chars().count()
+}
+
 fn check_length(what: &str, text: &str, max_chars: usize) -> Result<()> {
-    let length = text.chars().count();
+    let length = char_count(text);
     ensure!(
         length <= max_chars,
         "{what} has {length} characters and exceeds Discord's limit of {max_chars}: {text:.40}..."
