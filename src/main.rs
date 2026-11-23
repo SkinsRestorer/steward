@@ -6,6 +6,8 @@ mod download;
 mod events;
 mod ocr;
 mod patterns;
+#[cfg(test)]
+mod regression_tests;
 mod releases;
 mod runtime;
 mod state;
