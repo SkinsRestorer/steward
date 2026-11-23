@@ -787,10 +787,18 @@ async fn send_reply(
         .reference_message((target.channel, target.message))
         .allowed_mentions(allowed_mentions.clone());
 
-    if target.channel.send_message(ctx, reply).await.is_ok() {
+    let Err(error) = target.channel.send_message(ctx, reply).await else {
         return Ok(true);
-    }
+    };
+    tracing::warn!(error = %format_args!("{error:#}"), "failed to send chatbot reply as a reply");
     if !fallback_to_channel {
+        return Ok(false);
+    }
+    // Moderation can delete a message while its reply generates. Do not post an
+    // answer that pings the author of a message that no longer exists.
+    if let Err(error) = ctx.http.get_message(target.channel, target.message).await
+        && is_unknown_message(&error)
+    {
         return Ok(false);
     }
 
@@ -804,6 +812,15 @@ async fn send_reply(
         )
         .await?;
     Ok(true)
+}
+
+fn is_unknown_message(error: &serenity::Error) -> bool {
+    const UNKNOWN_MESSAGE: isize = 10_008;
+    matches!(
+        error,
+        serenity::Error::Http(serenity::HttpError::UnsuccessfulRequest(response))
+            if response.error.code == UNKNOWN_MESSAGE
+    )
 }
 
 #[cfg(test)]
