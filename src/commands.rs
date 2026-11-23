@@ -11,6 +11,8 @@ use crate::{
     state::{Context, Error},
 };
 
+const MAX_FORUM_POST_TAGS: usize = 5;
+
 pub fn all(bot: &'static BotDefinition) -> Vec<poise::Command<crate::state::AppState, Error>> {
     let mut commands = bot
         .commands
@@ -118,48 +120,79 @@ async fn latest(ctx: Context<'_>) -> Result<(), Error> {
 /// Marks the current support thread as resolved.
 #[poise::command(slash_command)]
 async fn resolved(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.defer().await?;
-    let update_guard = ctx.data().services.thread_updates.lock().await;
     let config = ctx.data().bot.commands.resolved;
-    let channel = ctx.channel_id().to_channel(ctx.http()).await?;
-    let serenity::Channel::Guild(thread) = channel else {
-        drop(update_guard);
-        ctx.say("This command can only be used in threads.").await?;
-        return Ok(());
-    };
-    if !matches!(
-        thread.kind,
-        serenity::ChannelType::PublicThread
-            | serenity::ChannelType::PrivateThread
-            | serenity::ChannelType::NewsThread
-    ) {
-        drop(update_guard);
-        ctx.say("This command can only be used in threads.").await?;
-        return Ok(());
-    }
-
     let tag = serenity::ForumTagId::new(config.tag_id);
+    let thread = ctx
+        .channel_id()
+        .to_channel(ctx.http())
+        .await
+        .context("failed to fetch the current channel")?
+        .guild()
+        .filter(|channel| channel.thread_metadata.is_some());
+    let Some(thread) = thread else {
+        return say_ephemeral(ctx, "This command can only be used in support forum posts.").await;
+    };
     if thread.applied_tags.contains(&tag) {
-        drop(update_guard);
-        ctx.say(config.already_resolved_message).await?;
-        return Ok(());
+        return say_ephemeral(ctx, config.already_resolved_message).await;
+    }
+    let parent = match thread.parent_id {
+        Some(parent_id) => parent_id
+            .to_channel(ctx.http())
+            .await
+            .context("failed to fetch the parent forum")?
+            .guild(),
+        None => None,
+    };
+    if !parent.is_some_and(|parent| {
+        parent
+            .available_tags
+            .iter()
+            .any(|forum_tag| forum_tag.id == tag)
+    }) {
+        return say_ephemeral(ctx, "This command can only be used in support forum posts.").await;
+    }
+    if thread.applied_tags.len() >= MAX_FORUM_POST_TAGS {
+        return say_ephemeral(
+            ctx,
+            "This post already has the maximum number of tags. Remove one and try again.",
+        )
+        .await;
     }
 
-    let mut tags = thread.applied_tags;
-    tags.push(tag);
+    {
+        let _update_guard = ctx.data().services.thread_updates.lock().await;
+        let mut tags = thread.applied_tags;
+        tags.push(tag);
+        thread
+            .id
+            .edit_thread(
+                ctx.http(),
+                serenity::EditThread::new()
+                    .applied_tags(tags)
+                    .audit_log_reason("resolved"),
+            )
+            .await
+            .context("failed to tag the thread as resolved")?;
+    }
+    // Reply before archiving: Discord rejects interaction replies in archived threads.
+    ctx.say(config.success_message).await?;
     thread
         .id
         .edit_thread(
             ctx.http(),
             serenity::EditThread::new()
-                .applied_tags(tags)
                 .locked(true)
                 .archived(true)
                 .audit_log_reason("resolved"),
         )
+        .await
+        .context("failed to lock and archive the resolved thread")?;
+    Ok(())
+}
+
+async fn say_ephemeral(ctx: Context<'_>, content: &str) -> Result<(), Error> {
+    ctx.send(CreateReply::default().ephemeral(true).content(content))
         .await?;
-    drop(update_guard);
-    ctx.say(config.success_message).await?;
     Ok(())
 }
 
