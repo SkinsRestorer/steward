@@ -34,6 +34,8 @@ const CLEANUP_INTERVAL: Duration = Duration::from_mins(5);
 const CONVERSATION_IDLE_TTL: Duration = Duration::from_mins(30);
 const COMPACTION_RETRY_DELAY: Duration = Duration::from_mins(10);
 const GENERATION_DEBOUNCE: Duration = Duration::from_secs(1);
+// Covers queueing, compaction, generation, and the Discord calls around them.
+const TURN_TIMEOUT: Duration = Duration::from_mins(4);
 const MAX_ATTACHMENT_SOURCES: usize = 10;
 const MAX_CONCURRENT_SOURCE_FETCHES: usize = 4;
 const MAX_CONTEXTS: usize = 2_048;
@@ -572,17 +574,23 @@ fn schedule_generation(
 
         let request_order = request.request_order;
         // Run the turn in its own task so a panic still releases the conversation.
-        let assistant_message = match tokio::spawn(generate_reply(
+        let mut turn = tokio::spawn(generate_reply(
             ctx.clone(),
             data.clone(),
             Arc::clone(&conversation),
             request,
-        ))
-        .await
-        {
-            Ok(message) => message,
-            Err(error) => {
+        ));
+        // Discord calls have no request timeout, so bound the whole turn. Otherwise
+        // one stalled call would leave the conversation generating forever.
+        let assistant_message = match tokio::time::timeout(TURN_TIMEOUT, &mut turn).await {
+            Ok(Ok(message)) => message,
+            Ok(Err(error)) => {
                 tracing::error!(%error, bot = data.bot.id, "chatbot generation task failed");
+                None
+            }
+            Err(_) => {
+                turn.abort();
+                tracing::error!(bot = data.bot.id, "chatbot turn timed out");
                 None
             }
         };
