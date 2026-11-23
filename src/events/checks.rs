@@ -235,7 +235,9 @@ async fn delete_and_kick_ocr_spammer(
     let Some(guild_id) = message.guild_id else {
         return;
     };
-    match honeypot::is_exempt_member(
+    // If the exemption check fails, still remove the spam but do not kick, so a
+    // Discord error cannot leave spam up or kick a staff member.
+    let kick = match honeypot::is_exempt_member(
         ctx,
         guild_id,
         message.author.id,
@@ -245,7 +247,7 @@ async fn delete_and_kick_ocr_spammer(
     )
     .await
     {
-        Ok(false) => {}
+        Ok(false) => true,
         Ok(true) => {
             tracing::info!(
                 message_id = %message.id,
@@ -258,11 +260,11 @@ async fn delete_and_kick_ocr_spammer(
             tracing::error!(
                 error = format!("{error:#}"),
                 message_id = %message.id,
-                "skipping OCR spam action because the exemption check failed"
+                "deleting OCR spam without a kick because the exemption check failed"
             );
-            return;
+            false
         }
-    }
+    };
     let reason = format!(
         "OCR detected crypto/casino spam from {} ({})",
         message.author.tag(),
@@ -271,6 +273,9 @@ async fn delete_and_kick_ocr_spammer(
 
     if let Err(error) = message.delete(ctx).await {
         tracing::error!(error = %format_args!("{error:#}"), "failed to delete OCR spam message");
+    }
+    if !kick {
+        return;
     }
     if let Err(error) = guild_id
         .kick_with_reason(&ctx.http, message.author.id, &reason)
