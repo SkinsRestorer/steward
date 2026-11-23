@@ -119,6 +119,29 @@ async fn register_commands(
 }
 
 async fn handle_framework_error(error: poise::FrameworkError<'_, AppState, Error>) {
+    // poise's default handler prints command errors with eprintln and shows the
+    // raw error chain to the user. Log them through tracing and reply generically.
+    if let poise::FrameworkError::Command { error, ctx, .. } = error {
+        tracing::error!(
+            error = %format_args!("{error:#}"),
+            command = %ctx.command().qualified_name,
+            guild_id = ?ctx.guild_id(),
+            channel_id = %ctx.channel_id(),
+            user_id = %ctx.author().id,
+            "Discord command failed"
+        );
+        let reply = poise::CreateReply::default()
+            .ephemeral(true)
+            .content("Something went wrong. Try again in a moment.");
+        if let Err(reporting_error) = ctx.send(reply).await {
+            tracing::warn!(
+                error = %format_args!("{reporting_error:#}"),
+                "failed to report a command error"
+            );
+        }
+        return;
+    }
+
     tracing::error!(%error, "Discord framework error");
     if let Err(reporting_error) = poise::builtins::on_error(error).await {
         tracing::error!(%reporting_error, "failed to report Discord framework error");
