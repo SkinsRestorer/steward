@@ -561,14 +561,6 @@ fn check_length(what: &str, text: &str, max_chars: usize) -> Result<()> {
 
 pub const PASTE_CHECKS: &[PasteCheck] = &[
     PasteCheck {
-        pattern: r"https?://hastebin\.com/(?:raw/)?(\w+)(?:\.\w+)?",
-        raw_url: "https://hastebin.com/raw/{code}",
-    },
-    PasteCheck {
-        pattern: r"https?://hasteb\.in/(?:raw/)?(\w+)(?:\.\w+)?",
-        raw_url: "https://hasteb.in/raw/{code}",
-    },
-    PasteCheck {
         pattern: r"https?://paste\.helpch\.at/(?:raw/)?(\w+)(?:\.\w+)?",
         raw_url: "https://paste.helpch.at/raw/{code}",
     },
@@ -580,10 +572,6 @@ pub const PASTE_CHECKS: &[PasteCheck] = &[
         pattern: r"https?://pastes\.dev/(\w+)",
         // pastes.dev serves its pastes from its own bytebin instance.
         raw_url: "https://api.pastes.dev/{code}",
-    },
-    PasteCheck {
-        pattern: r"https?://paste\.lucko\.me/(?:raw/)?(\w+)(?:\.\w+)?",
-        raw_url: "https://paste.lucko.me/raw/{code}",
     },
     PasteCheck {
         pattern: r"https?://pastebin\.com/(?:raw/)?(\w{2,})(?:\.\w+)?",

@@ -127,11 +127,11 @@ mod tests {
                 "https://pastebin.com/raw/AbCd1234",
             ),
             (
-                "https://hastebin.com/raw/abcdef.log",
-                "https://hastebin.com/raw/abcdef",
+                "https://paste.helpch.at/raw/abcdef",
+                "https://paste.helpch.at/raw/abcdef",
             ),
             (
-                "https://paste.helpch.at/raw/abcdef",
+                "https://paste.helpch.at/abcdef.log",
                 "https://paste.helpch.at/raw/abcdef",
             ),
             (
@@ -152,10 +152,16 @@ mod tests {
             );
         }
 
-        ensure!(
-            find_in_contents(&["https://pastebin.com/u/someone"], PASTE_CHECKS, &patterns)
-                .is_empty()
-        );
+        for input in [
+            "https://pastebin.com/u/someone",
+            // Toptal's hastebin needs an API token, so every raw request fails.
+            "https://hastebin.com/abcdef",
+        ] {
+            ensure!(
+                find_in_contents(&[input], PASTE_CHECKS, &patterns).is_empty(),
+                "{input} should not be fetched"
+            );
+        }
         Ok(())
     }
 }
