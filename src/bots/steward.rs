@@ -4,9 +4,9 @@ use poise::serenity_prelude as serenity;
 
 use crate::config::{
     AiConfig, AutouploadConfig, BotDefinition, ChatbotConfig, ChecksConfig, CommandField,
-    CommandsConfig, DocsFooter, HelpConfig, HoneypotConfig, LatestConfig, NoPingConfig,
-    PASTE_CHECKS, ResolvedConfig, StaticCommand, SupportContextConfig, TextCheck,
-    ThreadStarterConfig,
+    CommandsConfig, DocsFooter, HelpConfig, HoneypotConfig, LatestConfig, MessageReply,
+    NoPingConfig, PASTE_CHECKS, ReplyTrigger, ResolvedConfig, StaticCommand, SupportContextConfig,
+    TextCheck, ThreadStarterConfig,
 };
 
 const STAFF_ROLE_IDS: &[u64] = &[
@@ -418,6 +418,21 @@ fn warning_message(user_id: poise::serenity_prelude::UserId) -> String {
     )
 }
 
+const MESSAGE_REPLIES: &[MessageReply] = &[
+    MessageReply {
+        trigger: ReplyTrigger::NormalizedContains("skinrestorer"),
+        title: "The name is SkinsRestorer",
+        description: "Remember that SkinsRestorer restores many **skins**, so `Skins` is plural.",
+        thumbnail_url: Some("https://skinsrestorer.net/logo.png"),
+    },
+    MessageReply {
+        trigger: ReplyTrigger::ServerCommand("/sr"),
+        title: "Run this command on the Minecraft server",
+        description: "Run this command in the server console or in-game chat. Discord cannot run server commands.",
+        thumbnail_url: None,
+    },
+];
+
 pub static BOT: BotDefinition = BotDefinition {
     id: "steward",
     name: "Steward",
@@ -495,5 +510,5 @@ pub static BOT: BotDefinition = BotDefinition {
         pricing_url: "https://skinsrestorer.net/pricing",
         priority_support_url: "https://ko-fi.com/skinsrestorer/tiers",
     },
-    message_replies: true,
+    message_replies: MESSAGE_REPLIES,
 };

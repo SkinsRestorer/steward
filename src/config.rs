@@ -148,6 +148,25 @@ pub struct ThreadStarterConfig {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub enum ReplyTrigger {
+    /// The message, lowercased and reduced to ASCII letters, digits, and `_`,
+    /// contains this text.
+    NormalizedContains(&'static str),
+    /// The message starts with this server command, case-insensitively, and
+    /// has at most one argument. People sometimes type server commands in
+    /// Discord by mistake.
+    ServerCommand(&'static str),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct MessageReply {
+    pub trigger: ReplyTrigger,
+    pub title: &'static str,
+    pub description: &'static str,
+    pub thumbnail_url: Option<&'static str>,
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct BotDefinition {
     pub id: &'static str,
     pub name: &'static str,
@@ -163,7 +182,8 @@ pub struct BotDefinition {
     pub no_ping: NoPingConfig,
     pub honeypot: HoneypotConfig,
     pub thread_starter: ThreadStarterConfig,
-    pub message_replies: bool,
+    /// Canned replies to common mistakes in messages.
+    pub message_replies: &'static [MessageReply],
 }
 
 pub const PASTE_CHECKS: &[PasteCheck] = &[

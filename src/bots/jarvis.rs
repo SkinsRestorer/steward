@@ -265,5 +265,5 @@ pub static BOT: BotDefinition = BotDefinition {
         pricing_url: "https://soulfiremc.com/pricing",
         priority_support_url: "https://ko-fi.com/alexprogrammerde/tiers",
     },
-    message_replies: false,
+    message_replies: &[],
 };
