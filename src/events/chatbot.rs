@@ -219,7 +219,7 @@ impl ProgressReply {
                 .map(|message| self.message = Some(message))
         };
         if let Err(error) = result {
-            tracing::warn!(%error, "failed to update support progress");
+            tracing::warn!(error = %format_args!("{error:#}"), "failed to update support progress");
             self.disabled = true;
         } else {
             self.shown = Some(progress);
@@ -230,7 +230,7 @@ impl ProgressReply {
         if let Some(message) = self.message
             && let Err(error) = message.delete(ctx).await
         {
-            tracing::warn!(%error, "failed to remove support progress");
+            tracing::warn!(error = %format_args!("{error:#}"), "failed to remove support progress");
         }
     }
 }
@@ -527,7 +527,7 @@ async fn collect_sources(data: &AppState, message: &serenity::Message) -> Vec<So
                 Ok(_) => None,
                 Err(error) => {
                     tracing::warn!(
-                        %error,
+                        error = %format_args!("{error:#}"),
                         source = %request.label,
                         "failed to read chatbot support data"
                     );
@@ -585,7 +585,7 @@ fn schedule_generation(
         let assistant_message = match tokio::time::timeout(TURN_TIMEOUT, &mut turn).await {
             Ok(Ok(message)) => message,
             Ok(Err(error)) => {
-                tracing::error!(%error, bot = data.bot.id, "chatbot generation task failed");
+                tracing::error!(error = %format_args!("{error:#}"), bot = data.bot.id, "chatbot generation task failed");
                 None
             }
             Err(_) => {
@@ -673,7 +673,7 @@ async fn generate_reply(
             Ok(true) => Some(ChatMessage::Assistant(text.into())),
             Ok(false) => None,
             Err(error) => {
-                tracing::error!(%error, "failed to send chatbot reply");
+                tracing::error!(error = %format_args!("{error:#}"), "failed to send chatbot reply");
                 None
             }
         },

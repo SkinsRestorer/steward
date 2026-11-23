@@ -103,7 +103,7 @@ async fn register_commands(
             }
             Err(error) => {
                 tracing::error!(
-                    %error,
+                    error = %format_args!("{error:#}"),
                     bot = bot.id,
                     retry_in_secs = delay.as_secs(),
                     "failed to register global application commands"
@@ -139,8 +139,8 @@ async fn handle_framework_error(error: poise::FrameworkError<'_, AppState, Error
         return;
     }
 
-    tracing::error!(%error, "Discord framework error");
+    tracing::error!(error = %format_args!("{error:#}"), "Discord framework error");
     if let Err(reporting_error) = poise::builtins::on_error(error).await {
-        tracing::error!(%reporting_error, "failed to report Discord framework error");
+        tracing::error!(error = %format_args!("{reporting_error:#}"), "failed to report Discord framework error");
     }
 }

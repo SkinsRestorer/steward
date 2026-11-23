@@ -72,7 +72,7 @@ pub async fn handle(
                 .await?;
             }
             Err(error) => {
-                tracing::error!(%error, attachment = %attachment.filename, "automatic paste upload failed");
+                tracing::error!(error = %format_args!("{error:#}"), attachment = %attachment.filename, "automatic paste upload failed");
                 reply_without_pings(ctx, message, data.bot.autoupload.failed_upload_message)
                     .await?;
             }

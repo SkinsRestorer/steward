@@ -34,7 +34,7 @@ pub async fn handle(
         }
         serenity::FullEvent::ThreadCreate { thread } => {
             if let Err(error) = thread_starter::handle(ctx, data, thread).await {
-                tracing::error!(%error, bot = data.bot.id, "thread starter handler failed");
+                tracing::error!(error = %format_args!("{error:#}"), bot = data.bot.id, "thread starter handler failed");
             }
         }
         _ => {}
@@ -130,7 +130,7 @@ async fn handle_message(ctx: &serenity::Context, data: &AppState, message: &sere
     ] {
         if let Err(error) = result {
             tracing::error!(
-                %error,
+                error = %format_args!("{error:#}"),
                 bot = data.bot.id,
                 message_id = %message.id,
                 module,

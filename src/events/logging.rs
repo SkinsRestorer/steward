@@ -94,7 +94,7 @@ async fn run_writer(logs_dir: &'static str, mut receiver: mpsc::Receiver<LogReco
                     file = Some(next_file);
                 }
                 Err(error) => {
-                    tracing::error!(%error, %logs_dir, "failed to rotate message log");
+                    tracing::error!(error = %format_args!("{error:#}"), %logs_dir, "failed to rotate message log");
                     file = None;
                     continue;
                 }
@@ -107,13 +107,13 @@ async fn run_writer(logs_dir: &'static str, mut receiver: mpsc::Receiver<LogReco
         let mut line = match serde_json::to_vec(&record) {
             Ok(line) => line,
             Err(error) => {
-                tracing::error!(%error, %logs_dir, "failed to encode message log record");
+                tracing::error!(error = %format_args!("{error:#}"), %logs_dir, "failed to encode message log record");
                 continue;
             }
         };
         line.push(b'\n');
         if let Err(error) = active_file.write_all(&line).await {
-            tracing::error!(%error, %logs_dir, "failed to append message log record");
+            tracing::error!(error = %format_args!("{error:#}"), %logs_dir, "failed to append message log record");
             file = None;
             current_date.clear();
         }

@@ -511,7 +511,7 @@ enum BraveSearchError {
     InvalidQuery,
     #[error("Brave Search request failed: {0}")]
     Request(#[from] reqwest::Error),
-    #[error("Brave Search response could not be read: {0}")]
+    #[error("Brave Search response could not be read: {0:#}")]
     Response(#[source] anyhow::Error),
     #[error("Brave Search response was invalid: {0}")]
     Decode(#[from] serde_json::Error),

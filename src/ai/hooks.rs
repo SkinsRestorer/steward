@@ -175,6 +175,14 @@ impl AgentHook for SupportHooks {
         }
         tracing::info!(run_id = ?ctx.run_id(), tool = tool_name, call_id = %event.id,
             elapsed_ms = elapsed.map(|elapsed| elapsed.as_millis()), status = ?event.tool_result().map(rig_core::tool::ToolResult::status_name), "support tool finished");
+        // The model sees tool errors, but operators need them too, for example a
+        // revoked Brave key or an exhausted quota.
+        if let Some(error) = event
+            .tool_result()
+            .and_then(rig_core::tool::ToolResult::error)
+        {
+            tracing::warn!(run_id = ?ctx.run_id(), tool = tool_name, call_id = %event.id, error = %format_args!("{error:#}"), "support tool failed");
+        }
         ready(OutcomeAction::Proceed)
     }
 }

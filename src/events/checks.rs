@@ -39,7 +39,7 @@ pub async fn handle(
         && let Err(error) = handle_paste(ctx, data, message, found, latest_release.as_ref()).await
     {
         tracing::error!(
-            %error,
+            error = %format_args!("{error:#}"),
             bot = data.bot.id,
             message_id = %message.id,
             "paste analysis failed"
@@ -268,13 +268,13 @@ async fn delete_and_kick_ocr_spammer(
     );
 
     if let Err(error) = message.delete(ctx).await {
-        tracing::error!(%error, "failed to delete OCR spam message");
+        tracing::error!(error = %format_args!("{error:#}"), "failed to delete OCR spam message");
     }
     if let Err(error) = guild_id
         .kick_with_reason(&ctx.http, message.author.id, &reason)
         .await
     {
-        tracing::error!(%error, "failed to kick OCR spam sender");
+        tracing::error!(error = %format_args!("{error:#}"), "failed to kick OCR spam sender");
     }
 }
 

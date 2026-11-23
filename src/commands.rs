@@ -433,7 +433,7 @@ async fn reply_with_ai(ctx: Context<'_>, target: serenity::Message) -> Result<()
             ctx.say("Reply sent.").await?;
         }
         Err(error) => {
-            tracing::error!(%error, "failed to generate context-menu AI reply");
+            tracing::error!(error = %format_args!("{error:#}"), "failed to generate context-menu AI reply");
             ctx.say("Reply generation failed. Try again later.").await?;
         }
     }
