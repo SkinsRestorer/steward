@@ -1,4 +1,11 @@
+mod history;
 mod input;
+
+#[cfg(test)]
+use history::BUFFERED_HISTORY;
+use history::{
+    ACTIVE_HISTORY, HistoryEntry, RECENT_HISTORY, excess_prefix_len, insert_reply, trim_history,
+};
 
 pub(crate) use input::collect_images;
 use input::{build_content, is_text_attachment};
@@ -42,22 +49,6 @@ const MAX_CONTEXTS: usize = 2_048;
 const MAX_HISTORY_BYTES: usize = 16 * 1024;
 const MAX_HISTORY_MESSAGES: usize = 24;
 const MAX_HISTORY_IMAGES: usize = 10;
-const ACTIVE_HISTORY: HistoryLimits = HistoryLimits {
-    bytes: MAX_HISTORY_BYTES,
-    messages: MAX_HISTORY_MESSAGES,
-    images: MAX_HISTORY_IMAGES,
-};
-const RECENT_HISTORY: HistoryLimits = HistoryLimits {
-    bytes: MAX_HISTORY_BYTES / 2,
-    messages: MAX_HISTORY_MESSAGES / 2,
-    images: MAX_HISTORY_IMAGES / 2,
-};
-// Bound queued turns and retries even when the model is unavailable.
-const BUFFERED_HISTORY: HistoryLimits = HistoryLimits {
-    bytes: MAX_HISTORY_BYTES * 4,
-    messages: MAX_HISTORY_MESSAGES * 4,
-    images: MAX_HISTORY_IMAGES * 4,
-};
 const MAX_MESSAGE_IMAGES: usize = 4;
 const MAX_IMAGE_BYTES: u32 = 20 * 1024 * 1024;
 const MAX_IMAGE_URL_BYTES: usize = 2_048;
@@ -158,18 +149,6 @@ struct GenerationRequest {
 struct CompactionPlan {
     messages: Vec<ChatMessage>,
     through_order: u64,
-}
-
-#[derive(Clone, Copy)]
-struct HistoryLimits {
-    bytes: usize,
-    messages: usize,
-    images: usize,
-}
-
-struct HistoryEntry {
-    message: ChatMessage,
-    order: u64,
 }
 
 struct SourceRequest {
@@ -316,8 +295,8 @@ impl Conversation {
         }
 
         self.phase = Phase::Generating { pending: false };
-        let compact_count = if history_prefix_len(&self.messages, ACTIVE_HISTORY) > 0 {
-            history_prefix_len(&self.messages, RECENT_HISTORY)
+        let compact_count = if excess_prefix_len(&self.messages, ACTIVE_HISTORY) > 0 {
+            excess_prefix_len(&self.messages, RECENT_HISTORY)
         } else {
             0
         };
@@ -713,21 +692,6 @@ async fn generate_reply(
     assistant_message
 }
 
-fn insert_reply(messages: &mut VecDeque<HistoryEntry>, request_order: u64, message: ChatMessage) {
-    if !messages.iter().any(|entry| entry.order == request_order) {
-        return;
-    }
-    let entry = HistoryEntry {
-        message,
-        order: request_order.saturating_add(1),
-    };
-    let index = messages
-        .iter()
-        .position(|candidate| candidate.order > entry.order)
-        .unwrap_or(messages.len());
-    messages.insert(index, entry);
-}
-
 async fn compact_request<C: Compactor<Artifact = ConversationSummary>>(
     state: &Mutex<Conversation>,
     request: &mut GenerationRequest,
@@ -766,50 +730,6 @@ async fn compact_request<C: Compactor<Artifact = ConversationSummary>>(
                 Instant::now().checked_add(COMPACTION_RETRY_DELAY);
         }
     }
-}
-
-fn trim_history(messages: &mut VecDeque<HistoryEntry>) {
-    let dropped = history_prefix_len(messages, BUFFERED_HISTORY);
-    if dropped > 0 {
-        messages.drain(..dropped);
-        tracing::warn!(
-            dropped,
-            "support history reached the hard buffer limit before compaction"
-        );
-    }
-}
-
-fn history_prefix_len(messages: &VecDeque<HistoryEntry>, limits: HistoryLimits) -> usize {
-    let Some(last_user) = messages
-        .iter()
-        .rposition(|entry| matches!(entry.message, ChatMessage::User(_, _)))
-    else {
-        return 0;
-    };
-    let mut bytes = messages
-        .iter()
-        .map(|entry| entry.message.len())
-        .sum::<usize>();
-    let mut images = messages
-        .iter()
-        .map(|entry| entry.message.image_count())
-        .sum::<usize>();
-    let mut start = 0;
-    // Always keep the latest user turn, even if it alone exceeds the target window.
-    while start < last_user
-        && (messages.len() - start > limits.messages
-            || bytes > limits.bytes
-            || images > limits.images)
-    {
-        bytes -= messages[start].message.len();
-        images -= messages[start].message.image_count();
-        start += 1;
-        while start < last_user && matches!(messages[start].message, ChatMessage::Assistant(_)) {
-            bytes -= messages[start].message.len();
-            start += 1;
-        }
-    }
-    start
 }
 
 fn activity_tick() -> u64 {
