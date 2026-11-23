@@ -93,6 +93,7 @@ async fn start_bot(
                 ))
             },
             on_error: |error| Box::pin(handle_framework_error(error)),
+            command_check: Some(|ctx| Box::pin(check_guild_allowed(ctx))),
             ..Default::default()
         })
         .setup(move |ctx, ready, framework| {
@@ -178,7 +179,30 @@ async fn register_commands(
     }
 }
 
+/// Commands are registered globally, so refuse them in servers outside the
+/// bot's allowlist.
+async fn check_guild_allowed(ctx: poise::Context<'_, AppState, Error>) -> Result<bool, Error> {
+    if ctx.data().bot.allows_guild(ctx.guild_id()) {
+        return Ok(true);
+    }
+    ctx.send(
+        poise::CreateReply::default()
+            .ephemeral(true)
+            .content("This bot is not available in this server."),
+    )
+    .await?;
+    Ok(false)
+}
+
 async fn handle_framework_error(error: poise::FrameworkError<'_, AppState, Error>) {
+    // check_guild_allowed already told the user. A blocked server is expected.
+    if let poise::FrameworkError::CommandCheckFailed {
+        error: None, ctx, ..
+    } = &error
+    {
+        tracing::debug!(guild_id = ?ctx.guild_id(), command = %ctx.command().qualified_name, "command refused outside the server allowlist");
+        return;
+    }
     // poise's default handler prints command errors with eprintln and shows the
     // raw error chain to the user. Log them through tracing and reply generically.
     if let poise::FrameworkError::Command { error, ctx, .. } = error {

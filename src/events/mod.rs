@@ -29,10 +29,24 @@ pub async fn handle(
                 "Discord bot connected"
             );
         }
-        serenity::FullEvent::Message { new_message } => {
-            handle_message(ctx, data, new_message).await;
+        serenity::FullEvent::GuildCreate { guild, .. }
+            if !data.bot.allows_guild(Some(guild.id)) =>
+        {
+            tracing::warn!(
+                bot = data.bot.id,
+                guild_id = %guild.id,
+                guild_name = %guild.name,
+                "bot is in a server outside its allowlist and ignores it"
+            );
         }
-        serenity::FullEvent::ThreadCreate { thread } => {
+        serenity::FullEvent::Message { new_message } => {
+            if data.bot.allows_guild(new_message.guild_id) {
+                handle_message(ctx, data, new_message).await;
+            }
+        }
+        serenity::FullEvent::ThreadCreate { thread }
+            if data.bot.allows_guild(Some(thread.guild_id)) =>
+        {
             if let Err(error) = thread_starter::handle(ctx, data, thread).await {
                 tracing::error!(error = %format_args!("{error:#}"), bot = data.bot.id, "thread starter handler failed");
             }

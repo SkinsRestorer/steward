@@ -198,6 +198,8 @@ fn warning_message(user_id: poise::serenity_prelude::UserId) -> String {
 
 pub static BOT: BotDefinition = BotDefinition {
     id: "jarvis",
+    // The PistonDev Discord server.
+    guild_ids: &[serenity::GuildId::new(739_784_741_124_833_301)],
     name: "Jarvis",
     token_env: "DISCORD_TOKEN_JARVIS",
     application_id: 1_500_197_124_292_214_875,

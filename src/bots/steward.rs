@@ -436,6 +436,8 @@ const MESSAGE_REPLIES: &[MessageReply] = &[
 
 pub static BOT: BotDefinition = BotDefinition {
     id: "steward",
+    // The SkinsRestorer Discord server.
+    guild_ids: &[serenity::GuildId::new(186_794_372_468_178_944)],
     name: "Steward",
     token_env: "DISCORD_TOKEN_STEWARD",
     application_id: 1_097_060_801_401_081_967,

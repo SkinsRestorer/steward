@@ -66,4 +66,15 @@ mod tests {
         );
         Ok(())
     }
+
+    #[test]
+    fn allows_only_configured_servers_and_direct_messages() -> Result<()> {
+        for bot in ALL {
+            let configured = *bot.guild_ids.first().context("no server configured")?;
+            ensure!(bot.allows_guild(Some(configured)));
+            ensure!(bot.allows_guild(None));
+            ensure!(!bot.allows_guild(Some(poise::serenity_prelude::GuildId::new(1))));
+        }
+        Ok(())
+    }
 }

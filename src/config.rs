@@ -176,6 +176,9 @@ pub struct MessageReply {
 #[derive(Clone, Copy, Debug)]
 pub struct BotDefinition {
     pub id: &'static str,
+    /// Servers where the bot works. Anyone can invite a public bot, so the bot
+    /// ignores messages, threads, and commands from every other server.
+    pub guild_ids: &'static [serenity::GuildId],
     pub name: &'static str,
     pub token_env: &'static str,
     pub application_id: u64,
@@ -207,10 +210,19 @@ const MAX_BAN_MESSAGE_DAYS: u8 = 7;
 const RESERVED_COMMAND_NAMES: &[&str] = &["help", "latest", "resolved"];
 
 impl BotDefinition {
+    /// Whether the bot may act in this server. Direct messages have no server.
+    pub fn allows_guild(&self, guild_id: Option<serenity::GuildId>) -> bool {
+        guild_id.is_none_or(|guild_id| self.guild_ids.contains(&guild_id))
+    }
+
     /// Checks the static definition against Discord's limits, so a bad edit
     /// fails at startup instead of at command registration or the first reply.
     pub fn validate(&self) -> Result<()> {
         ensure!(self.application_id != 0, "application_id must not be 0");
+        ensure!(
+            !self.guild_ids.is_empty(),
+            "guild_ids must list at least one server"
+        );
         ensure!(
             self.commands.resolved.tag_id != 0,
             "the resolved tag ID must not be 0"
