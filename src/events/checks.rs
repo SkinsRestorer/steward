@@ -656,9 +656,11 @@ mod tests {
         ensure!(!contains_prohibited_ocr_content(
             "javax.crypto.BadPaddingException\nSync basic as in old versions"
         ));
-        ensure!(!contains_prohibited_ocr_content(
-            "javax.crypto.Cipher failed"
-        ));
+        // Both letter runs exist here, but only across word breaks.
+        ensure!(!contains_prohibited_ocr_content("crypto ca sino"));
+        ensure!(!contains_prohibited_ocr_content("cryp to casino"));
+        ensure!(!contains_prohibited_ocr_content("crypto"));
+        ensure!(!contains_prohibited_ocr_content("casino"));
         Ok(())
     }
 
