@@ -18,13 +18,26 @@ use tokio::sync::watch;
 
 pub const MAX_RESPONSE_CALLS: usize = 6;
 // Each search can add thousands of tokens that every later turn resends.
-const MAX_TOOL_CALLS_PER_RUN: usize = 3;
+const MAX_SEARCHES_PER_RUN: usize = 3;
+// Documentation pages are small, so allow a few more of them.
+const MAX_OTHER_TOOL_CALLS_PER_RUN: usize = 4;
+pub const SEARCH_TOOL: &str = "search_web";
+pub const DOCS_PAGE_TOOL: &str = "read_docs_page";
+
+const fn tool_budget(tool_name: &str) -> usize {
+    if tool_name.eq_ignore_ascii_case(SEARCH_TOOL) {
+        MAX_SEARCHES_PER_RUN
+    } else {
+        MAX_OTHER_TOOL_CALLS_PER_RUN
+    }
+}
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum GenerationProgress {
     #[default]
     Thinking,
     Searching,
+    ReadingDocs,
 }
 
 #[derive(Clone, Copy)]
@@ -43,7 +56,7 @@ pub struct SupportHooks {
 #[derive(Clone, Default)]
 struct Timings {
     model_started: Option<Instant>,
-    tool_calls: usize,
+    tool_calls: HashMap<String, usize>,
     tools: HashMap<String, Instant>,
 }
 
@@ -133,21 +146,26 @@ impl AgentHook for SupportHooks {
             return ready(DispatchAction::Proceed);
         };
         let tool_calls = ctx.scratchpad().update::<Timings, _>(|timings| {
-            timings.tool_calls = timings.tool_calls.saturating_add(1);
-            timings.tool_calls
+            let calls = timings.tool_calls.entry(tool_name.to_owned()).or_default();
+            *calls = calls.saturating_add(1);
+            *calls
         });
-        if tool_calls > MAX_TOOL_CALLS_PER_RUN {
+        if tool_calls > tool_budget(tool_name) {
             tracing::info!(run_id = ?ctx.run_id(), tool = tool_name, call_id = %event.id, "support tool call denied by budget");
             return ready(DispatchAction::Deny(ErrorReport::new(
                 ErrorKind::Denied,
-                "The search limit for this reply is reached. Answer with the information you already have.",
+                "The limit for this tool in this reply is reached. Answer with the information you already have.",
             )));
         }
         ctx.scratchpad().update::<Timings, _>(|timings| {
             timings.tools.insert(event.id.to_string(), Instant::now());
         });
         if let Some(progress) = &self.progress {
-            progress.send_replace(GenerationProgress::Searching);
+            progress.send_replace(if tool_name == DOCS_PAGE_TOOL {
+                GenerationProgress::ReadingDocs
+            } else {
+                GenerationProgress::Searching
+            });
         }
         tracing::info!(run_id = ?ctx.run_id(), tool = tool_name, call_id = %event.id, "support tool started");
         ready(DispatchAction::Proceed)
@@ -350,7 +368,7 @@ mod tests {
     #[tokio::test]
     async fn denies_tool_calls_beyond_the_per_run_budget() -> Result<()> {
         let outcomes = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
-        let mut turns = (0..=MAX_TOOL_CALLS_PER_RUN)
+        let mut turns = (0..=MAX_OTHER_TOOL_CALLS_PER_RUN)
             .map(|index| {
                 MockTurn::tool_call(
                     format!("call-{index}"),
@@ -374,7 +392,7 @@ mod tests {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
-        let mut expected = vec!["success"; MAX_TOOL_CALLS_PER_RUN];
+        let mut expected = vec!["success"; MAX_OTHER_TOOL_CALLS_PER_RUN];
         expected.push("denied");
         ensure!(
             outcomes == expected,

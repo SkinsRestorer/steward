@@ -27,6 +27,9 @@ pub struct StaticCommand {
 pub struct AiConfig {
     pub application_guardrail: &'static str,
     pub docs_context_urls: &'static [&'static str],
+    /// When set, the model can read single documentation pages whose URL
+    /// starts with this prefix, for example pages listed in an llms.txt index.
+    pub docs_page_prefix: Option<&'static str>,
     pub model: &'static str,
     pub prompt_injection_patterns: &'static [&'static str],
     pub response_disclaimer: &'static str,
@@ -221,6 +224,7 @@ impl BotDefinition {
 
         self.validate_commands()?;
         self.validate_copy()?;
+        self.validate_docs_page_prefix()?;
         self.validate_paste_checks()
     }
 
@@ -314,6 +318,19 @@ impl BotDefinition {
                 MAX_EMBED_DESCRIPTION_CHARS,
             )?;
         }
+        Ok(())
+    }
+
+    fn validate_docs_page_prefix(&self) -> Result<()> {
+        let Some(prefix) = self.chatbot.ai.docs_page_prefix else {
+            return Ok(());
+        };
+        let url = reqwest::Url::parse(prefix)
+            .with_context(|| format!("invalid documentation page prefix `{prefix}`"))?;
+        ensure!(
+            url.scheme() == "https" && url.host_str().is_some() && url.path().len() > 1,
+            "documentation page prefix `{prefix}` must be an https URL with a path"
+        );
         Ok(())
     }
 

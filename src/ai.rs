@@ -8,7 +8,7 @@ pub use compaction::ConversationSummary;
 #[cfg(test)]
 pub(crate) use compaction::TroubleshootingState;
 pub use hooks::GenerationProgress;
-use hooks::{MAX_RESPONSE_CALLS, RetryMode, SupportHooks};
+use hooks::{DOCS_PAGE_TOOL, MAX_RESPONSE_CALLS, RetryMode, SEARCH_TOOL, SupportHooks};
 
 use std::{
     borrow::Cow,
@@ -46,6 +46,9 @@ const GENERATION_TIMEOUT: Duration = Duration::from_secs(90);
 const MAX_BRAVE_RESPONSE_BYTES: usize = 8 * 1024 * 1024;
 const MAX_CONCURRENT_GENERATIONS: usize = 4;
 const MAX_DOCS_CONTEXT_BYTES: usize = 4 * 1024 * 1024;
+const MAX_DOCS_PAGE_BYTES: usize = 256 * 1024;
+// About 8k tokens. Most pages are 1 to 8 KB.
+const MAX_DOCS_PAGE_CHARS: usize = 32 * 1024;
 const BRAVE_CONTEXT_API_URL: &str = "https://api.search.brave.com/res/v1/llm/context";
 
 #[derive(Clone, Debug)]
@@ -175,7 +178,7 @@ impl AiService {
             client: self.client.clone(),
             max_context_tokens: config.web_search_max_tokens,
         };
-        let agent = AgentBuilder::new(self.openrouter.chat(config.model))
+        let mut builder = AgentBuilder::new(self.openrouter.chat(config.model))
             .preamble(config.system_prompt)
             .max_tokens(DEFAULT_MAX_OUTPUT_TOKENS)
             .add_hook(SupportHooks::new(
@@ -183,8 +186,14 @@ impl AiService {
                 RetryMode::Response,
                 progress,
             ))
-            .tool(brave_search)
-            .build();
+            .tool(brave_search);
+        if let Some(prefix) = config.docs_page_prefix {
+            builder = builder.tool(DocsPage {
+                client: self.client.clone(),
+                prefix,
+            });
+        }
+        let agent = builder.build();
 
         let mut conversation = vec![Message::assistant(config.application_guardrail)];
         if let Some(docs_context) = self.build_docs_context(config).await? {
@@ -540,7 +549,7 @@ struct BraveResult {
 }
 
 impl Tool for BraveSearch {
-    const NAME: &'static str = "search_web";
+    const NAME: &'static str = SEARCH_TOOL;
 
     type Error = BraveSearchError;
     type Args = SearchArgs;
@@ -610,6 +619,106 @@ impl Tool for BraveSearch {
     }
 }
 
+/// Reads one documentation page under a fixed URL prefix, so the model can
+/// open pages from a small docs index instead of receiving the full docs.
+struct DocsPage {
+    client: reqwest::Client,
+    prefix: &'static str,
+}
+
+#[derive(Debug, Deserialize)]
+struct DocsPageArgs {
+    url: String,
+}
+
+#[derive(Debug, Error)]
+enum DocsPageError {
+    #[error("the URL must be a documentation page that starts with {0}")]
+    OutsideDocs(&'static str),
+    #[error("documentation request failed: {0}")]
+    Request(#[from] reqwest::Error),
+    #[error("documentation page could not be read: {0:#}")]
+    Response(#[source] anyhow::Error),
+}
+
+impl Tool for DocsPage {
+    const NAME: &'static str = DOCS_PAGE_TOOL;
+
+    type Error = DocsPageError;
+    type Args = DocsPageArgs;
+    type Output = Value;
+
+    fn description(&self) -> String {
+        format!(
+            "Read one official documentation page as Markdown. Use a page URL from the documentation index. Only URLs that start with {} work.",
+            self.prefix
+        )
+    }
+
+    fn parameters(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "description": "The page URL exactly as listed in the documentation index."
+                }
+            },
+            "required": ["url"],
+            "additionalProperties": false
+        })
+    }
+
+    async fn call(
+        &self,
+        _: &mut ToolContext,
+        args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
+        let url = docs_page_url(self.prefix, args.url.trim())
+            .ok_or(DocsPageError::OutsideDocs(self.prefix))?;
+        let response = self
+            .client
+            .get(url.clone())
+            .send()
+            .await?
+            .error_for_status()?;
+        let text = download::read_limited_text(response, MAX_DOCS_PAGE_BYTES, "documentation page")
+            .await
+            .map_err(DocsPageError::Response)?;
+        let mut content = neutralize_prompt_tags(normalize_newlines(&text).as_str()).into_owned();
+        if let Some((cut, _)) = content.char_indices().nth(MAX_DOCS_PAGE_CHARS) {
+            content.truncate(cut);
+            content.push_str("\n[Page truncated]");
+        }
+        Ok(json!({ "url": url.as_str(), "content": content }))
+    }
+}
+
+/// Accepts only https URLs on the prefix's host whose path continues the
+/// prefix path, without credentials, a port change, a query, or a fragment.
+fn docs_page_url(prefix: &str, candidate: &str) -> Option<reqwest::Url> {
+    if candidate.len() > 300 {
+        return None;
+    }
+    let prefix = reqwest::Url::parse(prefix).ok()?;
+    let url = reqwest::Url::parse(candidate).ok()?;
+    let prefix_path = prefix.path().trim_end_matches('/');
+    let rest = url.path().strip_prefix(prefix_path)?;
+    let continues_prefix = rest.is_empty() || rest.starts_with('/') || rest.starts_with('.');
+    let same_origin = url.scheme() == "https"
+        && url.host_str() == prefix.host_str()
+        && url.port_or_known_default() == prefix.port_or_known_default();
+    (same_origin
+        && continues_prefix
+        && !url.path().contains("..")
+        && url.username().is_empty()
+        && url.password().is_none()
+        && url.query().is_none()
+        && url.fragment().is_none())
+    .then_some(url)
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::{Context as _, Result, ensure};
@@ -621,9 +730,41 @@ mod tests {
     use std::sync::Arc;
 
     use super::{
-        ChatMessage, append_response_disclaimer, clamp_response, neutralize_prompt_tags,
-        normalize_newlines, strip_response_disclaimer,
+        ChatMessage, append_response_disclaimer, clamp_response, docs_page_url,
+        neutralize_prompt_tags, normalize_newlines, strip_response_disclaimer,
     };
+
+    #[test]
+    fn reads_only_pages_under_the_docs_prefix() -> Result<()> {
+        let prefix = "https://soulfiremc.com/docs";
+        for allowed in [
+            "https://soulfiremc.com/docs.mdx",
+            "https://soulfiremc.com/docs/start-here.mdx",
+            "https://soulfiremc.com/docs/how-to/mcp.mdx",
+        ] {
+            ensure!(
+                docs_page_url(prefix, allowed).is_some(),
+                "{allowed} should be allowed"
+            );
+        }
+        for rejected in [
+            "http://soulfiremc.com/docs/start-here.mdx",
+            "https://soulfiremc.com/download",
+            "https://soulfiremc.com/docsevil/page.mdx",
+            "https://soulfiremc.com.evil.example/docs/page.mdx",
+            "https://user@soulfiremc.com/docs/page.mdx",
+            "https://soulfiremc.com:8443/docs/page.mdx",
+            "https://soulfiremc.com/docs/page.mdx?redirect=https://evil.example",
+            "https://evil.example/docs/page.mdx",
+            "not a url",
+        ] {
+            ensure!(
+                docs_page_url(prefix, rejected).is_none(),
+                "{rejected} should be rejected"
+            );
+        }
+        Ok(())
+    }
 
     #[test]
     fn neutralizes_only_the_prompt_wrapper_tags() -> Result<()> {
