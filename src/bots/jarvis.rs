@@ -3,7 +3,7 @@ use poise::serenity_prelude as serenity;
 use crate::config::{
     AiConfig, AutouploadConfig, BotDefinition, ChatbotConfig, ChecksConfig, CommandField,
     CommandsConfig, HelpConfig, HoneypotConfig, NoPingConfig, PASTE_CHECKS, ResolvedConfig,
-    StaticCommand, SupportContextConfig, ThreadStarterConfig,
+    StaticCommand, SupportContextConfig, TextCheck, ThreadStarterConfig,
 };
 
 const STAFF_ROLE_IDS: &[u64] = &[1_021_760_363_213_864_176];
@@ -184,6 +184,35 @@ const COMMANDS: &[StaticCommand] = &[
     },
 ];
 
+const TEXT_CHECKS: &[TextCheck] = &[
+    TextCheck {
+        needle: "UnsupportedClassVersionError",
+        title: "Java is too old",
+        content: "SoulFire needs Java 25. An older Java version cannot load it.",
+        tips: &[
+            "Install Java 25, for example from https://adoptium.net, and check it with `java -version`.",
+        ],
+        link: Some("https://soulfiremc.com/docs/server/java"),
+    },
+    TextCheck {
+        needle: "Failed to verify username",
+        title: "Server needs online accounts",
+        content: "The server uses online mode, but the bot joined with an offline account.",
+        tips: &["Use a Microsoft account for the bot, or test on a server in offline mode."],
+        link: Some("https://soulfiremc.com/docs/troubleshooting/accounts-and-authentication"),
+    },
+    TextCheck {
+        needle: "Connection throttled",
+        title: "Server throttled the bots",
+        content: "The server limits how fast one address can join.",
+        tips: &[
+            "Increase the join delay in Bot Settings.",
+            "Turn off the `auto-reconnect` plugin while you find the first kick reason. Repeated reconnects trigger the throttle again.",
+        ],
+        link: Some("https://soulfiremc.com/docs/troubleshooting/cannot-connect-or-times-out"),
+    },
+];
+
 fn future_uploads_message(attachment_name: &str, uploaded_url: &str) -> String {
     format!(
         "Use <https://pastes.dev> for future file uploads. I uploaded `{attachment_name}` for you: {uploaded_url}"
@@ -221,7 +250,7 @@ pub static BOT: BotDefinition = BotDefinition {
     checks: ChecksConfig {
         paste_checks: PASTE_CHECKS,
         release_url: None,
-        text_checks: &[],
+        text_checks: TEXT_CHECKS,
         dump_analyzer: None,
     },
     commands: CommandsConfig {
