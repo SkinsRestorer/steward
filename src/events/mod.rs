@@ -44,7 +44,14 @@ pub async fn handle(
 }
 
 async fn handle_message(ctx: &serenity::Context, data: &AppState, message: &serenity::Message) {
-    if message.author.bot || message.guild_id.is_none() {
+    // System messages (thread created, member added, pins) are not user input.
+    if message.author.bot
+        || message.guild_id.is_none()
+        || !matches!(
+            message.kind,
+            serenity::MessageType::Regular | serenity::MessageType::InlineReply
+        )
+    {
         return;
     }
 
