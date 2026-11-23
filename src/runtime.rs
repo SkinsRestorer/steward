@@ -114,7 +114,6 @@ async fn start_bot(
         .build();
 
     let intents = serenity::GatewayIntents::GUILDS
-        | serenity::GatewayIntents::GUILD_MEMBERS
         | serenity::GatewayIntents::GUILD_MESSAGES
         | serenity::GatewayIntents::MESSAGE_CONTENT;
     let mut client = serenity::ClientBuilder::new(token, intents)

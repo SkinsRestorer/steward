@@ -14,8 +14,7 @@ support links.
 - On Linux, OpenSSL development headers and `pkg-config` to build Steward
   (`libssl-dev` and `pkg-config` on Debian and Ubuntu)
 - On Linux, the OpenSSL shared libraries and CA certificates to run Steward
-- Discord applications with the Message Content and Server Members privileged
-  intents enabled
+- Discord applications with the Message Content privileged intent enabled
 - A token for each configured bot
 - OpenRouter and Brave Search API keys for AI support replies
 
