@@ -73,24 +73,30 @@ async fn handle_message(ctx: &serenity::Context, data: &AppState, message: &sere
         }
     }
 
-    let channel_name = message.guild_id.and_then(|guild_id| {
+    let channel = message.guild_id.and_then(|guild_id| {
         ctx.cache.guild(guild_id).and_then(|guild| {
             guild
                 .channels
                 .get(&message.channel_id)
-                .map(|channel| channel.name.clone())
+                .map(|channel| (channel.name.clone(), false))
                 .or_else(|| {
                     guild
                         .threads
                         .iter()
                         .find(|thread| thread.id == message.channel_id)
-                        .map(|thread| thread.name.clone())
+                        .map(|thread| (thread.name.clone(), true))
                 })
         })
     });
-
-    let chatbot_channel = chatbot::supports_channel(data.bot, channel_name.as_deref());
-    let log_result = logging::handle(data, message, channel_name.as_deref());
+    let channel_name = channel.as_ref().map(|(name, _)| name.as_str());
+    // Anyone who can create a thread picks its name, so only real channels can
+    // turn on the chatbot.
+    let chatbot_channel_name = channel
+        .as_ref()
+        .filter(|(_, is_thread)| !is_thread)
+        .map(|(name, _)| name.as_str());
+    let chatbot_channel = chatbot::supports_channel(data.bot, chatbot_channel_name);
+    let log_result = logging::handle(data, message, channel_name);
     let upload = async {
         if chatbot_channel {
             Ok(())
@@ -100,7 +106,7 @@ async fn handle_message(ctx: &serenity::Context, data: &AppState, message: &sere
     };
     let (upload_result, chatbot_result, checks_result, replies_result, no_ping_result) = tokio::join!(
         upload,
-        chatbot::handle(ctx, data, message, channel_name.as_deref()),
+        chatbot::handle(ctx, data, message, chatbot_channel_name),
         checks::handle(ctx, data, message),
         message_replies::handle(ctx, data, message),
         no_ping::handle(ctx, data, message),
