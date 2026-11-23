@@ -101,20 +101,24 @@ impl ConversationSummary {
             }
             values.retain(|value| !value.is_empty());
         }
-        for fix in &state.attempted_fixes {
-            ensure!(
-                !fix.action.trim().is_empty(),
-                "compaction returned a fix without an action"
-            );
-            ensure!(
-                !matches!(fix.status, FixStatus::Succeeded | FixStatus::Failed)
-                    || fix
-                        .outcome
-                        .as_ref()
-                        .is_some_and(|outcome| !outcome.trim().is_empty()),
-                "a confirmed fix result requires an outcome"
-            );
+        // Repair small defects instead of discarding the whole summary, which
+        // would keep the old turns and fail again on the next compaction.
+        for fix in &mut state.attempted_fixes {
+            fix.action = fix.action.trim().to_owned();
+            fix.outcome = fix
+                .outcome
+                .take()
+                .map(|text| text.trim().to_owned())
+                .filter(|text| !text.is_empty());
+            // A confirmed result needs a reported outcome. Without one, only
+            // claim that the user tried the fix.
+            if fix.outcome.is_none()
+                && matches!(fix.status, FixStatus::Succeeded | FixStatus::Failed)
+            {
+                fix.status = FixStatus::Attempted;
+            }
         }
+        state.attempted_fixes.retain(|fix| !fix.action.is_empty());
         ensure!(
             state != TroubleshootingState::default(),
             "compaction returned an empty troubleshooting state"
@@ -243,6 +247,32 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn repairs_fix_defects_instead_of_rejecting_the_summary() -> Result<()> {
+        let fix = |action: &str, status, outcome: Option<&str>| AttemptedFix {
+            action: action.to_owned(),
+            status,
+            outcome: outcome.map(str::to_owned),
+        };
+        let summary = ConversationSummary::new(TroubleshootingState {
+            issue: Some("Skins do not load".to_owned()),
+            attempted_fixes: vec![
+                fix("  ", FixStatus::Suggested, None),
+                fix("Restart server", FixStatus::Succeeded, Some(" ")),
+                fix("Update plugin", FixStatus::Failed, Some(" Same error ")),
+            ],
+            ..Default::default()
+        })?;
+        ensure!(
+            summary.0.attempted_fixes
+                == [
+                    fix("Restart server", FixStatus::Attempted, None),
+                    fix("Update plugin", FixStatus::Failed, Some("Same error")),
+                ]
+        );
+        Ok(())
+    }
+
     #[tokio::test]
     async fn extraction_retries_truncated_submissions_with_a_larger_cap() -> Result<()> {
         use rig_agent::{
@@ -297,14 +327,9 @@ mod tests {
         state.issue = Some("Connection fails".to_owned());
         state.attempted_fixes.push(AttemptedFix {
             action: "Restart server".to_owned(),
-            status: FixStatus::Succeeded,
+            status: FixStatus::Suggested,
             outcome: None,
         });
-        ensure!(ConversationSummary::new(state.clone()).is_err());
-        let Some(fix) = state.attempted_fixes.first_mut() else {
-            anyhow::bail!("expected an attempted fix");
-        };
-        fix.status = FixStatus::Suggested;
         let summary = ConversationSummary::new(state.clone())?;
         ensure!(matches!(Message::from(summary), Message::User { .. }));
         ensure!(
