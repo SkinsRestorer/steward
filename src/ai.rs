@@ -287,7 +287,8 @@ impl AiService {
             }
             write!(
                 content,
-                "<documentation_source url=\"{url}\">\n{text}\n</documentation_source>"
+                "<documentation_source url=\"{url}\">\n{}\n</documentation_source>",
+                neutralize_prompt_tags(text)
             )?;
         }
         content.push_str("\n</reference_documentation>");
