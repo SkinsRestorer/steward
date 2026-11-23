@@ -177,6 +177,9 @@ impl AiService {
         };
         let mut builder = AgentBuilder::new(self.openrouter.chat(config.model))
             .preamble(config.system_prompt)
+            // Policy belongs in the system prompt. Sent as an assistant turn, the
+            // model would read it as something it said, not as a rule.
+            .append_preamble(config.application_guardrail)
             .max_tokens(DEFAULT_MAX_OUTPUT_TOKENS)
             .add_hook(SupportHooks::new(
                 DEFAULT_MAX_OUTPUT_TOKENS,
@@ -192,7 +195,7 @@ impl AiService {
         }
         let agent = builder.build();
 
-        let mut conversation = vec![Message::assistant(config.application_guardrail)];
+        let mut conversation = Vec::new();
         if let Some(docs_context) = self.build_docs_context(config).await? {
             conversation.push(Message::user(docs_context));
         }
