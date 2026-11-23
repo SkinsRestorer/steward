@@ -6,7 +6,7 @@ use std::{borrow::Cow, sync::LazyLock};
 
 use poise::serenity_prelude as serenity;
 use regex::Regex;
-use semver::Version;
+use semver::{Prerelease, Version};
 use serde::{Deserialize, de::IgnoredAny};
 
 use crate::releases::LatestRelease;
@@ -216,16 +216,25 @@ fn dump_field(value: &str) -> String {
     shortened
 }
 
+/// Finds the first `major.minor[.patch][-pre]` version in `input`. The
+/// pre-release stays so a `15.2.1-SNAPSHOT` build sorts before `15.2.1`.
 fn coerce_version(input: &str) -> Option<Version> {
-    static VERSION_PATTERN: LazyLock<Result<Regex, regex::Error>> =
-        LazyLock::new(|| Regex::new(r"(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?"));
+    static VERSION_PATTERN: LazyLock<Result<Regex, regex::Error>> = LazyLock::new(|| {
+        Regex::new(
+            r"(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?(?:-(?P<pre>[0-9A-Za-z.-]+))?",
+        )
+    });
     let captures = VERSION_PATTERN.as_ref().ok()?.captures(input)?;
     let major = captures.name("major")?.as_str();
     let minor = captures.name("minor")?.as_str();
     let patch = captures
         .name("patch")
         .map_or("0", |capture| capture.as_str());
-    Version::parse(&format!("{major}.{minor}.{patch}")).ok()
+    let mut version = Version::parse(&format!("{major}.{minor}.{patch}")).ok()?;
+    if let Some(pre) = captures.name("pre") {
+        version.pre = Prerelease::new(pre.as_str()).unwrap_or(Prerelease::EMPTY);
+    }
+    Some(version)
 }
 
 #[cfg(test)]
@@ -306,6 +315,13 @@ mod tests {
         );
         // 15.10 is newer than 15.9, which a string comparison would get wrong.
         ensure!(!description(&dump("15.10.0", "/srv", false), "15.9.0")?.contains("Outdated"));
+        // A snapshot predates the release with the same number.
+        ensure!(
+            description(&dump("15.2.0-SNAPSHOT", "/srv", false), "15.2.0")?.contains("Outdated")
+        );
+        ensure!(
+            !description(&dump("15.2.1-SNAPSHOT", "/srv", false), "15.2.0")?.contains("Outdated")
+        );
         Ok(())
     }
 
@@ -338,7 +354,8 @@ mod tests {
 
     #[test]
     fn coerces_release_versions() -> Result<()> {
-        ensure!(coerce_version("v15.2.1-SNAPSHOT") == Some(Version::new(15, 2, 1)));
+        ensure!(coerce_version("v15.2.1") == Some(Version::new(15, 2, 1)));
+        ensure!(coerce_version("15.2.1-SNAPSHOT") == Some(Version::parse("15.2.1-SNAPSHOT")?));
         ensure!(coerce_version("15.2") == Some(Version::new(15, 2, 0)));
         ensure!(coerce_version("no version").is_none());
         Ok(())
