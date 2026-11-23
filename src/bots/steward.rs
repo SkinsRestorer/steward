@@ -150,7 +150,7 @@ const COMMANDS: &[StaticCommand] = &[
         description: "Commands and permissions",
         title: "Command/Permissions Usage",
         body: "View all SkinsRestorer commands and permissions.",
-        url: Some("https://skinsrestorer.net/docs/configuration/commands-permissions"),
+        url: Some("https://skinsrestorer.net/docs/reference/commands-permissions"),
         fields: &[],
     },
     StaticCommand {
