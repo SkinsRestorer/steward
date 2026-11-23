@@ -40,6 +40,8 @@ const AI: AiConfig = AiConfig {
         "modrinth.com",
         "hangar.papermc.io",
         "papermc.io",
+        "fabricmc.net",
+        "neoforged.net",
         "spigotmc.org",
         "ci.codemc.io",
         "minecraft.wiki",
