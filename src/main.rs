@@ -13,8 +13,9 @@ mod state;
 use std::sync::Arc;
 
 use anyhow::{Context as _, Result, anyhow};
-use futures::future::try_join_all;
+use futures::future::join_all;
 use state::SharedServices;
+use tokio::sync::watch;
 use tracing_subscriber::EnvFilter;
 
 fn main() -> Result<()> {
@@ -45,6 +46,11 @@ fn main() -> Result<()> {
 
 #[tokio::main]
 async fn run() -> Result<()> {
+    // Check tokens before loading the OCR models and other shared services.
+    let tokens = bots::ALL
+        .iter()
+        .map(|bot| runtime::bot_token(bot))
+        .collect::<Result<Vec<_>>>()?;
     let services = Arc::new(
         SharedServices::load()
             .await
@@ -59,13 +65,47 @@ async fn run() -> Result<()> {
         }
     }
 
-    try_join_all(
-        bots::ALL
-            .iter()
-            .copied()
-            .map(|bot| runtime::start_bot(bot, Arc::clone(&services))),
+    let (shutdown_sender, shutdown) = watch::channel(false);
+    tokio::spawn(async move {
+        wait_for_shutdown_signal().await;
+        tracing::info!("shutting down");
+        shutdown_sender.send_replace(true);
+    });
+
+    join_all(
+        bots::ALL.iter().copied().zip(tokens).map(|(bot, token)| {
+            runtime::run_bot(bot, token, Arc::clone(&services), shutdown.clone())
+        }),
     )
-    .await?;
+    .await;
 
     Ok(())
+}
+
+/// Waits for Ctrl+C or, on Unix, SIGTERM from a container stop or deploy.
+async fn wait_for_shutdown_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+
+        match signal(SignalKind::terminate()) {
+            Ok(mut terminate) => {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {}
+                    _ = terminate.recv() => {}
+                }
+                return;
+            }
+            Err(error) => {
+                tracing::warn!(
+                    error = %format_args!("{error:#}"),
+                    "failed to listen for SIGTERM"
+                );
+            }
+        }
+    }
+    if let Err(error) = tokio::signal::ctrl_c().await {
+        tracing::warn!(error = %format_args!("{error:#}"), "failed to listen for Ctrl+C");
+        std::future::pending::<()>().await;
+    }
 }

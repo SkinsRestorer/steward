@@ -2,11 +2,12 @@ use std::{
     collections::HashMap,
     env,
     sync::{Arc, OnceLock},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::{Context as _, Result, ensure};
 use poise::serenity_prelude as serenity;
+use tokio::sync::watch;
 
 use crate::{
     commands,
@@ -17,8 +18,12 @@ use crate::{
 
 const COMMAND_REGISTRATION_INITIAL_DELAY: Duration = Duration::from_secs(5);
 const COMMAND_REGISTRATION_MAX_DELAY: Duration = Duration::from_mins(5);
+const RESTART_INITIAL_DELAY: Duration = Duration::from_secs(5);
+const RESTART_MAX_DELAY: Duration = Duration::from_mins(5);
+const RESTART_RESET_AFTER: Duration = Duration::from_mins(10);
 
-pub async fn start_bot(bot: &'static BotDefinition, services: Arc<SharedServices>) -> Result<()> {
+/// Reads a bot's token so a missing token fails before any slow startup work.
+pub fn bot_token(bot: &BotDefinition) -> Result<String> {
     let token = env::var(bot.token_env)
         .with_context(|| format!("{} must be configured for {}", bot.token_env, bot.name))?;
     ensure!(
@@ -27,6 +32,55 @@ pub async fn start_bot(bot: &'static BotDefinition, services: Arc<SharedServices
         bot.token_env,
         bot.name
     );
+    Ok(token)
+}
+
+/// Runs one bot and restarts it after a failure, so one bot's problem does not
+/// take the other bot offline. Returns once `shutdown` turns true.
+pub async fn run_bot(
+    bot: &'static BotDefinition,
+    token: String,
+    services: Arc<SharedServices>,
+    mut shutdown: watch::Receiver<bool>,
+) {
+    let mut delay = RESTART_INITIAL_DELAY;
+    loop {
+        let started = Instant::now();
+        let result = start_bot(bot, &token, Arc::clone(&services), shutdown.clone()).await;
+        if *shutdown.borrow() {
+            tracing::info!(bot = bot.id, "Discord client shut down");
+            return;
+        }
+        match result {
+            Ok(()) => tracing::warn!(bot = bot.id, "Discord client stopped"),
+            Err(error) => tracing::error!(
+                error = %format_args!("{error:#}"),
+                bot = bot.id,
+                "Discord client failed"
+            ),
+        }
+        if started.elapsed() >= RESTART_RESET_AFTER {
+            delay = RESTART_INITIAL_DELAY;
+        }
+        tracing::info!(
+            bot = bot.id,
+            retry_in_secs = delay.as_secs(),
+            "restarting Discord client"
+        );
+        tokio::select! {
+            () = tokio::time::sleep(delay) => {}
+            _ = shutdown.wait_for(|stopping| *stopping) => return,
+        }
+        delay = delay.saturating_mul(2).min(RESTART_MAX_DELAY);
+    }
+}
+
+async fn start_bot(
+    bot: &'static BotDefinition,
+    token: &str,
+    services: Arc<SharedServices>,
+    mut shutdown: watch::Receiver<bool>,
+) -> Result<()> {
     let state = AppState::new(bot, services);
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
@@ -70,10 +124,19 @@ pub async fn start_bot(bot: &'static BotDefinition, services: Arc<SharedServices
         .await
         .with_context(|| format!("failed to create {} Discord client", bot.name))?;
 
-    client
+    // Close the gateway connections cleanly on shutdown; start() then returns.
+    let shard_manager = Arc::clone(&client.shard_manager);
+    let shutdown_watcher = tokio::spawn(async move {
+        if shutdown.wait_for(|stopping| *stopping).await.is_ok() {
+            shard_manager.shutdown_all().await;
+        }
+    });
+    let result = client
         .start()
         .await
-        .with_context(|| format!("{} Discord client stopped with an error", bot.name))
+        .with_context(|| format!("{} Discord client stopped with an error", bot.name));
+    shutdown_watcher.abort();
+    result
 }
 
 async fn register_commands(
