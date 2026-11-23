@@ -22,7 +22,6 @@ The commit-msg hook checks the first line for a Conventional Commit subject and 
 The pre-push hook compares `HEAD` with the branch's upstream. Keep the upstream set to the branch that you push.
 
 Run the commands below from the repository root unless a command names another directory.
-On Windows, use `gradlew.bat` in place of `./gradlew` for Gradle commands.
 
 ## Repository layout
 
