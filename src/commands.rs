@@ -41,7 +41,11 @@ pub fn all(bot: &'static BotDefinition) -> Vec<poise::Command<crate::state::AppS
     resolved_command.default_member_permissions = serenity::Permissions::MANAGE_THREADS;
     resolved_command.guild_only = true;
     commands.push(resolved_command);
-    commands.extend([send_help(), send_support(), reply_with_ai()]);
+    // AI replies cost money and post publicly, so only moderators may request them.
+    let mut reply_with_ai_command = reply_with_ai();
+    reply_with_ai_command.default_member_permissions = serenity::Permissions::MANAGE_MESSAGES;
+    reply_with_ai_command.guild_only = true;
+    commands.extend([send_help(), send_support(), reply_with_ai_command]);
     commands
 }
 
@@ -315,6 +319,21 @@ async fn reply_with_ai(ctx: Context<'_>, target: serenity::Message) -> Result<()
         return Ok(());
     }
 
+    if ctx
+        .data()
+        .services
+        .patterns
+        .is_prompt_injection(ctx.data().bot, prompt)
+    {
+        ctx.send(
+            CreateReply::default()
+                .ephemeral(true)
+                .content(ctx.data().bot.chatbot.prompt_injection_error_message),
+        )
+        .await?;
+        return Ok(());
+    }
+
     ctx.defer_ephemeral().await?;
     let requester_prefix = format!(
         "{} requested me to reply to this message.",
@@ -461,6 +480,15 @@ mod registration_tests {
             assert_eq!(
                 resolved.description.as_deref(),
                 Some(bot.commands.resolved.description)
+            );
+            let reply_with_ai = commands
+                .iter()
+                .find(|command| command.context_menu_name.as_deref() == Some("Reply with AI"))
+                .expect("AI context menu command");
+            assert!(reply_with_ai.guild_only);
+            assert_eq!(
+                reply_with_ai.default_member_permissions,
+                serenity::Permissions::MANAGE_MESSAGES
             );
             let latest = commands.iter().find(|command| command.name == "latest");
             assert_eq!(latest.is_some(), bot.commands.latest.is_some());
