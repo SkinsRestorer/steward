@@ -46,6 +46,7 @@ pub async fn handle(
         return Ok(());
     }
 
+    let mut any_failed = false;
     for attachment in &message.attachments {
         if is_sensitive_filename(&attachment.filename) {
             continue;
@@ -73,9 +74,14 @@ pub async fn handle(
             }
             Err(error) => {
                 tracing::error!(error = %format_args!("{error:#}"), attachment = %attachment.filename, "automatic paste upload failed");
-                reply_without_pings(ctx, message, config.failed_upload_message).await?;
+                any_failed = true;
             }
         }
+    }
+
+    // The failure text names no file, so one copy covers every failed upload.
+    if any_failed {
+        reply_without_pings(ctx, message, config.failed_upload_message).await?;
     }
 
     Ok(())
