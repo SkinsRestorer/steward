@@ -380,29 +380,30 @@ async fn reply_with_ai(ctx: Context<'_>, target: serenity::Message) -> Result<()
         "{} requested me to reply to this message.",
         ctx.author().mention()
     );
-    let request = format!(
-        "Begin your response with \"{requester_prefix}\" exactly before offering help. Here is the message you must answer:\n{prompt}"
-    );
+    // Add the requester line in code. Asking the model to write it would put an
+    // instruction inside the untrusted user-message block.
+    let max_length = ctx
+        .data()
+        .bot
+        .chatbot
+        .max_response_length
+        .saturating_sub(requester_prefix.chars().count().saturating_add(1));
 
     match ctx
         .data()
         .services
         .ai
         .generate_response(
-            &[ChatMessage::User(request.into(), images)],
+            &[ChatMessage::User(prompt.into(), images)],
             None,
             ctx.data().bot.chatbot.ai,
-            1_300,
+            max_length,
             None,
         )
         .await
     {
         Ok(response) => {
-            let response = if response.starts_with(&requester_prefix) {
-                response
-            } else {
-                format!("{requester_prefix} {response}")
-            };
+            let response = format!("{requester_prefix} {response}");
             let allowed_users = if target.author.id == ctx.author().id {
                 vec![ctx.author().id]
             } else {
@@ -414,14 +415,18 @@ async fn reply_with_ai(ctx: Context<'_>, target: serenity::Message) -> Result<()
                     ctx.http(),
                     serenity::CreateMessage::new()
                         .content(response)
-                        .reference_message(&target)
+                        // The paid reply must still post if the target was deleted meanwhile.
+                        .reference_message(
+                            serenity::MessageReference::from(&target).fail_if_not_exists(false),
+                        )
                         .allowed_mentions(
                             serenity::CreateAllowedMentions::new()
                                 .users(allowed_users)
                                 .replied_user(true),
                         ),
                 )
-                .await?;
+                .await
+                .context("failed to send the AI reply")?;
             ctx.say("Reply sent.").await?;
         }
         Err(error) => {
