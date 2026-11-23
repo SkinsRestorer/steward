@@ -124,11 +124,11 @@ const COMMANDS: &[StaticCommand] = &[
         url: Some("https://skinsrestorer.net/docs/installation"),
         fields: &[
             CommandField {
-                name: "BungeeCord Installation:",
+                name: "BungeeCord installation",
                 value: "https://skinsrestorer.net/docs/installation/bungeecord",
             },
             CommandField {
-                name: "Velocity Installation:",
+                name: "Velocity installation",
                 value: "https://skinsrestorer.net/docs/installation/velocity",
             },
         ],
@@ -157,7 +157,7 @@ const COMMANDS: &[StaticCommand] = &[
         description: "Developer API",
         title: "Developer API",
         body: "Learn how to use the SkinsRestorer API in your project.",
-        url: Some("https://github.com/SkinsRestorer/SkinsRestorer/wiki/SkinsRestorerAPI"),
+        url: Some("https://skinsrestorer.net/docs/development/api"),
         fields: &[
             CommandField {
                 name: "Example usages",
@@ -223,7 +223,7 @@ const COMMANDS: &[StaticCommand] = &[
         group: "Getting started",
         description: "Download links",
         title: "Downloads",
-        body: "You can download SkinsRestorer for Bukkit/Spigot/Paper, BungeeCord, Sponge and Velocity.",
+        body: "Download SkinsRestorer for Paper, Spigot, Folia, BungeeCord, Velocity, Fabric, and NeoForge.",
         url: Some("https://modrinth.com/plugin/skinsrestorer"),
         fields: &[CommandField {
             name: "Dev downloads",
@@ -242,8 +242,8 @@ const COMMANDS: &[StaticCommand] = &[
     StaticCommand {
         name: "forge",
         group: "Troubleshooting",
-        description: "Forge and hybrid servers are not supported",
-        title: "Unsupported Forge server platforms",
+        description: "Hybrid Forge servers are not supported",
+        title: "Unsupported hybrid Forge servers",
         body: "SkinsRestorer does not support Cauldron, Thermos, SpongeForge, or Forge platforms with Bukkit compatibility layers. Try Skinport or OfflineSkins instead.",
         url: None,
         fields: &[],
@@ -252,11 +252,11 @@ const COMMANDS: &[StaticCommand] = &[
         name: "color-codes",
         group: "Project",
         description: "Minecraft color codes",
-        title: "Colour Codes",
-        body: "A helpful list of all colour codes that you can use.",
+        title: "Color codes",
+        body: "A list of Minecraft color and format codes.",
         url: None,
         fields: &[CommandField {
-            name: "Colours",
+            name: "Colors",
             value: "https://wiki.ess3.net/mc/",
         }],
     },
@@ -280,7 +280,7 @@ const COMMANDS: &[StaticCommand] = &[
         body: "Open a GitHub issue to report a bug or request a feature.",
         url: None,
         fields: &[CommandField {
-            name: "Issue Tracker:",
+            name: "Issue tracker",
             value: "https://github.com/SkinsRestorer/SkinsRestorer/issues",
         }],
     },
@@ -293,11 +293,11 @@ const COMMANDS: &[StaticCommand] = &[
         url: None,
         fields: &[
             CommandField {
-                name: "For SkinsRestorer info:",
+                name: "SkinsRestorer info",
                 value: "`/sr status`",
             },
             CommandField {
-                name: "For server info:",
+                name: "Server info",
                 value: "`/version`",
             },
         ],
@@ -350,7 +350,7 @@ const COMMANDS: &[StaticCommand] = &[
         body: "Some plugins do not work correctly with the root `*` permission. Grant specific permissions instead.",
         url: None,
         fields: &[CommandField {
-            name: "More information:",
+            name: "More information",
             value: "https://nucleuspowered.org/docs/nowildcard.html",
         }],
     },
