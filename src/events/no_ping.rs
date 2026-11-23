@@ -7,6 +7,8 @@ const DISCORD_EPOCH_MS: i64 = 1_420_070_400_000;
 const REPLY_CONVERSATION_WINDOW_MS: i64 = 60 * 60 * 1_000;
 const PARTICIPATION_WINDOW_MS: i64 = 24 * 60 * 60 * 1_000;
 const RECENT_PARTICIPATION_GRACE_MS: i64 = 5 * 60 * 1_000;
+// Bound the REST calls one staff ping can cost in a busy channel.
+const MAX_HISTORY_PAGES: usize = 3;
 
 pub async fn handle(
     ctx: &serenity::Context,
@@ -25,9 +27,15 @@ pub async fn handle(
 
     if has_configured_role(sender_roles, config.staff_role_ids)
         || has_configured_role(sender_roles, config.exempt_role_ids)
-        || !mentions_staff(ctx, message, &config).await
-        || should_skip_reply_warning(ctx, message).await
     {
+        return Ok(());
+    }
+    let staff_role_ping = has_configured_role(&message.mention_roles, config.staff_role_ids);
+    let staff_users = mentioned_staff_users(ctx, message, &config).await;
+    if !staff_role_ping && staff_users.is_empty() {
+        return Ok(());
+    }
+    if !staff_role_ping && is_conversation_reply(ctx, message, &staff_users).await {
         return Ok(());
     }
 
@@ -51,32 +59,53 @@ fn has_configured_role(roles: &[serenity::RoleId], configured: &[u64]) -> bool {
     roles.iter().any(|role| configured.contains(&role.get()))
 }
 
-async fn mentions_staff(
+async fn mentioned_staff_users(
     ctx: &serenity::Context,
     message: &serenity::Message,
     config: &NoPingConfig,
-) -> bool {
-    if has_configured_role(&message.mention_roles, config.staff_role_ids) {
-        return true;
-    }
+) -> Vec<serenity::UserId> {
     let Some(guild_id) = message.guild_id else {
-        return false;
+        return Vec::new();
     };
 
+    let mut staff = Vec::new();
     for user in &message.mentions {
-        if let Ok(member) = guild_id.member(ctx, user.id).await
-            && has_configured_role(&member.roles, config.staff_role_ids)
-        {
-            return true;
+        // The gateway includes mention roles, so most mentions need no lookup.
+        let is_staff = if let Some(member) = &user.member {
+            has_configured_role(&member.roles, config.staff_role_ids)
+        } else {
+            match guild_id.member(ctx, user.id).await {
+                Ok(member) => has_configured_role(&member.roles, config.staff_role_ids),
+                Err(error) => {
+                    tracing::debug!(
+                        error = %format_args!("{error:#}"),
+                        user_id = %user.id,
+                        "failed to look up mentioned member"
+                    );
+                    false
+                }
+            }
+        };
+        if is_staff {
+            staff.push(user.id);
         }
     }
-    false
+    staff
 }
 
-async fn should_skip_reply_warning(ctx: &serenity::Context, message: &serenity::Message) -> bool {
+/// A reply pings the replied-to author. Allow that ping in an active
+/// conversation, but still warn when other staff members are mentioned.
+async fn is_conversation_reply(
+    ctx: &serenity::Context,
+    message: &serenity::Message,
+    staff_users: &[serenity::UserId],
+) -> bool {
     let Some(reference) = fetch_referenced_message(ctx, message).await else {
         return false;
     };
+    if !only_pings_reply_target(staff_users, reference.author.id) {
+        return false;
+    }
     if reply_target_was_reply_to_sender(ctx, message, &reference).await {
         return true;
     }
@@ -86,6 +115,13 @@ async fn should_skip_reply_warning(ctx: &serenity::Context, message: &serenity::
         .timestamp_millis()
         .saturating_sub(reference.timestamp.timestamp_millis());
     age <= REPLY_CONVERSATION_WINDOW_MS && sender_is_active_chat_participant(ctx, message).await
+}
+
+fn only_pings_reply_target(
+    staff_users: &[serenity::UserId],
+    reply_author: serenity::UserId,
+) -> bool {
+    staff_users.iter().all(|user| *user == reply_author)
 }
 
 async fn reply_target_was_reply_to_sender(
@@ -120,7 +156,7 @@ async fn sender_is_active_chat_participant(
     let latest_timestamp = timestamp.saturating_sub(RECENT_PARTICIPATION_GRACE_MS);
     let mut before = create_snowflake_after_timestamp(latest_timestamp);
 
-    loop {
+    for _ in 0..MAX_HISTORY_PAGES {
         let messages = match message
             .channel_id
             .messages(ctx, serenity::GetMessages::new().before(before).limit(100))
@@ -128,8 +164,13 @@ async fn sender_is_active_chat_participant(
         {
             Ok(messages) => messages,
             Err(error) => {
-                tracing::debug!(%error, "failed to inspect channel participation history");
-                return false;
+                // Do not warn a user because Discord could not answer.
+                tracing::warn!(
+                    error = %format_args!("{error:#}"),
+                    channel_id = %message.channel_id,
+                    "failed to inspect channel participation history"
+                );
+                return true;
             }
         };
         if messages.is_empty() {
@@ -150,6 +191,7 @@ async fn sender_is_active_chat_participant(
         }
         before = oldest.id;
     }
+    false
 }
 
 fn create_snowflake_after_timestamp(timestamp_ms: i64) -> serenity::MessageId {
@@ -170,7 +212,10 @@ fn create_snowflake_after_timestamp(timestamp_ms: i64) -> serenity::MessageId {
 mod tests {
     use anyhow::{Result, ensure};
 
-    use super::{DISCORD_EPOCH_MS, create_snowflake_after_timestamp, has_configured_role};
+    use super::{
+        DISCORD_EPOCH_MS, create_snowflake_after_timestamp, has_configured_role,
+        only_pings_reply_target,
+    };
     use poise::serenity_prelude as serenity;
 
     #[test]
@@ -195,6 +240,16 @@ mod tests {
     #[test]
     fn detects_configured_roles() -> Result<()> {
         ensure!(has_configured_role(&[serenity::RoleId::new(7)], &[3, 7, 9]));
+        Ok(())
+    }
+
+    #[test]
+    fn allows_only_the_reply_ping_to_skip_the_warning() -> Result<()> {
+        let author = serenity::UserId::new(10);
+        let other_staff = serenity::UserId::new(11);
+        ensure!(only_pings_reply_target(&[author], author));
+        ensure!(!only_pings_reply_target(&[author, other_staff], author));
+        ensure!(!only_pings_reply_target(&[other_staff], author));
         Ok(())
     }
 }
