@@ -124,19 +124,19 @@ async fn start_bot(
         .await
         .with_context(|| format!("failed to create {} Discord client", bot.name))?;
 
-    // Close the gateway connections cleanly on shutdown; start() then returns.
+    // Stop waiting for start() on shutdown. shutdown_all() only makes start()
+    // return when a shard runner exists, and none exists while a shard is
+    // still trying to connect, for example during a network outage.
     let shard_manager = Arc::clone(&client.shard_manager);
-    let shutdown_watcher = tokio::spawn(async move {
-        if shutdown.wait_for(|stopping| *stopping).await.is_ok() {
-            shard_manager.shutdown_all().await;
+    tokio::select! {
+        result = client.start() => {
+            result.with_context(|| format!("{} Discord client stopped with an error", bot.name))
         }
-    });
-    let result = client
-        .start()
-        .await
-        .with_context(|| format!("{} Discord client stopped with an error", bot.name));
-    shutdown_watcher.abort();
-    result
+        Ok(_) = shutdown.wait_for(|stopping| *stopping) => {
+            shard_manager.shutdown_all().await;
+            Ok(())
+        }
+    }
 }
 
 async fn register_commands(
