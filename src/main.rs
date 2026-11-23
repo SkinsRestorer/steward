@@ -81,15 +81,14 @@ async fn run() -> Result<()> {
         std::process::exit(1);
     });
 
-    join_all(
-        bots::ALL.iter().copied().zip(tokens).map(|(bot, token)| {
+    let results =
+        join_all(bots::ALL.iter().copied().zip(tokens).map(|(bot, token)| {
             runtime::run_bot(bot, token, Arc::clone(&services), shutdown.clone())
-        }),
-    )
-    .await;
+        }))
+        .await;
     services.logging.shutdown().await;
 
-    Ok(())
+    results.into_iter().collect()
 }
 
 /// Waits for Ctrl+C or, on Unix, SIGTERM from a container stop or deploy.

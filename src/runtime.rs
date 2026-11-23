@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{Context as _, Result, ensure};
+use anyhow::{Context as _, Result, bail, ensure};
 use poise::serenity_prelude as serenity;
 use tokio::sync::watch;
 
@@ -36,23 +36,37 @@ pub fn bot_token(bot: &BotDefinition) -> Result<String> {
 }
 
 /// Runs one bot and restarts it after a failure, so one bot's problem does not
-/// take the other bot offline. Returns once `shutdown` turns true.
+/// take the other bot offline. Returns once `shutdown` turns true, or with an
+/// error when Discord rejects the token, because the token never changes while
+/// the process runs.
 pub async fn run_bot(
     bot: &'static BotDefinition,
     token: String,
     services: Arc<SharedServices>,
     mut shutdown: watch::Receiver<bool>,
-) {
+) -> Result<()> {
     let mut delay = RESTART_INITIAL_DELAY;
     loop {
         let started = Instant::now();
         let result = start_bot(bot, &token, Arc::clone(&services), shutdown.clone()).await;
         if *shutdown.borrow() {
             tracing::info!(bot = bot.id, "Discord client shut down");
-            return;
+            return Ok(());
         }
         match result {
             Ok(()) => tracing::warn!(bot = bot.id, "Discord client stopped"),
+            Err(error) if is_token_rejected(&error) => {
+                tracing::error!(
+                    bot = bot.id,
+                    token_env = bot.token_env,
+                    "Discord rejected the token; not restarting this bot"
+                );
+                bail!(
+                    "Discord rejected the {} token in {}",
+                    bot.name,
+                    bot.token_env
+                );
+            }
             Err(error) => tracing::error!(
                 error = %format_args!("{error:#}"),
                 bot = bot.id,
@@ -69,10 +83,19 @@ pub async fn run_bot(
         );
         tokio::select! {
             () = tokio::time::sleep(delay) => {}
-            _ = shutdown.wait_for(|stopping| *stopping) => return,
+            _ = shutdown.wait_for(|stopping| *stopping) => return Ok(()),
         }
         delay = delay.saturating_mul(2).min(RESTART_MAX_DELAY);
     }
+}
+
+fn is_token_rejected(error: &anyhow::Error) -> bool {
+    matches!(
+        error.downcast_ref::<serenity::Error>(),
+        Some(serenity::Error::Gateway(
+            serenity::GatewayError::InvalidAuthentication
+        ))
+    )
 }
 
 async fn start_bot(
@@ -256,9 +279,31 @@ async fn handle_framework_error(error: poise::FrameworkError<'_, AppState, Error
 
 #[cfg(test)]
 mod tests {
-    use poise::serenity_prelude::StatusCode;
+    use anyhow::Context as _;
+    use poise::serenity_prelude::{self as serenity, StatusCode};
 
-    use super::is_permanent_status;
+    use super::{is_permanent_status, is_token_rejected};
+
+    fn client_error(error: serenity::GatewayError) -> anyhow::Error {
+        Err::<(), _>(serenity::Error::Gateway(error))
+            .context("Steward Discord client stopped with an error")
+            .unwrap_err()
+    }
+
+    #[test]
+    fn rejected_token_stops_restarts() {
+        assert!(is_token_rejected(&client_error(
+            serenity::GatewayError::InvalidAuthentication
+        )));
+    }
+
+    #[test]
+    fn other_gateway_errors_restart_the_client() {
+        assert!(!is_token_rejected(&client_error(
+            serenity::GatewayError::InvalidHandshake
+        )));
+        assert!(!is_token_rejected(&anyhow::anyhow!("connection reset")));
+    }
 
     #[test]
     fn client_errors_stop_command_registration() {
