@@ -9,10 +9,16 @@ use rig_agent::agent::{
     AgentHook, CompletionCallAction, CompletionCallEvent, DispatchAction, DispatchEvent,
     HookContext, ModelTurnAction, ModelTurnFinished, OutcomeAction, OutcomeEvent, RequestPatch,
 };
-use rig_core::{completion::FinishReason, message::AssistantContent};
+use rig_core::{
+    completion::FinishReason,
+    error::{ErrorKind, ErrorReport},
+    message::AssistantContent,
+};
 use tokio::sync::watch;
 
 pub const MAX_RESPONSE_CALLS: usize = 6;
+// Each search can add thousands of tokens that every later turn resends.
+const MAX_TOOL_CALLS_PER_RUN: usize = 3;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum GenerationProgress {
@@ -37,6 +43,7 @@ pub struct SupportHooks {
 #[derive(Clone, Default)]
 struct Timings {
     model_started: Option<Instant>,
+    tool_calls: usize,
     tools: HashMap<String, Instant>,
 }
 
@@ -125,6 +132,17 @@ impl AgentHook for SupportHooks {
         let Some(tool_name) = event.tool_name() else {
             return ready(DispatchAction::Proceed);
         };
+        let tool_calls = ctx.scratchpad().update::<Timings, _>(|timings| {
+            timings.tool_calls = timings.tool_calls.saturating_add(1);
+            timings.tool_calls
+        });
+        if tool_calls > MAX_TOOL_CALLS_PER_RUN {
+            tracing::info!(run_id = ?ctx.run_id(), tool = tool_name, call_id = %event.id, "support tool call denied by budget");
+            return ready(DispatchAction::Deny(ErrorReport::new(
+                ErrorKind::Denied,
+                "The search limit for this reply is reached. Answer with the information you already have.",
+            )));
+        }
         ctx.scratchpad().update::<Timings, _>(|timings| {
             timings.tools.insert(event.id.to_string(), Instant::now());
         });
@@ -167,7 +185,7 @@ mod tests {
     use anyhow::{Result, ensure};
     use rig_agent::{
         AgentBuilder,
-        test_utils::{MockCompletionModel, MockFailingTool, MockTurn},
+        test_utils::{MockAddTool, MockCompletionModel, MockFailingTool, MockTurn},
     };
     use rig_core::tool::ToolErrorKind;
 
@@ -300,6 +318,60 @@ mod tests {
                 .all(|request| request.max_tokens == Some(100))
         );
         ensure!(*rx.borrow() == GenerationProgress::Thinking);
+        Ok(())
+    }
+
+    struct RecordOutcomes(std::sync::Arc<std::sync::Mutex<Vec<&'static str>>>);
+
+    impl AgentHook for RecordOutcomes {
+        fn on_outcome(
+            &self,
+            _: &HookContext,
+            event: OutcomeEvent<'_>,
+        ) -> impl Future<Output = OutcomeAction> {
+            if let Some(result) = event.tool_result() {
+                self.0
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .push(result.status_name());
+            }
+            ready(OutcomeAction::Proceed)
+        }
+    }
+
+    #[tokio::test]
+    async fn denies_tool_calls_beyond_the_per_run_budget() -> Result<()> {
+        let outcomes = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut turns = (0..=MAX_TOOL_CALLS_PER_RUN)
+            .map(|index| {
+                MockTurn::tool_call(
+                    format!("call-{index}"),
+                    "add",
+                    serde_json::json!({"x": 1, "y": 2}),
+                )
+            })
+            .collect::<Vec<_>>();
+        turns.push(MockTurn::text("answer"));
+        AgentBuilder::new(MockCompletionModel::from_turns(turns))
+            .tool(MockAddTool)
+            .add_hook(SupportHooks::new(100, RetryMode::Response, None))
+            .add_hook(RecordOutcomes(std::sync::Arc::clone(&outcomes)))
+            .build()
+            .prompt("question")
+            .max_turns(MAX_RESPONSE_CALLS)
+            .run()
+            .await?;
+
+        let outcomes = outcomes
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        let mut expected = vec!["success"; MAX_TOOL_CALLS_PER_RUN];
+        expected.push("denied");
+        ensure!(
+            outcomes == expected,
+            "unexpected tool outcomes: {outcomes:?}"
+        );
         Ok(())
     }
 }
