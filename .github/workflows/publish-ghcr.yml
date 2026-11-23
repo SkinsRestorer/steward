@@ -19,6 +19,9 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
+  # Renovate updates this version. Update both railpack_sha256 values below in the same change.
+  # The Rust workflow checks the archives against these checksums before merge.
+  RAILPACK_VERSION: v0.43.0
 
 jobs:
   build:
@@ -54,7 +57,6 @@ jobs:
 
       - name: Install Railpack
         env:
-          RAILPACK_VERSION: v0.43.0
           RAILPACK_TARGET: ${{ matrix.railpack_target }}
           RAILPACK_SHA256: ${{ matrix.railpack_sha256 }}
         run: |

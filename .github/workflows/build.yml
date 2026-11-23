@@ -63,3 +63,41 @@ jobs:
 
       - name: Check dependencies
         run: cargo deny --locked check
+
+  railpack:
+    name: Verify Railpack checksums
+    if: "${{ github.event_name != 'pull_request' || github.repository != github.event.pull_request.head.repo.full_name }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The publish workflow holds the pinned version and checksums. Check them here so a
+      # stale checksum fails before merge instead of during deployment.
+      - name: Check pinned Railpack archives
+        run: |
+          workflow=.github/workflows/publish-ghcr.yml
+          version=$(yq --exit-status '.env.RAILPACK_VERSION' "$workflow")
+          mapfile -t pins < <(yq --exit-status '.jobs.build.strategy.matrix.include[] | .railpack_target + " " + .railpack_sha256' "$workflow")
+          if [ "${#pins[@]}" -eq 0 ]; then
+            echo "::error file=$workflow::No Railpack checksums found"
+            exit 1
+          fi
+
+          status=0
+          for pin in "${pins[@]}"; do
+            read -r target expected <<< "$pin"
+            archive="railpack-${version}-${target}.tar.gz"
+            curl --fail --silent --show-error --location --output "$RUNNER_TEMP/$archive" \
+              "https://github.com/railwayapp/railpack/releases/download/${version}/${archive}"
+            actual=$(sha256sum "$RUNNER_TEMP/$archive" | cut -d ' ' -f 1)
+            if [ "$actual" = "$expected" ]; then
+              echo "$archive: OK"
+            else
+              echo "::error file=$workflow::$archive has SHA-256 $actual, but the workflow pins $expected"
+              status=1
+            fi
+          done
+          exit "$status"

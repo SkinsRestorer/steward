@@ -7,6 +7,14 @@
       "managerFilePatterns": ["/^\\.github/workflows/publish-ghcr\\.yml$/"],
       "matchStrings": ["(?<depName>moby/buildkit):(?<currentValue>v[0-9.]+)@(?<currentDigest>sha256:[a-f0-9]+)"],
       "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Update the Railpack release installed by the publish workflow",
+      "managerFilePatterns": ["/^\\.github/workflows/publish-ghcr\\.yml$/"],
+      "matchStrings": ["RAILPACK_VERSION: (?<currentValue>v[0-9.]+)"],
+      "depNameTemplate": "railwayapp/railpack",
+      "datasourceTemplate": "github-releases"
     }
   ],
   "packageRules": [
@@ -18,6 +26,11 @@
     {
       "description": "CI does not build the image, so review BuildKit updates before they reach the deploy",
       "matchDepNames": ["moby/buildkit"],
+      "automerge": false
+    },
+    {
+      "description": "Railpack updates need new archive checksums in the publish workflow, so review them by hand",
+      "matchDepNames": ["railwayapp/railpack"],
       "automerge": false
     }
   ]
