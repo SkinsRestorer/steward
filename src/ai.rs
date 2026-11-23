@@ -395,10 +395,11 @@ const REMOVED_LINK: &str = "(link removed)";
 /// Removes links whose host and path are not on the bot's allowlist. A masked
 /// link `[text](url)` keeps its text. A bare URL becomes "(link removed)".
 fn remove_unlisted_links(text: &str, allowed: &[&str]) -> Result<String> {
-    static MASKED_LINK: LazyLock<Result<Regex, regex::Error>> =
-        LazyLock::new(|| Regex::new(r"\[([^\]]*)\]\(\s*<?(https?://[^\s)>]+)>?(?:\s+[^)]*)?\)"));
+    static MASKED_LINK: LazyLock<Result<Regex, regex::Error>> = LazyLock::new(|| {
+        Regex::new(r"(?i)\[([^\]]*)\]\(\s*<?(https?://[^\s)>]+)>?(?:\s+[^)]*)?\)")
+    });
     static BARE_URL: LazyLock<Result<Regex, regex::Error>> =
-        LazyLock::new(|| Regex::new(r"<?https?://[^\s<>]+>?"));
+        LazyLock::new(|| Regex::new(r"(?i)<?https?://[^\s<>]+>?"));
     let masked_link = MASKED_LINK
         .as_ref()
         .map_err(|error| anyhow!("invalid masked link pattern: {error}"))?;
@@ -855,6 +856,13 @@ mod tests {
         ensure!(
             remove_unlisted_links("Get it from https://evil.example/sr.jar.", ALLOWED)?
                 == "Get it from (link removed)."
+        );
+        // Discord links URLs regardless of scheme case.
+        ensure!(
+            remove_unlisted_links(
+                "[Download](HTTPS://evil.example/x) or HTTP://evil.example",
+                ALLOWED
+            )? == "Download or (link removed)"
         );
         ensure!(
             remove_unlisted_links("Try (https://github.com/SkinsRestorerEvil/x)", ALLOWED)?
