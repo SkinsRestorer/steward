@@ -65,6 +65,34 @@ mod tests {
     }
 
     #[test]
+    fn rejects_command_names_and_descriptions_discord_refuses() -> Result<()> {
+        let base = **ALL.first().context("no bots are defined")?;
+        let with_command = |name: &'static str, description: &'static str| -> Result<_> {
+            let mut responses = base.commands.responses.to_vec();
+            let command = responses.first_mut().context("no commands are defined")?;
+            command.name = name;
+            command.description = description;
+            let mut bot = base;
+            bot.commands.responses = Box::leak(responses.into_boxed_slice());
+            Ok(bot)
+        };
+
+        with_command("proxy-install_2", "Description")?.validate()?;
+        with_command("überprüfen", "Description")?.validate()?;
+        for name in ["", "Docs", "proxy install", "docs!", "x".repeat(33).leak()] {
+            ensure!(
+                with_command(name, "Description")?.validate().is_err(),
+                "the command name `{name}` must be rejected"
+            );
+        }
+        ensure!(
+            with_command("docs", "")?.validate().is_err(),
+            "an empty command description must be rejected"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn rejects_oversized_built_in_command_copy() -> Result<()> {
         let base = **ALL.first().context("no bots are defined")?;
         // One character over Discord's 100-character command description limit.

@@ -268,7 +268,16 @@ impl BotDefinition {
                 "`{}` is a reserved command name",
                 command.name
             );
-            check_length("command name", command.name, MAX_COMMAND_NAME_CHARS)?;
+            ensure!(
+                is_valid_command_name(command.name),
+                "command name `{}` must be 1 to {MAX_COMMAND_NAME_CHARS} lowercase letters, numbers, `-`, `_`, or `'`",
+                command.name
+            );
+            ensure!(
+                !command.description.is_empty(),
+                "the `{}` command description must not be empty",
+                command.name
+            );
             check_length(
                 "command description",
                 command.description,
@@ -500,6 +509,16 @@ impl BotDefinition {
         }
         Ok(())
     }
+}
+
+/// Discord accepts 1 to 32 letters, numbers, `-`, `_`, and `'` in a slash
+/// command name, and rejects uppercase letters.
+fn is_valid_command_name(name: &str) -> bool {
+    (1..=MAX_COMMAND_NAME_CHARS).contains(&char_count(name))
+        && name.chars().all(|character| {
+            (character.is_alphanumeric() || matches!(character, '-' | '_' | '\''))
+                && !character.is_uppercase()
+        })
 }
 
 fn char_count(text: &str) -> usize {
