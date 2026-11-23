@@ -537,11 +537,27 @@ fn strip_response_disclaimer<'a>(text: &'a str, disclaimer: &str) -> &'a str {
 }
 
 fn clamp_response(text: &str, max_length: usize) -> String {
+    const FENCE: &str = "```";
+    const FENCE_CLOSE: &str = "\n```";
     let normalized = text.trim();
     if normalized.chars().count() <= max_length {
         return normalized.to_owned();
     }
 
+    let clamped = truncate_response(normalized, max_length);
+    if clamped.matches(FENCE).count().is_multiple_of(2) {
+        return clamped;
+    }
+    // A cut inside a code block would put the rest of the message, such as the
+    // disclaimer, inside the block. Close it within the limit.
+    let mut clamped = truncate_response(normalized, max_length.saturating_sub(FENCE_CLOSE.len()));
+    if !clamped.matches(FENCE).count().is_multiple_of(2) {
+        clamped.push_str(FENCE_CLOSE);
+    }
+    clamped
+}
+
+fn truncate_response(normalized: &str, max_length: usize) -> String {
     if max_length <= 3 {
         return ".".repeat(max_length);
     }
@@ -978,6 +994,19 @@ mod tests {
         // A sentence of exactly 300 characters is long enough to end on.
         let text = format!("{}. {}", "a".repeat(299), "b".repeat(100));
         ensure!(clamp_response(&text, 350) == format!("{}.", "a".repeat(299)));
+        Ok(())
+    }
+
+    #[test]
+    fn closes_a_code_block_that_the_cut_left_open() -> Result<()> {
+        let text = format!("Run this:\n```\n{}\n```\nDone.", "x".repeat(200));
+        let clamped = clamp_response(&text, 100);
+        ensure!(clamped == format!("Run this:\n```\n{}...\n```", "x".repeat(79)));
+        ensure!(clamped.chars().count() <= 100);
+
+        let result = append_response_disclaimer(&text, "-# notice", 120);
+        ensure!(result.ends_with("\n```\n\n-# notice"));
+        ensure!(result.chars().count() <= 120);
         Ok(())
     }
 
