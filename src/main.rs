@@ -51,8 +51,10 @@ async fn run() -> Result<()> {
             .context("failed to initialize shared services")?,
     );
 
+    // /latest and the outdated-version check can name different URLs.
     for bot in bots::ALL {
-        if let Some(url) = bot.checks.release_url {
+        let latest_url = bot.commands.latest.map(|latest| latest.release_url);
+        for url in bot.checks.release_url.into_iter().chain(latest_url) {
             services.releases.start_refreshing(url);
         }
     }

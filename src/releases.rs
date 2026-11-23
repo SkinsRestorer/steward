@@ -14,6 +14,7 @@ use tracing::warn;
 use crate::download;
 
 const REFRESH_INTERVAL: Duration = Duration::from_mins(20);
+const INITIAL_RETRY_DELAY: Duration = Duration::from_secs(30);
 const MAX_RELEASE_RESPONSE_BYTES: usize = 256 * 1024;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -71,11 +72,28 @@ impl ReleaseService {
         let client = self.client.clone();
         let releases = Arc::clone(&self.releases);
         let handle = tokio::spawn(async move {
+            let mut retry_delay = INITIAL_RETRY_DELAY;
             loop {
-                if let Err(error) = refresh(&client, &releases, url).await {
-                    warn!(%error, %url, "failed to refresh latest release");
-                }
-                tokio::time::sleep(REFRESH_INTERVAL).await;
+                let delay = match refresh(&client, &releases, url).await {
+                    Ok(()) => {
+                        retry_delay = INITIAL_RETRY_DELAY;
+                        REFRESH_INTERVAL
+                    }
+                    // Retry sooner so a failed first fetch does not leave /latest
+                    // empty and skip the outdated-version check for 20 minutes.
+                    Err(error) => {
+                        warn!(
+                            error = %format_args!("{error:#}"),
+                            %url,
+                            retry_in_secs = retry_delay.as_secs(),
+                            "failed to refresh latest release"
+                        );
+                        let delay = retry_delay;
+                        retry_delay = retry_delay.saturating_mul(2).min(REFRESH_INTERVAL);
+                        delay
+                    }
+                };
+                tokio::time::sleep(delay).await;
             }
         });
         handles.insert(url, handle);
