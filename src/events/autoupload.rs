@@ -19,6 +19,14 @@ const PASTE_API: &str = "https://api.pastes.dev/post";
 const PASTE_WEBSITE: &str = "https://pastes.dev";
 const MAX_ATTACHMENT_BYTES: u64 = 20 * 1024 * 1024;
 const MAX_PASTE_RESPONSE_BYTES: usize = 64 * 1024;
+const SENSITIVE_FILENAME_PARTS: &[&str] = &[
+    ".env",
+    "credential",
+    "password",
+    "private",
+    "secret",
+    "token",
+];
 
 #[derive(Deserialize)]
 struct PasteResponse {
@@ -30,7 +38,15 @@ pub async fn handle(
     data: &AppState,
     message: &serenity::Message,
 ) -> Result<()> {
+    // pastes.dev links are public, so never republish files from private channels.
+    if message.attachments.is_empty() || !is_public_channel(ctx, message) {
+        return Ok(());
+    }
+
     for attachment in &message.attachments {
+        if is_sensitive_filename(&attachment.filename) {
+            continue;
+        }
         let Some(content_type) = attachment
             .content_type
             .as_deref()
@@ -114,6 +130,56 @@ async fn upload_attachment(
     Ok(format!("{PASTE_WEBSITE}/{}", response.key))
 }
 
+fn is_sensitive_filename(filename: &str) -> bool {
+    let filename = filename.to_ascii_lowercase();
+    SENSITIVE_FILENAME_PARTS
+        .iter()
+        .any(|part| filename.contains(part))
+}
+
+fn is_public_channel(ctx: &serenity::Context, message: &serenity::Message) -> bool {
+    let Some(guild_id) = message.guild_id else {
+        return false;
+    };
+    let Some(guild) = ctx.cache.guild(guild_id) else {
+        return false;
+    };
+    let channel = guild.channels.get(&message.channel_id).or_else(|| {
+        let thread = guild
+            .threads
+            .iter()
+            .find(|thread| thread.id == message.channel_id)?;
+        if thread.kind == serenity::ChannelType::PrivateThread {
+            return None;
+        }
+        guild.channels.get(&thread.parent_id?)
+    });
+    let everyone = serenity::RoleId::new(guild_id.get());
+    match (channel, guild.roles.get(&everyone)) {
+        (Some(channel), Some(role)) => {
+            everyone_can_view(role.permissions, &channel.permission_overwrites, everyone)
+        }
+        _ => false,
+    }
+}
+
+fn everyone_can_view(
+    base: serenity::Permissions,
+    overwrites: &[serenity::PermissionOverwrite],
+    everyone: serenity::RoleId,
+) -> bool {
+    if base.administrator() {
+        return true;
+    }
+    overwrites
+        .iter()
+        .filter(|overwrite| overwrite.kind == serenity::PermissionOverwriteType::Role(everyone))
+        .fold(base, |permissions, overwrite| {
+            (permissions & !overwrite.deny) | overwrite.allow
+        })
+        .view_channel()
+}
+
 fn detect_text_format(text: &str) -> Option<&'static str> {
     let text = text.trim();
     if ((text.starts_with('{') && text.ends_with('}'))
@@ -172,7 +238,59 @@ impl<'de> Visitor<'de> for StructuredDataVisitor {
 mod tests {
     use anyhow::{Result, ensure};
 
-    use super::detect_text_format;
+    use poise::serenity_prelude as serenity;
+
+    use super::{detect_text_format, everyone_can_view, is_sensitive_filename};
+
+    #[test]
+    fn skips_files_that_look_like_secrets() -> Result<()> {
+        for name in [
+            ".env",
+            "prod.env.txt",
+            "API_TOKEN.txt",
+            "db-password.json",
+            "secrets.yml",
+        ] {
+            ensure!(is_sensitive_filename(name), "{name} should be skipped");
+        }
+        for name in ["latest.log", "config.yml", "dump.json"] {
+            ensure!(!is_sensitive_filename(name), "{name} should be uploaded");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn uploads_only_from_channels_everyone_can_view() -> Result<()> {
+        let everyone = serenity::RoleId::new(1);
+        let view = serenity::Permissions::VIEW_CHANNEL;
+        let overwrite = |allow, deny, role| serenity::PermissionOverwrite {
+            allow,
+            deny,
+            kind: serenity::PermissionOverwriteType::Role(role),
+        };
+
+        ensure!(everyone_can_view(view, &[], everyone));
+        ensure!(!everyone_can_view(
+            view,
+            &[overwrite(serenity::Permissions::empty(), view, everyone)],
+            everyone
+        ));
+        ensure!(everyone_can_view(
+            serenity::Permissions::empty(),
+            &[overwrite(view, serenity::Permissions::empty(), everyone)],
+            everyone
+        ));
+        ensure!(everyone_can_view(
+            view,
+            &[overwrite(
+                serenity::Permissions::empty(),
+                view,
+                serenity::RoleId::new(2)
+            )],
+            everyone
+        ));
+        Ok(())
+    }
 
     #[test]
     fn detects_structured_attachment_formats() -> Result<()> {
