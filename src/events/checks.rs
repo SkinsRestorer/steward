@@ -19,7 +19,9 @@ use super::{
 const IMAGE_TYPES: &[&str] = &["image/png", "image/jpeg", "image/webp"];
 const MAX_IMAGE_BYTES: u64 = 20 * 1024 * 1024;
 const MAX_PASTE_BYTES: usize = 20 * 1024 * 1024;
-const MAX_PRETTY_DUMP_BYTES: usize = 20 * 1024 * 1024;
+// Discord's default upload limit is 10 MiB. Leave room for the rest of the message.
+const MAX_PRETTY_DUMP_BYTES: usize = 8 * 1024 * 1024;
+const MAX_DUMP_FIELD_CHARS: usize = 100;
 
 pub async fn handle(
     ctx: &serenity::Context,
@@ -400,16 +402,26 @@ async fn analyze_dump(
         return Ok(());
     };
     let embeds = build_dump_embeds(&dump, latest_release);
-    let pretty_dump = pretty_print_json(text)?;
-    reply(
-        ctx,
-        message,
-        serenity::CreateMessage::new()
-            .content(format!("Analysis for `{footer}`:"))
-            .embeds(embeds)
-            .add_file(serenity::CreateAttachment::bytes(pretty_dump, "dump.json")),
-    )
-    .await
+    let mut reply_message = serenity::CreateMessage::new().embeds(embeds);
+    // Send the analysis even when the formatted dump is too large to attach.
+    match pretty_print_json(text) {
+        Ok(pretty_dump) => {
+            reply_message = reply_message
+                .content(format!("Analysis for `{footer}`:"))
+                .add_file(serenity::CreateAttachment::bytes(pretty_dump, "dump.json"));
+        }
+        Err(error) => {
+            tracing::info!(
+                error = %format_args!("{error:#}"),
+                message_id = %message.id,
+                "sending dump analysis without the formatted dump"
+            );
+            reply_message = reply_message.content(format!(
+                "Analysis for `{footer}` (the formatted dump is too large to attach):"
+            ));
+        }
+    }
+    reply(ctx, message, reply_message).await
 }
 
 fn build_dump_embeds(
@@ -448,8 +460,9 @@ fn build_dump_embeds(
             .title("Build")
             .colour(0x58_65_F2)
             .description(format!(
-                "SkinsRestorer version: `{version_display}`\nBuild date: `{}`",
-                dump.build.build_time
+                "SkinsRestorer version: `{}`\nBuild date: `{}`",
+                dump_field(&version_display),
+                dump_field(&dump.build.build_time)
             )),
     );
 
@@ -473,7 +486,9 @@ fn build_dump_embeds(
             .colour(0x58_65_F2)
             .description(format!(
                 "Operating system: `{}`\nArchitecture: `{}`\nJava: `{}`",
-                dump.os.name, dump.os.arch, dump.java.version
+                dump_field(&dump.os.name),
+                dump_field(&dump.os.arch),
+                dump_field(&dump.java.version)
             )),
     );
     embeds.push(
@@ -482,10 +497,10 @@ fn build_dump_embeds(
             .colour(0x58_65_F2)
             .description(format!(
                 "Platform: `{}`\nEnvironment: `{}` / `{}`\nVersion: `{}`\nPlugins: `{}`",
-                dump.platform.platform_name,
-                dump.environment.platform,
-                dump.environment.platform_type,
-                dump.platform.platform_version,
+                dump_field(&dump.platform.platform_name),
+                dump_field(&dump.environment.platform),
+                dump_field(&dump.environment.platform_type),
+                dump_field(&dump.platform.platform_version),
                 dump.platform.plugins.len()
             )),
     );
@@ -509,6 +524,21 @@ fn build_dump_embeds(
             )),
     );
     embeds
+}
+
+/// Shortens a user-controlled dump value and removes backticks so it fits in an
+/// inline code span and the embed stays within Discord's limits.
+fn dump_field(value: &str) -> String {
+    let value = value.replace('`', "'");
+    if value.chars().count() <= MAX_DUMP_FIELD_CHARS {
+        return value;
+    }
+    let mut shortened = value
+        .chars()
+        .take(MAX_DUMP_FIELD_CHARS.saturating_sub(3))
+        .collect::<String>();
+    shortened.push_str("...");
+    shortened
 }
 
 fn pretty_print_json(text: &str) -> Result<Vec<u8>> {
@@ -592,8 +622,8 @@ mod tests {
     use anyhow::{Result, ensure};
 
     use super::{
-        SkinsRestorerDump, coerce_version, contains_prohibited_ocr_content,
-        normalize_ocr_moderation_text, pretty_print_json,
+        MAX_DUMP_FIELD_CHARS, SkinsRestorerDump, coerce_version, contains_prohibited_ocr_content,
+        dump_field, normalize_ocr_moderation_text, pretty_print_json,
     };
 
     #[test]
@@ -613,6 +643,14 @@ mod tests {
         ensure!(!contains_prohibited_ocr_content(
             "javax.crypto.Cipher failed"
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn bounds_and_escapes_dump_fields() -> Result<()> {
+        ensure!(dump_field("Paper `1.21`") == "Paper '1.21'");
+        let long = dump_field(&"x".repeat(5_000));
+        ensure!(long.chars().count() == MAX_DUMP_FIELD_CHARS && long.ends_with("..."));
         Ok(())
     }
 
