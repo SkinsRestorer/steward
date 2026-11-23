@@ -1,7 +1,8 @@
 # Security reports
 
-For SkinsRestorer plugin vulnerabilities, use [private vulnerability reporting](https://github.com/SkinsRestorer/SkinsRestorer/security/advisories/new).
-For other projects or an unavailable reporting button, email [contact@skinsrestorer.net](mailto:contact@skinsrestorer.net).
+Report Steward vulnerabilities by email to [contact@skinsrestorer.net](mailto:contact@skinsrestorer.net).
+This repository does not accept private vulnerability reports on GitHub.
+For SkinsRestorer plugin vulnerabilities, use the plugin's [private vulnerability reporting](https://github.com/SkinsRestorer/SkinsRestorer/security/advisories/new).
 
 ## What to include
 
