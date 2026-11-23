@@ -16,6 +16,8 @@ use super::{
 const IMAGE_TYPES: &[&str] = &["image/png", "image/jpeg", "image/webp"];
 const MAX_IMAGE_BYTES: u64 = 20 * 1024 * 1024;
 const MAX_PASTE_BYTES: usize = 20 * 1024 * 1024;
+// Users often send a log and a dump together. Bound the fetches per message.
+const MAX_PASTE_LINKS: usize = 3;
 // Discord's default upload limit is 10 MiB. Leave room for the rest of the message.
 const MAX_PRETTY_DUMP_BYTES: usize = 8 * 1024 * 1024;
 
@@ -30,15 +32,19 @@ pub async fn handle(
         None
     };
 
-    if let Some(found) = paste::find_all(message, data).into_iter().next()
-        && let Err(error) = handle_paste(ctx, data, message, found, latest_release.as_ref()).await
+    for found in paste::find_all(message, data)
+        .into_iter()
+        .take(MAX_PASTE_LINKS)
     {
-        tracing::error!(
-            error = %format_args!("{error:#}"),
-            bot = data.bot.id,
-            message_id = %message.id,
-            "paste analysis failed"
-        );
+        // One failed paste must not hide the analysis of the others.
+        if let Err(error) = handle_paste(ctx, data, message, found, latest_release.as_ref()).await {
+            tracing::error!(
+                error = %format_args!("{error:#}"),
+                bot = data.bot.id,
+                message_id = %message.id,
+                "paste analysis failed"
+            );
+        }
     }
     handle_images(ctx, data, message, latest_release.as_ref()).await
 }
