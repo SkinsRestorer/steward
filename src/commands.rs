@@ -66,25 +66,21 @@ async fn static_response(
 #[poise::command(slash_command)]
 async fn help(ctx: Context<'_>) -> Result<(), Error> {
     let bot = ctx.data().bot;
-    let command_ids = ctx
-        .data()
-        .command_ids
-        .get()
-        .context("application command IDs are not initialized")?;
+    // Command IDs arrive after background registration; fall back to plain names until then.
+    let command_ids = ctx.data().command_ids.get();
     let mut embed = serenity::CreateEmbed::new()
         .colour(bot.accent_color)
         .title(bot.commands.help.embed_title)
         .description(bot.commands.help.embed_description);
 
     for command in bot.commands.responses {
-        let id = command_ids
-            .get(command.name)
-            .map_or_else(|| "unknown".to_owned(), ToString::to_string);
-        embed = embed.field(
-            format!("</{}:{id}>", command.name),
-            command.description,
-            true,
-        );
+        let name = command_ids
+            .and_then(|ids| ids.get(command.name))
+            .map_or_else(
+                || format!("/{}", command.name),
+                |id| format!("</{}:{id}>", command.name),
+            );
+        embed = embed.field(name, command.description, true);
     }
 
     ctx.send(CreateReply::default().ephemeral(true).embed(embed))

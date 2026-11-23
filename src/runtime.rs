@@ -1,4 +1,9 @@
-use std::{env, sync::Arc};
+use std::{
+    collections::HashMap,
+    env,
+    sync::{Arc, OnceLock},
+    time::Duration,
+};
 
 use anyhow::{Context as _, Result, ensure};
 use poise::serenity_prelude as serenity;
@@ -10,6 +15,9 @@ use crate::{
     state::{AppState, Error, SharedServices},
 };
 
+const COMMAND_REGISTRATION_INITIAL_DELAY: Duration = Duration::from_secs(5);
+const COMMAND_REGISTRATION_MAX_DELAY: Duration = Duration::from_mins(5);
+
 pub async fn start_bot(bot: &'static BotDefinition, services: Arc<SharedServices>) -> Result<()> {
     let token = env::var(bot.token_env)
         .with_context(|| format!("{} must be configured for {}", bot.token_env, bot.name))?;
@@ -20,7 +28,6 @@ pub async fn start_bot(bot: &'static BotDefinition, services: Arc<SharedServices
         bot.name
     );
     let state = AppState::new(bot, services);
-    let setup_state = state.clone();
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: commands::all(bot),
@@ -35,29 +42,19 @@ pub async fn start_bot(bot: &'static BotDefinition, services: Arc<SharedServices
             ..Default::default()
         })
         .setup(move |ctx, ready, framework| {
-            let state = setup_state.clone();
-            Box::pin(async move {
-                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                let command_ids = serenity::Command::get_global_commands(&ctx.http)
-                    .await?
-                    .into_iter()
-                    .map(|command| (command.name, command.id))
-                    .collect();
-                state.command_ids.set(command_ids).map_err(|error| {
-                    anyhow::anyhow!(
-                        "application command IDs were initialized more than once ({} IDs returned)",
-                        error.len()
-                    )
-                })?;
-
-                tracing::info!(
-                    bot = bot.id,
-                    user = %ready.user.tag(),
-                    commands = framework.options().commands.len(),
-                    "registered global application commands"
-                );
-                Ok(state)
-            })
+            // poise runs setup only once and never retries it. Keep it infallible and
+            // register commands in the background so a Discord error at startup
+            // cannot leave the bot connected but unable to handle events.
+            let commands =
+                poise::builtins::create_application_commands(&framework.options().commands);
+            tokio::spawn(register_commands(
+                Arc::clone(&ctx.http),
+                bot,
+                commands,
+                Arc::clone(&state.command_ids),
+            ));
+            tracing::info!(bot = bot.id, user = %ready.user.tag(), "Discord bot ready");
+            Box::pin(async move { Ok(state) })
         })
         .build();
 
@@ -80,6 +77,45 @@ pub async fn start_bot(bot: &'static BotDefinition, services: Arc<SharedServices
         .start()
         .await
         .with_context(|| format!("{} Discord client stopped with an error", bot.name))
+}
+
+async fn register_commands(
+    http: Arc<serenity::Http>,
+    bot: &'static BotDefinition,
+    commands: Vec<serenity::CreateCommand>,
+    command_ids: Arc<OnceLock<HashMap<String, serenity::CommandId>>>,
+) {
+    let mut delay = COMMAND_REGISTRATION_INITIAL_DELAY;
+    loop {
+        match serenity::Command::set_global_commands(&http, commands.clone()).await {
+            Ok(registered) => {
+                let count = registered.len();
+                let ids = registered
+                    .into_iter()
+                    .map(|command| (command.name, command.id))
+                    .collect();
+                if command_ids.set(ids).is_err() {
+                    tracing::warn!(bot = bot.id, "application command IDs were already set");
+                }
+                tracing::info!(
+                    bot = bot.id,
+                    commands = count,
+                    "registered global application commands"
+                );
+                return;
+            }
+            Err(error) => {
+                tracing::error!(
+                    %error,
+                    bot = bot.id,
+                    retry_in_secs = delay.as_secs(),
+                    "failed to register global application commands"
+                );
+                tokio::time::sleep(delay).await;
+                delay = delay.saturating_mul(2).min(COMMAND_REGISTRATION_MAX_DELAY);
+            }
+        }
+    }
 }
 
 async fn handle_framework_error(error: poise::FrameworkError<'_, AppState, Error>) {
