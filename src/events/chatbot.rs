@@ -670,16 +670,21 @@ async fn generate_reply(
             }
         },
         Err(error) => {
-            tracing::error!(%error, bot = data.bot.id, "support response generation failed");
+            tracing::error!(
+                error = %format_args!("{error:#}"),
+                bot = data.bot.id,
+                "support response generation failed"
+            );
+            // Keep the error notice out of history so the model never treats it as
+            // its own earlier answer.
             let fallback = data.bot.chatbot.generation_error_message;
-            match send_reply(&ctx, request.reply_target, fallback, true).await {
-                Ok(true) => Some(ChatMessage::Assistant(Arc::from(fallback))),
-                Ok(false) => None,
-                Err(send_error) => {
-                    tracing::error!(%send_error, "failed to send chatbot error reply");
-                    None
-                }
+            if let Err(send_error) = send_reply(&ctx, request.reply_target, fallback, true).await {
+                tracing::error!(
+                    error = %format_args!("{send_error:#}"),
+                    "failed to send chatbot error reply"
+                );
             }
+            None
         }
     };
 
