@@ -59,8 +59,7 @@ async fn handle_paste(
         .send()
         .await
         .context("failed to fetch paste")?;
-    // Private, deleted, and expired pastes return 401, 403, 404, or 410.
-    if response.status().is_client_error() {
+    if is_invalid_paste_status(response.status()) {
         let embed = serenity::CreateEmbed::new()
             .title("Invalid Paste!")
             .colour(0xFF_00_00)
@@ -94,6 +93,16 @@ async fn handle_paste(
         latest_release,
     )
     .await
+}
+
+/// Private, deleted, and expired pastes return 401, 403, 404, or 410. A
+/// timeout or rate limit says nothing about the link, so it stays an error.
+fn is_invalid_paste_status(status: reqwest::StatusCode) -> bool {
+    status.is_client_error()
+        && !matches!(
+            status,
+            reqwest::StatusCode::REQUEST_TIMEOUT | reqwest::StatusCode::TOO_MANY_REQUESTS
+        )
 }
 
 async fn handle_images(
@@ -430,9 +439,39 @@ async fn reply(
 mod tests {
     use anyhow::{Result, ensure};
 
+    use reqwest::StatusCode;
+
     use super::{
-        contains_prohibited_ocr_content, normalize_ocr_moderation_text, pretty_print_json,
+        contains_prohibited_ocr_content, is_invalid_paste_status, normalize_ocr_moderation_text,
+        pretty_print_json,
     };
+
+    #[test]
+    fn reports_only_link_errors_as_invalid_pastes() -> Result<()> {
+        for status in [
+            StatusCode::UNAUTHORIZED,
+            StatusCode::FORBIDDEN,
+            StatusCode::NOT_FOUND,
+            StatusCode::GONE,
+        ] {
+            ensure!(
+                is_invalid_paste_status(status),
+                "{status} should be invalid"
+            );
+        }
+        for status in [
+            StatusCode::REQUEST_TIMEOUT,
+            StatusCode::TOO_MANY_REQUESTS,
+            StatusCode::OK,
+            StatusCode::INTERNAL_SERVER_ERROR,
+        ] {
+            ensure!(
+                !is_invalid_paste_status(status),
+                "{status} should not be invalid"
+            );
+        }
+        Ok(())
+    }
 
     #[test]
     fn normalizes_common_ocr_confusables() -> Result<()> {
