@@ -1,3 +1,9 @@
+use std::{
+    collections::HashMap,
+    sync::{LazyLock, Mutex, PoisonError},
+    time::{Duration, Instant},
+};
+
 use anyhow::{Context as _, Result};
 use poise::serenity_prelude as serenity;
 
@@ -10,6 +16,11 @@ const RECENT_PARTICIPATION_GRACE_MS: i64 = 5 * 60 * 1_000;
 // Bound the REST calls one staff ping can cost in a busy channel.
 const MAX_HISTORY_PAGES: usize = 3;
 const HISTORY_PAGE_SIZE: u8 = 100;
+// One warning is enough. Repeating it for every ping floods support channels.
+const WARNING_COOLDOWN: Duration = Duration::from_mins(10);
+
+static WARNING_COOLDOWNS: LazyLock<Mutex<WarningCooldowns>> =
+    LazyLock::new(|| Mutex::new(WarningCooldowns::default()));
 
 pub async fn handle(
     ctx: &serenity::Context,
@@ -42,7 +53,11 @@ pub async fn handle(
         return Ok(());
     }
 
-    message
+    let key = (data.bot.id, message.channel_id, message.author.id);
+    if !lock_cooldowns().try_claim(key, Instant::now()) {
+        return Ok(());
+    }
+    let sent = message
         .channel_id
         .send_message(
             ctx,
@@ -53,9 +68,43 @@ pub async fn handle(
                     serenity::CreateAllowedMentions::new().users([message.author.id]),
                 ),
         )
-        .await
-        .context("failed to send the no-ping warning")?;
+        .await;
+    if sent.is_err() {
+        // Let the next ping try again when this warning never reached the user.
+        lock_cooldowns().release(key);
+    }
+    sent.context("failed to send the no-ping warning")?;
     Ok(())
+}
+
+type CooldownKey = (&'static str, serenity::ChannelId, serenity::UserId);
+
+fn lock_cooldowns() -> std::sync::MutexGuard<'static, WarningCooldowns> {
+    WARNING_COOLDOWNS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+}
+
+#[derive(Debug, Default)]
+struct WarningCooldowns {
+    warned_at: HashMap<CooldownKey, Instant>,
+}
+
+impl WarningCooldowns {
+    /// Returns whether a warning may be sent now and records it if so.
+    fn try_claim(&mut self, key: CooldownKey, now: Instant) -> bool {
+        self.warned_at
+            .retain(|_, warned_at| now.saturating_duration_since(*warned_at) < WARNING_COOLDOWN);
+        if self.warned_at.contains_key(&key) {
+            return false;
+        }
+        self.warned_at.insert(key, now);
+        true
+    }
+
+    fn release(&mut self, key: CooldownKey) {
+        self.warned_at.remove(&key);
+    }
 }
 
 fn has_configured_role(roles: &[serenity::RoleId], configured: &[u64]) -> bool {
@@ -239,11 +288,47 @@ fn create_snowflake_after_timestamp(timestamp_ms: i64) -> serenity::MessageId {
 mod tests {
     use anyhow::{Result, ensure};
 
+    use std::time::{Duration, Instant};
+
     use super::{
-        DISCORD_EPOCH_MS, HISTORY_PAGE_SIZE, HistoryPage, create_snowflake_after_timestamp,
-        has_configured_role, inspect_history_page, only_pings_reply_target,
+        DISCORD_EPOCH_MS, HISTORY_PAGE_SIZE, HistoryPage, WARNING_COOLDOWN, WarningCooldowns,
+        create_snowflake_after_timestamp, has_configured_role, inspect_history_page,
+        only_pings_reply_target,
     };
     use poise::serenity_prelude as serenity;
+
+    #[test]
+    fn warns_a_user_once_per_channel_until_the_cooldown_ends() -> Result<()> {
+        let mut cooldowns = WarningCooldowns::default();
+        let start = Instant::now();
+        let channel = serenity::ChannelId::new(1);
+        let user = serenity::UserId::new(2);
+        let key = ("steward", channel, user);
+
+        ensure!(cooldowns.try_claim(key, start));
+        ensure!(!cooldowns.try_claim(key, start + Duration::from_secs(1)));
+        ensure!(cooldowns.try_claim(("steward", serenity::ChannelId::new(3), user), start));
+        ensure!(cooldowns.try_claim(("steward", channel, serenity::UserId::new(4)), start));
+        ensure!(cooldowns.try_claim(("jarvis", channel, user), start));
+        ensure!(cooldowns.try_claim(key, start + WARNING_COOLDOWN));
+        Ok(())
+    }
+
+    #[test]
+    fn releasing_a_claim_allows_a_retry() -> Result<()> {
+        let mut cooldowns = WarningCooldowns::default();
+        let now = Instant::now();
+        let key = (
+            "steward",
+            serenity::ChannelId::new(1),
+            serenity::UserId::new(2),
+        );
+
+        ensure!(cooldowns.try_claim(key, now));
+        cooldowns.release(key);
+        ensure!(cooldowns.try_claim(key, now));
+        Ok(())
+    }
 
     #[test]
     fn creates_a_snowflake_strictly_after_the_timestamp() -> Result<()> {
