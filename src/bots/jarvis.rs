@@ -2,8 +2,8 @@ use poise::serenity_prelude as serenity;
 
 use crate::config::{
     AiConfig, AutouploadConfig, BotDefinition, ChatbotConfig, ChecksConfig, CommandField,
-    CommandsConfig, DocsFooter, HelpConfig, HoneypotConfig, NoPingConfig, PASTE_CHECKS,
-    ResolvedConfig, StaticCommand, SupportContextConfig, ThreadStarterConfig,
+    CommandsConfig, HelpConfig, HoneypotConfig, NoPingConfig, PASTE_CHECKS, ResolvedConfig,
+    StaticCommand, SupportContextConfig, ThreadStarterConfig,
 };
 
 const STAFF_ROLE_IDS: &[u64] = &[1_021_760_363_213_864_176];
@@ -78,7 +78,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "SoulFire Documentation",
         body: "Read the official SoulFire docs for installation, first-run setup, automation, scripting, troubleshooting, development, and reference pages.",
         url: Some("https://soulfiremc.com/docs"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -87,7 +86,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Download SoulFire",
         body: "Use the official download page to pick the correct SoulFire build for your operating system, architecture, and workflow.",
         url: Some("https://soulfiremc.com/download"),
-        documentation: false,
         fields: &[],
     },
     StaticCommand {
@@ -96,7 +94,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Start with SoulFire",
         body: "Start here if you are new to SoulFire. The guide helps you choose a setup, install SoulFire, and run your first session.",
         url: Some("https://soulfiremc.com/docs/start-here"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -105,7 +102,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "SoulFire Troubleshooting",
         body: "Use the troubleshooting docs to diagnose connection, auth, proxy, scripting, and deployment problems by symptom.",
         url: Some("https://soulfiremc.com/docs/troubleshooting"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -114,7 +110,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Supported Minecraft Versions",
         body: "SoulFire supports many Java and Bedrock versions through ViaFabricPlus and related Via libraries. Check this page for the current list.",
         url: Some("https://soulfiremc.com/docs/usage/versions"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -123,7 +118,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "SoulFire Scripting",
         body: "Use scripting when you want to build bot behavior visually without writing a full plugin.",
         url: Some("https://soulfiremc.com/docs/scripting"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -132,7 +126,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "SoulFire Plugins",
         body: "SoulFire plugins are Fabric mods. Use this page to understand compatibility, plugin structure, and when a plugin is the right tool.",
         url: Some("https://soulfiremc.com/docs/usage/plugins"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -141,7 +134,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "SoulFire Development",
         body: "Use the development docs when scripting is not enough and you need Mixins, events, bot control, custom settings, or direct API access.",
         url: Some("https://soulfiremc.com/docs/development"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -150,7 +142,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "SoulFire Resources",
         body: "Browse community plugins and scripts, and check how to submit resources for other SoulFire users.",
         url: Some("https://soulfiremc.com/resources"),
-        documentation: false,
         fields: &[],
     },
     StaticCommand {
@@ -159,7 +150,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Please send logs",
         body: "Send the relevant SoulFire logs, the exact error, what mode you are running, and what you were trying to do.",
         url: None,
-        documentation: false,
         fields: &[
             CommandField {
                 name: "Include",
@@ -177,7 +167,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Please ask your question",
         body: "Describe the issue directly and include the details needed to reproduce it. People can help faster when they know what you tried, what happened, and what you expected.",
         url: None,
-        documentation: false,
         fields: &[CommandField {
             name: "Docs",
             value: "https://soulfiremc.com/docs",
@@ -189,7 +178,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Use SoulFire responsibly",
         body: "Only use SoulFire on servers you own or have explicit permission to test. We cannot help with abusing third-party servers, bypassing bans, harassment, or attacks.",
         url: None,
-        documentation: false,
         fields: &[],
     },
 ];
@@ -236,10 +224,6 @@ pub static BOT: BotDefinition = BotDefinition {
     },
     commands: CommandsConfig {
         responses: COMMANDS,
-        docs_footer: DocsFooter {
-            text: "SoulFire documentation",
-            icon_url: Some("https://soulfiremc.com/favicon.ico"),
-        },
         help: HelpConfig {
             description: "Show Jarvis help",
             embed_title: "Jarvis help",

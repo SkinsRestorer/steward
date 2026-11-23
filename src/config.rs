@@ -19,7 +19,6 @@ pub struct StaticCommand {
     pub title: &'static str,
     pub body: &'static str,
     pub url: Option<&'static str>,
-    pub documentation: bool,
     pub fields: &'static [CommandField],
 }
 
@@ -86,12 +85,6 @@ pub struct AutouploadConfig {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct DocsFooter {
-    pub text: &'static str,
-    pub icon_url: Option<&'static str>,
-}
-
-#[derive(Clone, Copy, Debug)]
 pub struct HelpConfig {
     pub description: &'static str,
     pub embed_title: &'static str,
@@ -123,7 +116,6 @@ pub struct SupportContextConfig {
 #[derive(Clone, Copy, Debug)]
 pub struct CommandsConfig {
     pub responses: &'static [StaticCommand],
-    pub docs_footer: DocsFooter,
     pub help: HelpConfig,
     pub latest: Option<LatestConfig>,
     pub resolved: ResolvedConfig,
@@ -273,20 +265,10 @@ impl BotDefinition {
                 command.description,
                 MAX_COMMAND_DESCRIPTION_CHARS,
             )?;
-            // The documentation style prefixes the title with an emoji and a space.
-            check_length(
-                "command title",
-                command.title,
-                MAX_EMBED_TITLE_CHARS.saturating_sub(2),
-            )?;
+            check_length("command title", command.title, MAX_EMBED_TITLE_CHARS)?;
             check_length("command body", command.body, MAX_EMBED_DESCRIPTION_CHARS)?;
-            // static_response_embed adds a link field when the command has a URL.
             ensure!(
-                command
-                    .fields
-                    .len()
-                    .saturating_add(usize::from(command.url.is_some()))
-                    <= MAX_EMBED_FIELDS,
+                command.fields.len() <= MAX_EMBED_FIELDS,
                 "the `{}` command embed has too many fields",
                 command.name
             );

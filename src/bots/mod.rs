@@ -44,7 +44,6 @@ mod tests {
             title: "Example",
             body: "Example",
             url: None,
-            documentation: false,
             fields,
         }]));
         let mut bot = base;

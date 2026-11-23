@@ -456,25 +456,13 @@ fn static_response_embed(
     bot: &'static BotDefinition,
     command: &StaticCommand,
 ) -> serenity::CreateEmbed {
+    // The linked title is the call to action, so the URL is not repeated below.
     let mut embed = serenity::CreateEmbed::new()
         .colour(bot.accent_color)
+        .title(command.title)
         .description(command.body);
-
-    if command.documentation {
-        embed = embed.title(format!("🔖 {}", command.title));
-        let mut footer = serenity::CreateEmbedFooter::new(bot.commands.docs_footer.text);
-        if let Some(icon_url) = bot.commands.docs_footer.icon_url {
-            footer = footer.icon_url(icon_url);
-        }
-        embed = embed.footer(footer);
-        if let Some(url) = command.url {
-            embed = embed.field("Read more", url, false).url(url);
-        }
-    } else {
-        embed = embed.title(command.title);
-        if let Some(url) = command.url {
-            embed = embed.field("Link", url, false).url(url);
-        }
+    if let Some(url) = command.url {
+        embed = embed.url(url);
     }
 
     for field in command.fields {

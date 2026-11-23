@@ -4,9 +4,9 @@ use poise::serenity_prelude as serenity;
 
 use crate::config::{
     AiConfig, AutouploadConfig, BotDefinition, ChatbotConfig, ChecksConfig, CommandField,
-    CommandsConfig, DocsFooter, HelpConfig, HoneypotConfig, LatestConfig, MessageReply,
-    NoPingConfig, PASTE_CHECKS, ReplyTrigger, ResolvedConfig, StaticCommand, SupportContextConfig,
-    TextCheck, ThreadStarterConfig,
+    CommandsConfig, HelpConfig, HoneypotConfig, LatestConfig, MessageReply, NoPingConfig,
+    PASTE_CHECKS, ReplyTrigger, ResolvedConfig, StaticCommand, SupportContextConfig, TextCheck,
+    ThreadStarterConfig,
 };
 
 const STAFF_ROLE_IDS: &[u64] = &[
@@ -94,7 +94,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Use the support forum",
         body: "Create a post in <#1058044481246605383> for SkinsRestorer support. This channel does not provide support.",
         url: Some("https://discord.com/channels/186794372468178944/1058044481246605383"),
-        documentation: false,
         fields: &[],
     },
     StaticCommand {
@@ -103,7 +102,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "SkinsRestorer Documentation",
         body: "Read the documentation to learn how to install, configure, and use SkinsRestorer.",
         url: Some("https://skinsrestorer.net/docs"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -112,7 +110,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Installing SkinsRestorer",
         body: "Follow the installation guide for your server or proxy platform.",
         url: Some("https://skinsrestorer.net/docs/installation"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -121,7 +118,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Network Installation",
         body: "Install SkinsRestorer on the proxy and every backend server. Use the guide for your proxy platform.",
         url: Some("https://skinsrestorer.net/docs/installation"),
-        documentation: true,
         fields: &[
             CommandField {
                 name: "BungeeCord Installation:",
@@ -139,7 +135,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Troubleshooting",
         body: "Use this guide to solve common SkinsRestorer problems.",
         url: Some("https://skinsrestorer.net/docs/troubleshooting"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -148,7 +143,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Command/Permissions Usage",
         body: "View all SkinsRestorer commands and permissions.",
         url: Some("https://skinsrestorer.net/docs/configuration/commands-permissions"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -157,7 +151,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Developer API",
         body: "Learn how to use the SkinsRestorer API in your project.",
         url: Some("https://github.com/SkinsRestorer/SkinsRestorer/wiki/SkinsRestorerAPI"),
-        documentation: true,
         fields: &[
             CommandField {
                 name: "Example usages",
@@ -179,7 +172,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "SkinsRestorer Configuration",
         body: "Learn what each configuration option controls.",
         url: Some("https://skinsrestorer.net/docs/configuration"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -188,7 +180,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "SkinsRestorer Data Storage",
         body: "Learn how SkinsRestorer stores and shares skin data.",
         url: Some("https://skinsrestorer.net/docs/development/storage"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -197,7 +188,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Launcher skin issues",
         body: "Fix skin problems caused by third-party launchers.",
         url: Some("https://skinsrestorer.net/docs/troubleshooting/launcher-issues"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -206,7 +196,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "TLauncher skin issues",
         body: "TLauncher is malware, and its skin system overrides SkinsRestorer skins. Disable the TLauncher skin system or use a supported launcher. Follow the guide below.",
         url: Some("https://skinsrestorer.net/docs/troubleshooting/launcher-issues#tlauncher"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -215,7 +204,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Why does SkinsRestorer auto-update?",
         body: "Automatic updates install current bug fixes and features. New SkinsRestorer versions continue to support older Minecraft versions.",
         url: Some("https://skinsrestorer.net/docs/configuration/auto-update"),
-        documentation: true,
         fields: &[],
     },
     StaticCommand {
@@ -224,7 +212,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Downloads",
         body: "You can download SkinsRestorer for Bukkit/Spigot/Paper, BungeeCord, Sponge and Velocity.",
         url: Some("https://modrinth.com/plugin/skinsrestorer"),
-        documentation: false,
         fields: &[CommandField {
             name: "Dev downloads",
             value: "https://ci.codemc.io/job/SkinsRestorer/job/SkinsRestorer-DEV/",
@@ -236,7 +223,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Translating SkinsRestorer",
         body: "SkinsRestorer translations are managed on Crowdin. You can contribute corrections or new translations.",
         url: Some("https://translate.skinsrestorer.net"),
-        documentation: false,
         fields: &[],
     },
     StaticCommand {
@@ -245,7 +231,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Unsupported Forge server platforms",
         body: "SkinsRestorer does not support Cauldron, Thermos, SpongeForge, or Forge platforms with Bukkit compatibility layers. Try Skinport or OfflineSkins instead.",
         url: None,
-        documentation: false,
         fields: &[],
     },
     StaticCommand {
@@ -254,7 +239,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Colour Codes",
         body: "A helpful list of all colour codes that you can use.",
         url: None,
-        documentation: false,
         fields: &[CommandField {
             name: "Colours",
             value: "https://wiki.ess3.net/mc/",
@@ -266,7 +250,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Describe the problem",
         body: "Tell us what you expected and what happened instead. Include the steps to reproduce the problem, relevant logs, and useful screenshots.",
         url: None,
-        documentation: false,
         fields: &[CommandField {
             name: "Share console errors",
             value: "https://pastes.dev/",
@@ -278,7 +261,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Suggestions and Bug Reports",
         body: "Open a GitHub issue to report a bug or request a feature.",
         url: None,
-        documentation: false,
         fields: &[CommandField {
             name: "Issue Tracker:",
             value: "https://github.com/SkinsRestorer/SkinsRestorer/issues",
@@ -290,7 +272,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Share server information",
         body: "Run these commands and share screenshots of the results.",
         url: None,
-        documentation: false,
         fields: &[
             CommandField {
                 name: "For SkinsRestorer info:",
@@ -308,7 +289,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Share the full server log",
         body: "Upload the complete server log to https://mclo.gs/ and send the returned link.",
         url: None,
-        documentation: false,
         fields: &[
             CommandField {
                 name: "Log location",
@@ -330,7 +310,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Post your question",
         body: "Ask your full question in this channel. Include your setup, the expected result, and what happened instead.",
         url: None,
-        documentation: false,
         fields: &[
             CommandField {
                 name: "Read the documentation first",
@@ -348,7 +327,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Wildcard issues",
         body: "Some plugins do not work correctly with the root `*` permission. Grant specific permissions instead.",
         url: None,
-        documentation: false,
         fields: &[CommandField {
             name: "More information:",
             value: "https://nucleuspowered.org/docs/nowildcard.html",
@@ -360,7 +338,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "SkinsRestorer Proxy Mode",
         body: "Proxy mode connects SkinsRestorer on backend servers to SkinsRestorer on a BungeeCord or Velocity proxy.",
         url: None,
-        documentation: false,
         fields: &[
             CommandField {
                 name: "What does it do?",
@@ -390,7 +367,6 @@ const COMMANDS: &[StaticCommand] = &[
         title: "Run `/sr dump` on the server",
         body: "Run `/sr dump` in the game or console. Paste the returned link in this channel.",
         url: None,
-        documentation: false,
         fields: &[],
     },
 ];
@@ -479,10 +455,6 @@ pub static BOT: BotDefinition = BotDefinition {
     },
     commands: CommandsConfig {
         responses: COMMANDS,
-        docs_footer: DocsFooter {
-            text: "SkinsRestorer documentation",
-            icon_url: Some("https://skinsrestorer.net/logo.png"),
-        },
         help: HelpConfig {
             description: "Show Steward help",
             embed_title: "Steward help",
