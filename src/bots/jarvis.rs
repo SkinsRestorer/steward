@@ -113,7 +113,7 @@ const COMMANDS: &[StaticCommand] = &[
         description: "Supported Minecraft versions",
         title: "Supported Minecraft Versions",
         body: "SoulFire supports many Java and Bedrock versions through ViaFabricPlus and related Via libraries. Check this page for the current list.",
-        url: Some("https://soulfiremc.com/docs/usage/versions"),
+        url: Some("https://soulfiremc.com/docs/reference/versions"),
         fields: &[],
     },
     StaticCommand {
@@ -131,7 +131,7 @@ const COMMANDS: &[StaticCommand] = &[
         description: "Plugin guide",
         title: "SoulFire Plugins",
         body: "SoulFire plugins are Fabric mods. Use this page to understand compatibility, plugin structure, and when a plugin is the right tool.",
-        url: Some("https://soulfiremc.com/docs/usage/plugins"),
+        url: Some("https://soulfiremc.com/docs/concepts/plugins"),
         fields: &[],
     },
     StaticCommand {
