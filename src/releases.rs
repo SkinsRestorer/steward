@@ -1,7 +1,7 @@
 #![warn(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex as StdMutex},
     time::Duration,
 };
@@ -26,28 +26,8 @@ pub struct LatestRelease {
 pub struct ReleaseService {
     client: reqwest::Client,
     releases: Arc<RwLock<HashMap<&'static str, LatestRelease>>>,
-    tasks: Arc<ReleaseTasks>,
-}
-
-#[derive(Default)]
-struct ReleaseTasks {
-    handles: StdMutex<HashMap<&'static str, tokio::task::JoinHandle<()>>>,
-}
-
-impl Drop for ReleaseTasks {
-    fn drop(&mut self) {
-        let handles = self
-            .handles
-            .get_mut()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        #[expect(
-            clippy::iter_over_hash_type,
-            reason = "Release refresh tasks are independent and can be aborted in any order"
-        )]
-        for handle in handles.values() {
-            handle.abort();
-        }
-    }
+    // Two features can name the same URL, so start one refresh task per URL.
+    started: Arc<StdMutex<HashSet<&'static str>>>,
 }
 
 impl ReleaseService {
@@ -55,23 +35,23 @@ impl ReleaseService {
         Self {
             client,
             releases: Arc::new(RwLock::new(HashMap::new())),
-            tasks: Arc::new(ReleaseTasks::default()),
+            started: Arc::new(StdMutex::new(HashSet::new())),
         }
     }
 
     pub fn start_refreshing(&self, url: &'static str) {
-        let mut handles = self
-            .tasks
-            .handles
+        let newly_started = self
+            .started
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if handles.contains_key(url) {
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(url);
+        if !newly_started {
             return;
         }
 
         let client = self.client.clone();
         let releases = Arc::clone(&self.releases);
-        let handle = tokio::spawn(async move {
+        tokio::spawn(async move {
             let mut retry_delay = INITIAL_RETRY_DELAY;
             loop {
                 let delay = match refresh(&client, &releases, url).await {
@@ -96,7 +76,6 @@ impl ReleaseService {
                 tokio::time::sleep(delay).await;
             }
         });
-        handles.insert(url, handle);
     }
 
     pub async fn get(&self, url: &'static str) -> Option<LatestRelease> {
