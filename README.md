@@ -32,10 +32,10 @@ deployment environment:
 | `BRAVE_SEARCH_API_KEY` | Current web context for support answers |
 | `RUST_LOG` | Optional log filter, such as `steward=debug,info` |
 
-Both Discord tokens and both AI keys are required at startup because the
-process initializes shared clients before starting either bot.
+Steward checks both Discord tokens and both AI keys at startup and stops if one
+is missing.
 
-Both bots use [`deepseek/deepseek-v4-pro`](https://openrouter.ai/deepseek/deepseek-v4-pro)
+Both bots use [`deepseek/deepseek-v4.1-flash`](https://openrouter.ai/deepseek/deepseek-v4.1-flash)
 through OpenRouter. To change the model, edit `AiConfig.model` in the matching
 bot definition. Choose an OpenRouter model that supports tool calling for Brave Search.
 
@@ -74,8 +74,8 @@ See [Discord's permission hierarchy](https://docs.discord.com/developers/topics/
 and [ban API](https://docs.discord.com/developers/resources/guild#create-guild-ban).
 
 Each bot definition contains a `honeypot` configuration. Change `channel_names`
-to watch other exact names, or set it to `&[]` to disable the feature.
-The name applies to every server where that bot runs. Renaming a channel
+to watch other exact names, or set `honeypot` to `None` to disable the feature.
+The name applies to every server in the bot's `guild_ids`. Renaming a channel
 disables the trap unless its new name also matches.
 Use `exempt_role_ids` to protect additional roles. Set `delete_message_days`
 between `0` and `7` to change the cleanup period.
@@ -133,7 +133,10 @@ The image includes the OCR models. No model volume is required.
 
 ## Add or change a bot
 
-Edit the matching file in [`src/bots`](src/bots). Add a new definition to
+Edit the matching file in [`src/bots`](src/bots). Each bot only works in the
+servers listed in its `guild_ids` and only posts AI links that match its
+`allowed_links`. Startup checks every definition against Discord's limits.
+Add a new definition to
 [`src/bots/mod.rs`](src/bots/mod.rs) when introducing another bot. Commands are
 registered from these static definitions at startup.
 
