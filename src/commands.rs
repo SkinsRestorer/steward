@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use anyhow::{Context as _, bail};
+use anyhow::Context as _;
 use poise::{CreateReply, serenity_prelude as serenity};
 use serenity::Mentionable as _;
 
@@ -197,7 +197,11 @@ async fn say_ephemeral(ctx: Context<'_>, content: &str) -> Result<(), Error> {
 }
 
 /// Sends one of the bot's support responses to a selected message.
-#[poise::command(context_menu_command = "Send Help")]
+#[poise::command(
+    context_menu_command = "Send Help",
+    guild_only,
+    required_permissions = "SEND_MESSAGES"
+)]
 async fn send_help(ctx: Context<'_>, target: serenity::Message) -> Result<(), Error> {
     let bot = ctx.data().bot;
     let custom_id = format!("help-selection-{}-{}", bot.id, ctx.id());
@@ -232,26 +236,25 @@ async fn send_help(ctx: Context<'_>, target: serenity::Message) -> Result<(), Er
         .await;
 
     let Some(interaction) = interaction else {
-        handle
-            .edit(
-                ctx,
-                CreateReply::default()
-                    .content("Timed out")
-                    .components(Vec::new()),
-            )
-            .await?;
-        return Ok(());
+        return finish_menu(ctx, &handle, "Timed out").await;
     };
-    let serenity::ComponentInteractionDataKind::StringSelect { values } = &interaction.data.kind
-    else {
-        bail!("help selection returned an unexpected component type");
-    };
-    let command_name = values.first().context("help selection had no value")?;
-    let command = find_static_command(bot, command_name)?;
-
+    // Acknowledge first so Discord never shows "This interaction failed".
     interaction
         .create_response(ctx.http(), serenity::CreateInteractionResponse::Acknowledge)
         .await?;
+    let command = if let serenity::ComponentInteractionDataKind::StringSelect { values } =
+        &interaction.data.kind
+    {
+        values
+            .first()
+            .and_then(|name| find_static_command(bot, name).ok())
+    } else {
+        None
+    };
+    let Some(command) = command else {
+        return finish_menu(ctx, &handle, "That help topic is no longer available.").await;
+    };
+
     let result = target
         .channel_id
         .send_message(
@@ -261,39 +264,48 @@ async fn send_help(ctx: Context<'_>, target: serenity::Message) -> Result<(), Er
                 .reference_message(&target),
         )
         .await;
-
     match result {
-        Ok(_) => {
-            handle
-                .edit(
-                    ctx,
-                    CreateReply::default()
-                        .content("Help message sent.")
-                        .components(Vec::new()),
-                )
-                .await?;
-        }
+        Ok(_) => finish_menu(ctx, &handle, "Help message sent.").await,
         Err(error) => {
-            handle
-                .edit(
-                    ctx,
-                    CreateReply::default()
-                        .content(
-                            "The help message failed to send. Make sure that I can send messages in this channel.",
-                        )
-                        .components(Vec::new()),
-                )
-                .await?;
-            return Err(error.into());
+            tracing::warn!(
+                error = %format_args!("{error:#}"),
+                channel_id = %target.channel_id,
+                "failed to send help message"
+            );
+            finish_menu(
+                ctx,
+                &handle,
+                "The help message failed to send. Make sure that I can send messages in this channel.",
+            )
+            .await
         }
     }
+}
 
+async fn finish_menu(
+    ctx: Context<'_>,
+    handle: &poise::ReplyHandle<'_>,
+    content: &str,
+) -> Result<(), Error> {
+    handle
+        .edit(
+            ctx,
+            CreateReply::default()
+                .content(content)
+                .components(Vec::new()),
+        )
+        .await?;
     Ok(())
 }
 
 /// Redirects a message to the support forum.
-#[poise::command(context_menu_command = "Send to Support Forum")]
+#[poise::command(
+    context_menu_command = "Send to Support Forum",
+    guild_only,
+    required_permissions = "SEND_MESSAGES"
+)]
 async fn send_support(ctx: Context<'_>, target: serenity::Message) -> Result<(), Error> {
+    ctx.defer_ephemeral().await?;
     let bot = ctx.data().bot;
     let config = bot.commands.support_context;
     let mut embed = serenity::CreateEmbed::new()
@@ -317,13 +329,9 @@ async fn send_support(ctx: Context<'_>, target: serenity::Message) -> Result<(),
                 .embed(embed)
                 .reference_message(&target),
         )
-        .await?;
-    ctx.send(
-        CreateReply::default()
-            .ephemeral(true)
-            .content("Support redirect sent."),
-    )
-    .await?;
+        .await
+        .context("failed to send the support redirect")?;
+    ctx.say("Support redirect sent.").await?;
     Ok(())
 }
 
