@@ -10,7 +10,7 @@ mod tests {
     use anyhow::{Context as _, Result, ensure};
 
     use super::ALL;
-    use crate::config::{CommandField, PasteCheck, StaticCommand};
+    use crate::config::{CommandField, PasteCheck, StaticCommand, TextCheck};
 
     #[test]
     fn bot_definitions_fit_discord_limits() -> Result<()> {
@@ -105,6 +105,47 @@ mod tests {
         let mut bot = base;
         bot.chatbot.generation_error_message = message;
         ensure!(bot.validate().is_err(), "a long generation error message");
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_text_checks_that_break_embed_limits() -> Result<()> {
+        let base = **ALL.first().context("no bots are defined")?;
+        let check = TextCheck {
+            needle: "Exception",
+            title: "Title",
+            content: "Content",
+            tips: &[],
+            link: None,
+        };
+        let with_check = |check: TextCheck| {
+            let mut bot = base;
+            bot.checks.text_checks = Box::leak(Box::new([check]));
+            bot
+        };
+        with_check(check).validate()?;
+
+        // One character over Discord's 1,024-character field value limit.
+        let tip: &'static str = Box::leak("x".repeat(1_025).into_boxed_str());
+        let tips: &'static [&'static str] = Box::leak(Box::new([tip]));
+        ensure!(
+            with_check(TextCheck { tips, ..check }).validate().is_err(),
+            "an oversized tip must be rejected"
+        );
+
+        // 24 tips, "Caused By", and "Read More" make 26 fields, one over the limit.
+        let tips: &'static [&'static str] = Box::leak(vec!["Tip"; 24].into_boxed_slice());
+        with_check(TextCheck { tips, ..check }).validate()?;
+        ensure!(
+            with_check(TextCheck {
+                tips,
+                link: Some("https://example.com"),
+                ..check
+            })
+            .validate()
+            .is_err(),
+            "a 26-field text check embed must be rejected"
+        );
         Ok(())
     }
 

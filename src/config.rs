@@ -386,6 +386,37 @@ impl BotDefinition {
                 MAX_EMBED_DESCRIPTION_CHARS,
             )?;
         }
+        for check in self.checks.text_checks {
+            check_length("text check title", check.title, MAX_EMBED_TITLE_CHARS)?;
+            check_length(
+                "text check content",
+                check.content,
+                MAX_EMBED_DESCRIPTION_CHARS,
+            )?;
+            // The reply has a "Caused By" field, one field per tip, and an
+            // optional "Read More" field.
+            let fields = check
+                .tips
+                .len()
+                .saturating_add(1)
+                .saturating_add(usize::from(check.link.is_some()));
+            ensure!(
+                fields <= MAX_EMBED_FIELDS,
+                "the `{}` text check has too many tips",
+                check.needle
+            );
+            check_length(
+                "text check needle",
+                &format!("```{}```", check.needle),
+                MAX_EMBED_FIELD_VALUE_CHARS,
+            )?;
+            for tip in check.tips {
+                check_length("text check tip", tip, MAX_EMBED_FIELD_VALUE_CHARS)?;
+            }
+            if let Some(link) = check.link {
+                check_length("text check link", link, MAX_EMBED_FIELD_VALUE_CHARS)?;
+            }
+        }
         for reply in self.message_replies {
             check_length("reply title", reply.title, MAX_EMBED_TITLE_CHARS)?;
             check_length(
