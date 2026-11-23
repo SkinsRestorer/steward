@@ -60,9 +60,11 @@ pub async fn handle(
         return Ok(false);
     }
 
-    if !is_honeypot_channel(ctx, guild_id, message.channel_id, config.channel_names).await? {
+    let Some(channel_name) =
+        honeypot_channel_name(ctx, guild_id, message.channel_id, config.channel_names).await?
+    else {
         return Ok(false);
-    }
+    };
     if message.author.bot
         || message.webhook_id.is_some()
         || !matches!(
@@ -126,7 +128,7 @@ pub async fn handle(
     }
 
     let reason = format!(
-        "Honeypot: posted in channel {} (message {})",
+        "Honeypot: posted in #{channel_name} (channel {}, message {})",
         message.channel_id, message.id
     );
     guild_id
@@ -142,6 +144,7 @@ pub async fn handle(
         bot = data.bot.id,
         %guild_id,
         channel_id = %message.channel_id,
+        channel_name,
         message_id = %message.id,
         user_id = %message.author.id,
         still_member = member.is_some(),
@@ -151,36 +154,44 @@ pub async fn handle(
     Ok(true)
 }
 
-async fn is_honeypot_channel(
+async fn honeypot_channel_name(
     ctx: &serenity::Context,
     guild_id: serenity::GuildId,
     channel_id: serenity::ChannelId,
-    channel_names: &[&str],
-) -> Result<bool> {
+    channel_names: &[&'static str],
+) -> Result<Option<&'static str>> {
     let cached_match = ctx.cache.guild(guild_id).and_then(|guild| {
         guild
             .channels
             .get(&channel_id)
             .or_else(|| guild.threads.iter().find(|thread| thread.id == channel_id))
-            .map(|channel| {
-                channel.kind == serenity::ChannelType::Text
-                    && channel_names.contains(&channel.name.as_str())
-            })
+            .map(|channel| trap_name(channel, channel_names))
     });
-    let matches = if let Some(matches) = cached_match {
-        matches
-    } else {
-        let channel = channel_id
-            .to_channel(&ctx.http)
-            .await
-            .context("failed to resolve channel for honeypot check")?;
-        channel.guild().is_some_and(|channel| {
-            channel.guild_id == guild_id
-                && channel.kind == serenity::ChannelType::Text
-                && channel_names.contains(&channel.name.as_str())
-        })
-    };
-    Ok(matches)
+    if let Some(matched) = cached_match {
+        return Ok(matched);
+    }
+    let channel = channel_id
+        .to_channel(&ctx.http)
+        .await
+        .context("failed to resolve channel for honeypot check")?;
+    Ok(channel
+        .guild()
+        .filter(|channel| channel.guild_id == guild_id)
+        .and_then(|channel| trap_name(&channel, channel_names)))
+}
+
+/// Only text channels count, so a thread named like a trap channel never bans.
+fn trap_name(
+    channel: &serenity::GuildChannel,
+    channel_names: &[&'static str],
+) -> Option<&'static str> {
+    if channel.kind != serenity::ChannelType::Text {
+        return None;
+    }
+    channel_names
+        .iter()
+        .copied()
+        .find(|name| *name == channel.name)
 }
 
 /// Checks current membership so moderation never acts on staff. A user who
@@ -382,6 +393,18 @@ mod tests {
             &member(2, &[])
         ));
         Ok(())
+    }
+
+    #[test]
+    fn matches_only_text_channels_with_a_trap_name() {
+        let mut channel = serenity::GuildChannel::default();
+        channel.kind = serenity::ChannelType::Text;
+        channel.name = "interesting-chat".to_owned();
+        let names = &["general-trap", "interesting-chat"];
+        assert_eq!(trap_name(&channel, names), Some("interesting-chat"));
+        assert_eq!(trap_name(&channel, &["general"]), None);
+        channel.kind = serenity::ChannelType::PublicThread;
+        assert_eq!(trap_name(&channel, names), None);
     }
 
     #[test]
