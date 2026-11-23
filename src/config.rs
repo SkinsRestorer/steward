@@ -159,7 +159,7 @@ pub enum ReplyTrigger {
     /// contains this text.
     NormalizedContains(&'static str),
     /// The message starts with this server command, case-insensitively, and
-    /// has at most one argument. People sometimes type server commands in
+    /// has exactly one argument. People sometimes type server commands in
     /// Discord by mistake.
     ServerCommand(&'static str),
 }
