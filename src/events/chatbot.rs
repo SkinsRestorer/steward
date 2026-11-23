@@ -115,6 +115,9 @@ struct ConversationKey {
 }
 
 struct ConversationHandle {
+    /// Held from fetching a message's sources until it is enqueued, so messages
+    /// join the history in the order they arrived even when one waits on a paste.
+    intake: Mutex<()>,
     last_activity: AtomicU64,
     state: Mutex<Conversation>,
 }
@@ -248,6 +251,7 @@ impl ReplyTarget {
 impl ConversationHandle {
     fn new(reply_target: ReplyTarget) -> Self {
         Self {
+            intake: Mutex::new(()),
             last_activity: AtomicU64::new(activity_tick()),
             state: Mutex::new(Conversation::new(reply_target)),
         }
@@ -361,48 +365,36 @@ impl ChatbotService {
         Self { contexts }
     }
 
-    async fn queue(
+    async fn conversation(
         &self,
-        ctx: serenity::Context,
-        data: AppState,
+        bot_id: &'static str,
         reply_target: ReplyTarget,
-        content: Arc<str>,
-        images: Vec<Arc<str>>,
-    ) -> bool {
+    ) -> Option<Arc<ConversationHandle>> {
         let key = ConversationKey {
-            bot: data.bot.id,
+            bot: bot_id,
             channel: reply_target.channel,
             user: reply_target.author,
         };
-        let conversation = {
-            let mut contexts = self.contexts.lock().await;
-            if !contexts.contains_key(&key) && contexts.len() >= MAX_CONTEXTS {
-                evict_oldest_idle_context(&mut contexts);
-            }
-            if !contexts.contains_key(&key) && contexts.len() >= MAX_CONTEXTS {
-                tracing::warn!(
-                    bot = data.bot.id,
-                    channel_id = %reply_target.channel,
-                    "chatbot context limit reached"
-                );
-                return false;
-            }
-            Arc::clone(
-                contexts
-                    .entry(key)
-                    .or_insert_with(|| Arc::new(ConversationHandle::new(reply_target))),
-            )
-        };
-
-        conversation.touch();
-        let scheduled_order = {
-            let mut state = conversation.state.lock().await;
-            state.enqueue(reply_target, content, images)
-        };
-        if let Some(scheduled_order) = scheduled_order {
-            schedule_generation(ctx, data, conversation, scheduled_order);
+        let mut contexts = self.contexts.lock().await;
+        if !contexts.contains_key(&key) && contexts.len() >= MAX_CONTEXTS {
+            evict_oldest_idle_context(&mut contexts);
         }
-        true
+        if !contexts.contains_key(&key) && contexts.len() >= MAX_CONTEXTS {
+            tracing::warn!(
+                bot = bot_id,
+                channel_id = %reply_target.channel,
+                "chatbot context limit reached"
+            );
+            return None;
+        }
+        let conversation = Arc::clone(
+            contexts
+                .entry(key)
+                .or_insert_with(|| Arc::new(ConversationHandle::new(reply_target))),
+        );
+        drop(contexts);
+        conversation.touch();
+        Some(conversation)
     }
 }
 
@@ -432,32 +424,12 @@ pub async fn handle(
         return Ok(());
     }
 
-    let sources = collect_sources(data, message).await;
-    let images = collect_images(&message.attachments);
-    let image_url_bytes = images.iter().map(|url| url.len()).sum::<usize>();
-    let content = build_content(
-        message.content.trim(),
-        &sources,
-        MAX_HISTORY_BYTES - image_url_bytes,
-    );
-    // Fetched logs and pastes are wrapped as untrusted data, so only the
-    // user's own text goes through the injection check above.
-    if content.is_empty() && images.is_empty() {
-        return Ok(());
-    }
-
-    let queued = data
+    let Some(conversation) = data
         .services
         .chatbot
-        .queue(
-            ctx.clone(),
-            data.clone(),
-            reply_target,
-            Arc::from(content),
-            images,
-        )
-        .await;
-    if !queued {
+        .conversation(data.bot.id, reply_target)
+        .await
+    else {
         send_reply(
             ctx,
             reply_target,
@@ -465,6 +437,33 @@ pub async fn handle(
             false,
         )
         .await?;
+        return Ok(());
+    };
+    let intake = conversation.intake.lock().await;
+
+    let sources = collect_sources(data, message).await;
+    let images = collect_images(&message.attachments);
+    let image_url_bytes = images.iter().map(|url| url.len()).sum::<usize>();
+    let content = build_content(
+        message.content.trim(),
+        &sources,
+        MAX_HISTORY_BYTES.saturating_sub(image_url_bytes),
+    );
+    // Fetched logs and pastes are wrapped as untrusted data, so only the
+    // user's own text goes through the injection check above.
+    if content.is_empty() && images.is_empty() {
+        return Ok(());
+    }
+
+    let scheduled_order =
+        conversation
+            .state
+            .lock()
+            .await
+            .enqueue(reply_target, Arc::from(content), images);
+    drop(intake);
+    if let Some(scheduled_order) = scheduled_order {
+        schedule_generation(ctx.clone(), data.clone(), conversation, scheduled_order);
     }
     Ok(())
 }
