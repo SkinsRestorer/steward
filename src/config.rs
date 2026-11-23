@@ -244,6 +244,7 @@ impl BotDefinition {
 
         self.validate_commands()?;
         self.validate_copy()?;
+        self.validate_reply_triggers()?;
         self.validate_chatbot_replies()?;
         self.validate_docs_page_prefix()?;
         for entry in self.chatbot.ai.allowed_links {
@@ -454,6 +455,30 @@ impl BotDefinition {
                 reply.description,
                 MAX_EMBED_DESCRIPTION_CHARS,
             )?;
+        }
+        Ok(())
+    }
+
+    fn validate_reply_triggers(&self) -> Result<()> {
+        for reply in self.message_replies {
+            match reply.trigger {
+                // Messages are normalized before matching, so other text never matches,
+                // and an empty needle matches every message.
+                ReplyTrigger::NormalizedContains(needle) => ensure!(
+                    !needle.is_empty()
+                        && needle.chars().all(|character| {
+                            character.is_ascii_lowercase()
+                                || character.is_ascii_digit()
+                                || character == '_'
+                        }),
+                    "reply trigger `{needle}` must be lowercase ASCII letters, digits, or `_`"
+                ),
+                // Matching splits the message on spaces, so the command is one word.
+                ReplyTrigger::ServerCommand(command) => ensure!(
+                    !command.is_empty() && !command.contains(' '),
+                    "server command trigger `{command}` must be one word"
+                ),
+            }
         }
         Ok(())
     }

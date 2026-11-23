@@ -10,7 +10,9 @@ mod tests {
     use anyhow::{Context as _, Result, ensure};
 
     use super::ALL;
-    use crate::config::{CommandField, PasteCheck, StaticCommand, TextCheck};
+    use crate::config::{
+        CommandField, MessageReply, PasteCheck, ReplyTrigger, StaticCommand, TextCheck,
+    };
 
     #[test]
     fn bot_definitions_fit_discord_limits() -> Result<()> {
@@ -89,6 +91,37 @@ mod tests {
             with_command("docs", "")?.validate().is_err(),
             "an empty command description must be rejected"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_reply_triggers_that_never_or_always_match() -> Result<()> {
+        let base = **ALL.first().context("no bots are defined")?;
+        let with_trigger = |trigger| {
+            let mut bot = base;
+            bot.message_replies = Box::leak(Box::new([MessageReply {
+                trigger,
+                title: "Title",
+                description: "Description",
+                thumbnail_url: None,
+            }]));
+            bot
+        };
+
+        with_trigger(ReplyTrigger::NormalizedContains("skin_restorer2")).validate()?;
+        with_trigger(ReplyTrigger::ServerCommand("/sr")).validate()?;
+        for trigger in [
+            ReplyTrigger::NormalizedContains(""),
+            ReplyTrigger::NormalizedContains("SkinRestorer"),
+            ReplyTrigger::NormalizedContains("skin-restorer"),
+            ReplyTrigger::ServerCommand(""),
+            ReplyTrigger::ServerCommand("/sr set"),
+        ] {
+            ensure!(
+                with_trigger(trigger).validate().is_err(),
+                "the trigger {trigger:?} must be rejected"
+            );
+        }
         Ok(())
     }
 
