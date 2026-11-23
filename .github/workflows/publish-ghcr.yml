@@ -1,9 +1,11 @@
 name: Publish GHCR Image
 
+# Publish and deploy only commits whose build, tests, and dependency checks passed.
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: [Rust]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -15,10 +17,12 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
+  COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
 
 jobs:
   build:
     name: Build ${{ matrix.arch }} image
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: true
@@ -26,17 +30,22 @@ jobs:
         include:
           - arch: amd64
             runner: ubuntu-26.04
+            railpack_target: x86_64-unknown-linux-musl
+            railpack_sha256: 248a8f60f36854aabed6124113631078a802de3461660855fc4de9c26065c1fb
           - arch: arm64
             runner: ubuntu-26.04-arm
+            railpack_target: arm64-unknown-linux-musl
+            railpack_sha256: 732ece14eb4f4676a43ebba19431f954edf7b130acb76159ef0f2ff86ac42ac9
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.COMMIT_SHA }}
           persist-credentials: false
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -44,23 +53,29 @@ jobs:
 
       - name: Install Railpack
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RAILPACK_VERSION: v0.43.0
+          RAILPACK_TARGET: ${{ matrix.railpack_target }}
+          RAILPACK_SHA256: ${{ matrix.railpack_sha256 }}
         run: |
+          archive="railpack-${RAILPACK_VERSION}-${RAILPACK_TARGET}.tar.gz"
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/$archive" \
+            "https://github.com/railwayapp/railpack/releases/download/${RAILPACK_VERSION}/${archive}"
+          echo "${RAILPACK_SHA256}  $RUNNER_TEMP/$archive" | sha256sum --check --strict
           mkdir -p "$HOME/.local/bin"
-          curl --fail --silent --show-error --location https://railpack.com/install.sh | sh -s -- --bin-dir "$HOME/.local/bin"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$HOME/.local/bin" railpack
           "$HOME/.local/bin/railpack" --version
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Start BuildKit
         run: |
-          docker run --rm --privileged -d --name railpack-buildkit moby/buildkit:latest
+          docker run --rm --privileged -d --name railpack-buildkit moby/buildkit:v0.35.1@sha256:baf6138eb8c37644800c7c913fba051e840ebb9ba13eaf92d92ef9a1712d0b4c
           echo "BUILDKIT_HOST=docker-container://railpack-buildkit" >> "$GITHUB_ENV"
 
       - name: Build and push image with Railpack
         env:
           ARCH: ${{ matrix.arch }}
         run: |
-          tag="${REGISTRY}/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA::12}-${ARCH}"
+          tag="${REGISTRY}/${GITHUB_REPOSITORY,,}:sha-${COMMIT_SHA::12}-${ARCH}"
 
           railpack build --name "$tag" .
           docker push "$tag"
@@ -76,7 +91,7 @@ jobs:
 
     steps:
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -85,7 +100,7 @@ jobs:
       - name: Create multi-arch manifest
         run: |
           image="${REGISTRY}/${GITHUB_REPOSITORY,,}"
-          sha_tag="${image}:sha-${GITHUB_SHA::12}"
+          sha_tag="${image}:sha-${COMMIT_SHA::12}"
 
           docker buildx imagetools create \
             --tag "$sha_tag" \
