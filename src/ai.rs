@@ -335,7 +335,21 @@ impl AiService {
         if let Some(cached) = cached {
             return Ok(cached.text);
         }
-        self.refresh_docs_context(url).await
+        let result = self.refresh_docs_context(url).await;
+        if result.is_err()
+            && let Some(retry_at) = Instant::now().checked_add(DOCS_REFRESH_RETRY_DELAY)
+        {
+            // Without a cached copy, every reply would wait for the failing host.
+            // An empty copy answers without docs until the next refresh.
+            self.docs_cache.write().await.insert(
+                url,
+                CachedDocsContext {
+                    expires_at: retry_at,
+                    text: Arc::from(""),
+                },
+            );
+        }
+        result
     }
 
     async fn docs_refresh_lock(&self, url: &'static str) -> Arc<Mutex<()>> {
@@ -1034,6 +1048,35 @@ mod tests {
                 .to_message()
                 .is_none()
         );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn answers_without_docs_after_a_failed_first_fetch() -> Result<()> {
+        use std::collections::HashMap;
+        use tokio::sync::{Mutex, RwLock, Semaphore};
+
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "The test needs a client with a short timeout."
+        )]
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()?;
+        let service = super::AiService {
+            client: client.clone(),
+            openrouter: OpenAIConfig::with_key(&OPENROUTER, "test-key")
+                .connect(rig_reqwest::ReqwestClient::from(client)),
+            docs_cache: Arc::new(RwLock::new(HashMap::new())),
+            docs_refresh_locks: Arc::new(Mutex::new(HashMap::new())),
+            generation_permits: Arc::new(Semaphore::new(1)),
+            search_api_key: Arc::from("test-key"),
+        };
+        // Nothing listens on port 1, so the fetch fails.
+        let url = "http://127.0.0.1:1/llms.txt";
+        ensure!(service.get_docs_context(url).await.is_err());
+        // Later replies skip the failing host until the retry delay passes.
+        ensure!(service.get_docs_context(url).await?.is_empty());
         Ok(())
     }
 
