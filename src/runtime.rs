@@ -60,10 +60,7 @@ pub async fn start_bot(bot: &'static BotDefinition, services: Arc<SharedServices
 
     let intents = serenity::GatewayIntents::GUILDS
         | serenity::GatewayIntents::GUILD_MEMBERS
-        | serenity::GatewayIntents::GUILD_PRESENCES
         | serenity::GatewayIntents::GUILD_MESSAGES
-        | serenity::GatewayIntents::GUILD_MESSAGE_REACTIONS
-        | serenity::GatewayIntents::GUILD_MESSAGE_TYPING
         | serenity::GatewayIntents::MESSAGE_CONTENT;
     let mut client = serenity::ClientBuilder::new(token, intents)
         .application_id(serenity::ApplicationId::new(bot.application_id))
