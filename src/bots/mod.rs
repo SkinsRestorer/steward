@@ -91,6 +91,24 @@ mod tests {
     }
 
     #[test]
+    fn rejects_chatbot_replies_that_overflow_a_message_with_the_mention() -> Result<()> {
+        let base = **ALL.first().context("no bots are defined")?;
+
+        // 1,976 characters plus the longest "<@user_id> " mention fill 2,000.
+        let mut bot = base;
+        bot.chatbot.max_response_length = 1_976;
+        bot.validate()?;
+        bot.chatbot.max_response_length = 1_977;
+        ensure!(bot.validate().is_err(), "a reply over 2,000 characters");
+
+        let message: &'static str = Box::leak("x".repeat(1_977).into_boxed_str());
+        let mut bot = base;
+        bot.chatbot.generation_error_message = message;
+        ensure!(bot.validate().is_err(), "a long generation error message");
+        Ok(())
+    }
+
+    #[test]
     fn allows_only_configured_servers_and_direct_messages() -> Result<()> {
         for bot in ALL {
             let configured = *bot.guild_ids.first().context("no server configured")?;

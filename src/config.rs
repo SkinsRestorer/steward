@@ -205,6 +205,9 @@ const MAX_EMBED_FIELDS: usize = 25;
 const MAX_EMBED_FIELD_NAME_CHARS: usize = 256;
 const MAX_EMBED_FIELD_VALUE_CHARS: usize = 1_024;
 const MAX_SELECT_OPTIONS: usize = 25;
+const MAX_MESSAGE_CHARS: usize = 2_000;
+/// Chatbot replies start with `<@user_id> `, and a user ID has up to 20 digits.
+const MAX_REPLY_MENTION_CHARS: usize = 24;
 const MAX_BAN_MESSAGE_DAYS: u8 = 7;
 const RESERVED_COMMAND_NAMES: &[&str] = &["help", "latest", "resolved"];
 
@@ -239,6 +242,7 @@ impl BotDefinition {
 
         self.validate_commands()?;
         self.validate_copy()?;
+        self.validate_chatbot_replies()?;
         self.validate_docs_page_prefix()?;
         for entry in self.chatbot.ai.allowed_links {
             ensure!(
@@ -391,6 +395,26 @@ impl BotDefinition {
             )?;
         }
         Ok(())
+    }
+
+    fn validate_chatbot_replies(&self) -> Result<()> {
+        let max_reply_chars = MAX_MESSAGE_CHARS - MAX_REPLY_MENTION_CHARS;
+        let chatbot = self.chatbot;
+        ensure!(
+            chatbot.max_response_length <= max_reply_chars,
+            "chatbot max_response_length is {} and exceeds {max_reply_chars}, which leaves room for the reply mention",
+            chatbot.max_response_length
+        );
+        check_length(
+            "generation error message",
+            chatbot.generation_error_message,
+            max_reply_chars,
+        )?;
+        check_length(
+            "prompt injection error message",
+            chatbot.prompt_injection_error_message,
+            max_reply_chars,
+        )
     }
 
     fn validate_docs_page_prefix(&self) -> Result<()> {
