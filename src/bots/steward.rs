@@ -374,7 +374,7 @@ const COMMANDS: &[StaticCommand] = &[
             },
             CommandField {
                 name: "How do I use it?",
-                value: "SkinsRestorer detects proxy mode when a backend server accepts only proxy connections. Configure this in `spigot.yml`, `paper.yml`, or `config/paper-global.yml`.",
+                value: "SkinsRestorer detects proxy mode when a backend server accepts only proxy connections. Configure this in `spigot.yml`, `paper.yml`, or `config/paper-global.yml`. If detection still fails, set `server.proxyMode.detection: ENABLED` on the backend.",
             },
             CommandField {
                 name: "What happens without the backend plugin?",
@@ -382,7 +382,7 @@ const COMMANDS: &[StaticCommand] = &[
             },
             CommandField {
                 name: "Can I use standalone mode?",
-                value: "Yes. Remove SkinsRestorer from the proxy and connect the backend servers to the same MySQL or PostgreSQL database.",
+                value: "Yes. Remove SkinsRestorer from the proxy. On each backend, set `server.proxyMode.detection: DISABLED` and connect to the same MySQL or PostgreSQL database.",
             },
         ],
     },
