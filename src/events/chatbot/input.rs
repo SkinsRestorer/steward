@@ -4,6 +4,8 @@ use std::sync::Arc;
 
 use poise::serenity_prelude as serenity;
 
+use crate::ai::neutralize_prompt_tags;
+
 use super::{
     APPLICATION_TEXT_TYPES, MAX_IMAGE_BYTES, MAX_IMAGE_URL_BYTES, MAX_MESSAGE_IMAGES,
     MAX_SOURCE_LABEL_BYTES, MAX_USER_MESSAGE_BYTES, SUPPORT_DATA_INTRO, SUPPORT_DATA_OUTRO,
@@ -67,7 +69,11 @@ pub(super) fn build_content(
     sources: &[SourceContent],
     max_bytes: usize,
 ) -> String {
-    let user_message = excerpt_text(user_message, MAX_USER_MESSAGE_BYTES.min(max_bytes));
+    // Neutralize before excerpting so the byte budget still holds.
+    let user_message = excerpt_text(
+        &neutralize_prompt_tags(user_message),
+        MAX_USER_MESSAGE_BYTES.min(max_bytes),
+    );
     if sources.is_empty() {
         return user_message;
     }
@@ -102,7 +108,7 @@ pub(super) fn build_content(
         let Some(source_budget) = remaining_content_bytes.checked_div(remaining_sources) else {
             return excerpt_text(&user_message, max_bytes);
         };
-        let excerpt = excerpt_text(source.text.trim(), source_budget);
+        let excerpt = excerpt_text(&neutralize_prompt_tags(source.text.trim()), source_budget);
         // Exhaust the budget when an excerpt uses the remaining bytes.
         remaining_content_bytes = remaining_content_bytes.saturating_sub(excerpt.len());
         content.push_str(&excerpt);
@@ -118,7 +124,7 @@ pub(super) fn build_content(
 }
 
 fn sanitize_source_label(label: &str) -> String {
-    let sanitized = label
+    let sanitized = neutralize_prompt_tags(label)
         .chars()
         .map(|character| {
             if character.is_control() {

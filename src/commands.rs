@@ -5,7 +5,7 @@ use poise::{CreateReply, serenity_prelude as serenity};
 use serenity::Mentionable as _;
 
 use crate::{
-    ai::ChatMessage,
+    ai::{ChatMessage, neutralize_prompt_tags},
     config::{BotDefinition, StaticCommand},
     events::chatbot::collect_images,
     state::{Context, Error},
@@ -394,7 +394,10 @@ async fn reply_with_ai(ctx: Context<'_>, target: serenity::Message) -> Result<()
         .services
         .ai
         .generate_response(
-            &[ChatMessage::User(prompt.into(), images)],
+            &[ChatMessage::User(
+                neutralize_prompt_tags(prompt).into(),
+                images,
+            )],
             None,
             ctx.data().bot.chatbot.ai,
             max_length,
